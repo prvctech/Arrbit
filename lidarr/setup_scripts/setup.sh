@@ -13,7 +13,7 @@ mkdir -p /config/arrbit/config \
 echo "*** [Arrbit] Downloading config files ***"
 if [ ! -f /config/arrbit/config/arrbit.conf ]; then
   curl -sfL \
-    https://raw.githubusercontent.com/prvctech/Arrbit/main/config/arrbit.conf \
+    https://raw.githubusercontent.com/prvctech/Arrbit/main/lidarr/config/arrbit.conf \
     -o /config/arrbit/config/arrbit.conf || true
   echo "*** [Arrbit] arrbit.conf downloaded. ***"
 else
@@ -37,7 +37,7 @@ for file in \
   autoconfig.bash
 do
   curl -sfL \
-    https://raw.githubusercontent.com/prvctech/Arrbit/main/process_scripts/${file} \
+    https://raw.githubusercontent.com/prvctech/Arrbit/main/lidarr/process_scripts/${file} \
     -o /config/arrbit/process_scripts/${file} || true
 done
 
@@ -57,7 +57,7 @@ for mod in \
   quality_profile.bash
 do
   curl -sfL \
-    https://raw.githubusercontent.com/prvctech/Arrbit/main/process_scripts/modules/${mod} \
+    https://raw.githubusercontent.com/prvctech/Arrbit/main/lidarr/process_scripts/modules/${mod} \
     -o /config/arrbit/process_scripts/modules/${mod} || true
 done
 
@@ -72,7 +72,7 @@ curl -sfL -o "$tmp_zip" \
 
 unzip -q "$tmp_zip" -d "$tmp_dir"
 
-cp -r "$tmp_dir"/Arrbit-main/process_scripts/modules/custom_formats \
+cp -r "$tmp_dir"/Arrbit-main/lidarr/process_scripts/modules/custom_formats \
       /config/arrbit/process_scripts/modules/
 
 rm -rf "$tmp_zip" "$tmp_dir"
@@ -82,7 +82,7 @@ echo "*** [Arrbit] custom_formats folder downloaded and copied successfully! ***
 # 6) Download dependencies script
 echo "*** [Arrbit] Downloading setup_scripts files ***"
 curl -sfL \
-  https://raw.githubusercontent.com/prvctech/Arrbit/main/setup_scripts/dependencies.bash \
+  https://raw.githubusercontent.com/prvctech/Arrbit/main/lidarr/setup_scripts/dependencies.bash \
   -o /config/arrbit/setup_scripts/dependencies.bash || true
 
 # 7) Make all .bash scripts executable
