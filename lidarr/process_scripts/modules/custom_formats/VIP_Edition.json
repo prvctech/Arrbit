@@ -1,0 +1,15 @@
+{
+  "name": "VIP Edition",
+  "includeCustomFormatWhenRenaming": false,
+  "specifications": [
+    {
+      "name": "VIP",
+      "implementation": "ReleaseTitleSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?i)\\bVIP\\b"
+      }
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "EP",
+  "includeCustomFormatWhenRenaming": false,
+  "specifications": [
+    {
+      "name": "EP",
+      "implementation": "ReleaseTitleSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?i)\\bEP\\b"
+      }
+    }
+  ]
+}

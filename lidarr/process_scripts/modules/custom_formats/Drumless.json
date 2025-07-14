@@ -1,0 +1,15 @@
+{
+  "name": "Drumless",
+  "includeCustomFormatWhenRenaming": false,
+  "specifications": [
+    {
+      "name": "Drumless, No Drums",
+      "implementation": "ReleaseTitleSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?i)\\b(Drumless|No Drums)\\b"
+      }
+    }
+  ]
+}

@@ -1,0 +1,222 @@
+{
+  "name": "HQ Releases - Tier 1",
+  "includeCustomFormatWhenRenaming": false,
+  "specifications": [
+    {
+      "name": "DeVOiD",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])DeVOiD\\b"
+      }
+    },
+    {
+      "name": "PERFECT",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])PERFECT\\b"
+      }
+    },
+    {
+      "name": "ENRiCH",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])ENRiCH\\b"
+      }
+    },
+    {
+      "name": "TVRf",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])TVRf\\b"
+      }
+    },
+    {
+      "name": "MenInFlac",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])MenInFlac\\b"
+      }
+    },
+    {
+      "name": "RECTiFY",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])RECTiFY\\b"
+      }
+    },
+    {
+      "name": "FORSAKEN",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])FORSAKEN\\b"
+      }
+    },
+    {
+      "name": "TWiZTED",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])TWiZTED\\b"
+      }
+    },
+    {
+      "name": "QTX",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])QTX\\b"
+      }
+    },
+    {
+      "name": "GRAVE",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])GRAVE\\b"
+      }
+    },
+    {
+      "name": "GRiMM",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])GRiMM\\b"
+      }
+    },
+    {
+      "name": "KATARAS",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])KATARAS\\b"
+      }
+    },
+    {
+      "name": "D2H",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])D2H\\b"
+      }
+    },
+    {
+      "name": "OBZEN",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])OBZEN\\b"
+      }
+    },
+    {
+      "name": "CALiFLAC",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])CALiFLAC\\b"
+      }
+    },
+    {
+      "name": "LSM",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])LSM\\b"
+      }
+    },
+    {
+      "name": "SkinFlayer",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])SkinFlayer\\b"
+      }
+    },
+    {
+      "name": "Atomiswave",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])Atomiswave\\b"
+      }
+    },
+    {
+      "name": "Dalek",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])Dalek\\b"
+      }
+    },
+    {
+      "name": "K1RZA",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])K1RZA\\b"
+      }
+    },
+    {
+      "name": "void09",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])void09\\b"
+      }
+    },
+    {
+      "name": "Burning_Orc",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])Burning_Orc\\b"
+      }
+    },
+    {
+      "name": "techxvnode",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])techxvnode\\b"
+      }
+    },
+    {
+      "name": "shadow111",
+      "implementation": "ReleaseGroupSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?<=^|[\\s.-])shadow111\\b"
+      }
+    }
+  ]
+}

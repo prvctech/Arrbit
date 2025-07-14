@@ -1,0 +1,15 @@
+{
+  "name": "Acapella",
+  "includeCustomFormatWhenRenaming": false,
+  "specifications": [
+    {
+      "name": "Acapella, Vocal Only",
+      "implementation": "ReleaseTitleSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?i)\\b(A?cappella|Vocal[- ]?Only)\\b"
+      }
+    }
+  ]
+}

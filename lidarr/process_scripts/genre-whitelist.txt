@@ -1,0 +1,16 @@
+blues
+classical
+country
+disco
+electronic
+folk
+hip-hop
+jazz
+metal
+pop
+punk
+reggae
+rock
+soul
+soundtrack
+world

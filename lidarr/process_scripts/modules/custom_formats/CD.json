@@ -1,0 +1,15 @@
+{
+  "name": "CD",
+  "includeCustomFormatWhenRenaming": false,
+  "specifications": [
+    {
+      "name": "CDRip, CD",
+      "implementation": "ReleaseTitleSpecification",
+      "negate": false,
+      "required": false,
+      "fields": {
+        "value": "(?i)\\b(CD\\s?Rip|CD)\\b"
+      }
+    }
+  ]
+}
