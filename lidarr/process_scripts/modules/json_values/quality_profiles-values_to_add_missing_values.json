@@ -284,14 +284,6 @@
         "items": [
           {
             "quality": {
-              "id": 7,
-              "name": "ALAC"
-            },
-            "items": [],
-            "allowed": false
-          },
-          {
-            "quality": {
               "id": 35,
               "name": "APE"
             },
@@ -308,8 +300,8 @@
           },
           {
             "quality": {
-              "id": 37,
-              "name": "ALAC 24bit"
+              "id": 7,
+              "name": "ALAC"
             },
             "items": [],
             "allowed": false
@@ -318,6 +310,14 @@
             "quality": {
               "id": 13,
               "name": "WAV"
+            },
+            "items": [],
+            "allowed": false
+          },
+          {
+            "quality": {
+              "id": 37,
+              "name": "ALAC 24bit"
             },
             "items": [],
             "allowed": false
@@ -354,6 +354,6 @@
     "minFormatScore": 0,
     "cutoffFormatScore": 0,
     "formatItems": [],
-    "id": 7
+    "id": 11
   }
 ]
