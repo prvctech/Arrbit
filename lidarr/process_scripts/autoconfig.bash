@@ -1,85 +1,63 @@
 #!/usr/bin/env bash
+#
+# Arrbit auto-configuration script
+# Version: v1.3
+# ---------------------------------------------
+# Author: prvctech
+# Purpose: Run module configurations in Lidarr based on arrbit.conf flags
+# ---------------------------------------------
+
 set -euo pipefail
 
-ARRBIT_CONF=/config/arrbit/config/arrbit.conf
+# Colored Arrbit tag for better terminal visibility
+ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
+
+ARRBIT_CONF="/config/arrbit/config/arrbit.conf"
 if [ ! -f "$ARRBIT_CONF" ]; then
-  echo "*** [Arrbit] ERROR: arrbit.conf not found at $ARRBIT_CONF. Exiting. ***"
+  echo -e "⚠️  ${ARRBIT_TAG} ERROR: arrbit.conf not found at $ARRBIT_CONF. Exiting."
   exit 1
 fi
 
-# Load user’s flags
+# Load user's flags
 source "$ARRBIT_CONF"
 
-echo "*** [Arrbit] Starting auto‑configuration run ***"
+echo -e "🚀  ${ARRBIT_TAG} Starting auto-configuration run"
 
 # Master toggle
 if [ "${INSTALL_AUTOCONFIG:-false}" != "true" ]; then
-  echo "*** [Arrbit] Auto‑configuration disabled (INSTALL_AUTOCONFIG=$INSTALL_AUTOCONFIG). Exiting. ***"
+  echo -e "⏭️  ${ARRBIT_TAG} Auto-configuration disabled (INSTALL_AUTOCONFIG=$INSTALL_AUTOCONFIG). Exiting."
   exit 0
 fi
 
-# 1) Media Management
-if [ "${CONFIGURE_MEDIA_MANAGEMENT:-false}" = "true" ]; then
-  echo "*** [Arrbit] Configuring Media Management ***"
-  bash -c "/config/arrbit/process_scripts/modules/media_management.bash" \
-    || echo "⚠ media_management.bash failed, continuing"
-fi
+# -----------------------------------------------------------------------------
+# Function to run each module
+# -----------------------------------------------------------------------------
+run_module() {
+  local module_name="$1"
+  local flag="$2"
+  local script_path="/config/arrbit/process_scripts/modules/${module_name}.bash"
 
-# 2) Metadata Consumer
-if [ "${CONFIGURE_METADATA_CONSUMER:-false}" = "true" ]; then
-  echo "*** [Arrbit] Configuring Metadata Consumer ***"
-  bash -c "/config/arrbit/process_scripts/modules/metadata_consumer.bash" \
-    || echo "⚠ metadata_consumer.bash failed, continuing"
-fi
+  if [ "${flag:-false}" = "true" ]; then
+    echo -e "⚙️  ${ARRBIT_TAG} Configuring ${module_name//_/ }"
+    bash -c "$script_path" \
+      || echo -e "⚠️  ${ARRBIT_TAG} ${module_name}.bash failed, continuing"
+  else
+    echo -e "⏭️  ${ARRBIT_TAG} Skipping ${module_name//_/ } (flag disabled)"
+  fi
+}
 
-# 3) Metadata Provider / Write
-if [ "${CONFIGURE_METADATA_PROVIDER:-false}" = "true" ]; then
-  echo "*** [Arrbit] Configuring Metadata Provider (write) ***"
-  bash -c "/config/arrbit/process_scripts/modules/metadata_write.bash" \
-    || echo "⚠ metadata_write.bash failed, continuing"
-fi
+# -----------------------------------------------------------------------------
+# Modules execution
+# -----------------------------------------------------------------------------
+run_module "media_management"        "${CONFIGURE_MEDIA_MANAGEMENT:-false}"
+run_module "metadata_consumer"       "${CONFIGURE_METADATA_CONSUMER:-false}"
+run_module "metadata_write"          "${CONFIGURE_METADATA_PROVIDER:-false}"
+run_module "metadata_plugin"         "${CONFIGURE_PLUGIN_METADATA:-false}"
+run_module "metadata_profiles"       "${CONFIGURE_METADATA_PROFILES:-false}"
+run_module "track_naming"            "${CONFIGURE_TRACK_NAMING:-false}"
+run_module "ui_settings"             "${CONFIGURE_UI_SETTINGS:-false}"
+run_module "custom_scripts"          "${CONFIGURE_CUSTOM_SCRIPTS:-false}"
+run_module "custom_formats"          "${CONFIGURE_CUSTOM_FORMATS:-false}"
 
-# 4) Plugin‑specific Metadata
-if [ "${CONFIGURE_PLUGIN_METADATA:-false}" = "true" ]; then
-  echo "*** [Arrbit] Configuring Plugin Metadata ***"
-  bash -c "/config/arrbit/process_scripts/modules/metadata_plugin.bash" \
-    || echo "⚠ metadata_plugin.bash failed, continuing"
-fi
-
-# 5) Metadata Profiles
-if [ "${CONFIGURE_METADATA_PROFILES:-false}" = "true" ]; then
-  echo "*** [Arrbit] Configuring Metadata Profiles ***"
-  bash -c "/config/arrbit/process_scripts/modules/metadata_profiles.bash" \
-    || echo "⚠ metadata_profiles.bash failed, continuing"
-fi
-
-# 6) Track Naming
-if [ "${CONFIGURE_TRACK_NAMING:-false}" = "true" ]; then
-  echo "*** [Arrbit] Configuring Track Naming ***"
-  bash -c "/config/arrbit/process_scripts/modules/track_naming.bash" \
-    || echo "⚠ track_naming.bash failed, continuing"
-fi
-
-# 7) UI Settings
-if [ "${CONFIGURE_UI_SETTINGS:-false}" = "true" ]; then
-  echo "*** [Arrbit] Configuring UI Settings ***"
-  bash -c "/config/arrbit/process_scripts/modules/ui_settings.bash" \
-    || echo "⚠ ui_settings.bash failed, continuing"
-fi
-
-# 8) Custom Scripts
-if [ "${CONFIGURE_CUSTOM_SCRIPTS:-false}" = "true" ]; then
-  echo "*** [Arrbit] Running Custom Scripts ***"
-  bash -c "/config/arrbit/process_scripts/modules/custom_scripts.bash" \
-    || echo "⚠ custom_scripts.bash failed, continuing"
-fi
-
-# 9) Custom Formats
-if [ "${CONFIGURE_CUSTOM_FORMATS:-false}" = "true" ]; then
-  echo "*** [Arrbit] Configuring Custom Formats ***"
-  bash -c "/config/arrbit/process_scripts/modules/custom_formats.bash" \
-    || echo "⚠ custom_formats.bash failed, continuing"
-fi
-
-echo "*** [Arrbit] Auto‑configuration run complete! ***"
+echo -e "✅  ${ARRBIT_TAG} Auto-configuration run complete!"
 exit 0
