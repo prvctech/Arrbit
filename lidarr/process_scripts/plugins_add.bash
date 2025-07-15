@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+#
+# Arrbit community plugins installer
+# Version: v1.1
+# Author: prvctech
+# ---------------------------------------------
+
 set -euo pipefail
 
 echo "*** [Arrbit] Starting community plugins installation... ***"
@@ -6,31 +12,30 @@ echo "*** [Arrbit] Starting community plugins installation... ***"
 CONFIG_FILE="/config/arrbit/config/arrbit.conf"
 PLUGINS_DIR="/config/plugins"
 
-# 1) Load your config
+# 1) Load config
 if [ ! -r "$CONFIG_FILE" ]; then
   echo "✖ Config file not found: $CONFIG_FILE. Skipping plugins."
   exit 0
 fi
 source "$CONFIG_FILE"
 
-# 2) Master switch (only proceed if true)
-if [ "${INSTALL_COMMUNITY_PLUGINS,,}" != "true" ]; then
-  echo "⏭ INSTALL_COMMUNITY_PLUGINS != true. Skipping all."
+# 2) Master switch
+if [ "${ENABLE_COMMUNITY_PLUGINS,,}" != "true" ]; then
+  echo "⏭ ENABLE_COMMUNITY_PLUGINS != true. Skipping all."
   exit 0
 fi
 
-# Helper to test if a directory has any .dll
 has_dll() {
   shopt -s nullglob
   files=("$1"/*.dll)
   ((${#files[@]} > 0))
 }
 
-# 3) Deezer
+# Deezer
 DEEZER_TARGET="$PLUGINS_DIR/TrevTV/Lidarr.Plugin.Deezer"
 if [ "${INSTALL_PLUGIN_DEEZER,,}" = "true" ]; then
   if has_dll "$DEEZER_TARGET"; then
-    echo "✔ Deezer already installed at $DEEZER_TARGET. Skipping."
+    echo "✔ Deezer already installed. Skipping."
   else
     echo "*** Installing Deezer plugin ***"
     rm -rf /tmp/*
@@ -41,17 +46,17 @@ if [ "${INSTALL_PLUGIN_DEEZER,,}" = "true" ]; then
     mkdir -p "$DEEZER_TARGET"
     mv /tmp/deezer/* "$DEEZER_TARGET/"
     chmod -R 777 "$DEEZER_TARGET"
-    echo "✔ Deezer installed to $DEEZER_TARGET"
+    echo "✔ Deezer installed."
   fi
 else
   echo "⏭ INSTALL_PLUGIN_DEEZER != true. Skipping Deezer."
 fi
 
-# 4) Tidal
+# Tidal
 TIDAL_TARGET="$PLUGINS_DIR/TrevTV/Lidarr.Plugin.Tidal"
 if [ "${INSTALL_PLUGIN_TIDAL,,}" = "true" ]; then
   if has_dll "$TIDAL_TARGET"; then
-    echo "✔ Tidal already installed at $TIDAL_TARGET. Skipping."
+    echo "✔ Tidal already installed. Skipping."
   else
     echo "*** Installing Tidal plugin ***"
     rm -rf /tmp/*
@@ -62,17 +67,17 @@ if [ "${INSTALL_PLUGIN_TIDAL,,}" = "true" ]; then
     mkdir -p "$TIDAL_TARGET"
     mv /tmp/tidal/* "$TIDAL_TARGET/"
     chmod -R 777 "$TIDAL_TARGET"
-    echo "✔ Tidal installed to $TIDAL_TARGET"
+    echo "✔ Tidal installed."
   fi
 else
   echo "⏭ INSTALL_PLUGIN_TIDAL != true. Skipping Tidal."
 fi
 
-# 5) Tubifarry
+# Tubifarry
 TUBI_TARGET="$PLUGINS_DIR/TypNull/Tubifarry"
 if [ "${INSTALL_PLUGIN_TUBIFARRY,,}" = "true" ]; then
   if has_dll "$TUBI_TARGET"; then
-    echo "✔ Tubifarry already installed at $TUBI_TARGET. Skipping."
+    echo "✔ Tubifarry already installed. Skipping."
   else
     echo "*** Installing Tubifarry plugin ***"
     rm -rf /tmp/*
@@ -83,7 +88,7 @@ if [ "${INSTALL_PLUGIN_TUBIFARRY,,}" = "true" ]; then
     mkdir -p "$TUBI_TARGET"
     mv /tmp/tubifarry/* "$TUBI_TARGET/"
     chmod -R 777 "$TUBI_TARGET"
-    echo "✔ Tubifarry installed to $TUBI_TARGET"
+    echo "✔ Tubifarry installed."
   fi
 else
   echo "⏭ INSTALL_PLUGIN_TUBIFARRY != true. Skipping Tubifarry."
