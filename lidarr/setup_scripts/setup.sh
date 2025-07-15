@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+#
+# Arrbit initial setup script
+# Version: v1.1
+# Author: prvctech
+# ---------------------------------------------
+
 set -euo pipefail
 
 echo "*** [Arrbit] Starting initial setup run ***"
@@ -20,13 +26,13 @@ else
   echo "*** [Arrbit] arrbit.conf already exists. Skipping download. ***"
 fi
 
-# 2a) Source arrbit.conf so we can read your flags
+# 2a) Source arrbit.conf
 if [ -f /config/arrbit/config/arrbit.conf ]; then
   # shellcheck disable=SC1091
   . /config/arrbit/config/arrbit.conf
 fi
 
-# 3) Download all top‑level process_scripts
+# 3) Download all top-level process_scripts
 echo "*** [Arrbit] Downloading process_scripts files ***"
 for file in \
   ArrbitTagger.bash \
@@ -41,7 +47,7 @@ do
     -o /config/arrbit/process_scripts/${file} || true
 done
 
-# 4) Download each core module under modules/, including all the new ones
+# 4) Download each core module under modules/
 echo "*** [Arrbit] Downloading autoconfig modules ***"
 for mod in \
   media_management.bash \
@@ -61,8 +67,8 @@ do
     -o /config/arrbit/process_scripts/modules/${mod} || true
 done
 
-# 5) Download custom_formats folder (all JSONs) in one go via zip
-echo "*** [Arrbit] Downloading custom_formats folder from GitHub as zip ***"
+# 5) Download custom_formats folder via zip
+echo "*** [Arrbit] Downloading custom_formats folder ***"
 tmp_zip="/tmp/arrbit_main.zip"
 tmp_dir="/tmp/arrbit_extracted"
 curl -sfL -o "$tmp_zip" \
@@ -71,7 +77,7 @@ unzip -q "$tmp_zip" -d "$tmp_dir"
 cp -r "$tmp_dir"/Arrbit-main/lidarr/process_scripts/modules/custom_formats \
       /config/arrbit/process_scripts/modules/
 rm -rf "$tmp_zip" "$tmp_dir"
-echo "*** [Arrbit] custom_formats folder downloaded and copied successfully! ***"
+echo "*** [Arrbit] custom_formats folder downloaded! ***"
 
 # 6) Download dependencies script
 echo "*** [Arrbit] Downloading setup_scripts files ***"
@@ -84,10 +90,10 @@ chmod +x /config/arrbit/process_scripts/*.bash        2>/dev/null || true
 chmod +x /config/arrbit/process_scripts/modules/*.bash 2>/dev/null || true
 chmod +x /config/arrbit/setup_scripts/*.bash           2>/dev/null || true
 
-echo "*** [Arrbit] Config and scripts downloaded and organized successfully ***"
+echo "*** [Arrbit] Config and scripts downloaded successfully ***"
 
 # 8) Ensure permissive permissions
-echo "*** [Arrbit] Setting 777 permissions on /config/arrbit and /config/plugins ***"
+echo "*** [Arrbit] Setting 777 on /config/arrbit and /config/plugins ***"
 chmod -R 777 /config/arrbit 2>/dev/null || true
 chmod -R 777 /config/plugins  2>/dev/null || true
 
@@ -101,23 +107,23 @@ else
 fi
 
 # 10) Conditionally run plugins_add.bash
-if [ "${INSTALL_COMMUNITY_PLUGINS:-false}" = "true" ] \
+if [ "${ENABLE_COMMUNITY_PLUGINS:-false}" = "true" ] \
    && [ -x /config/arrbit/process_scripts/plugins_add.bash ]; then
-  echo "*** [Arrbit] INSTALL_COMMUNITY_PLUGINS is true – running plugins_add.bash... ***"
+  echo "*** [Arrbit] ENABLE_COMMUNITY_PLUGINS is true – running plugins_add.bash... ***"
   bash /config/arrbit/process_scripts/plugins_add.bash \
     || echo "⚠ plugins_add.bash failed, continuing"
 else
-  echo "*** [Arrbit] Skipping plugins_add.bash (INSTALL_COMMUNITY_PLUGINS=${INSTALL_COMMUNITY_PLUGINS:-false}) ***"
+  echo "*** [Arrbit] Skipping plugins_add.bash (ENABLE_COMMUNITY_PLUGINS=${ENABLE_COMMUNITY_PLUGINS:-false}) ***"
 fi
 
 # 11) Conditionally run autoconfig.bash
-if [ "${INSTALL_AUTOCONFIG:-false}" = "true" ] \
+if [ "${ENABLE_AUTOCONFIG:-false}" = "true" ] \
    && [ -x /config/arrbit/process_scripts/autoconfig.bash ]; then
-  echo "*** [Arrbit] INSTALL_AUTOCONFIG is true – running autoconfig.bash... ***"
+  echo "*** [Arrbit] ENABLE_AUTOCONFIG is true – running autoconfig.bash... ***"
   bash /config/arrbit/process_scripts/autoconfig.bash \
     || echo "⚠ autoconfig.bash failed, continuing"
 else
-  echo "*** [Arrbit] Skipping autoconfig.bash (INSTALL_AUTOCONFIG=${INSTALL_AUTOCONFIG:-false}) ***"
+  echo "*** [Arrbit] Skipping autoconfig.bash (ENABLE_AUTOCONFIG=${ENABLE_AUTOCONFIG:-false}) ***"
 fi
 
 echo "*** [Arrbit] Initial run completed! ***"
