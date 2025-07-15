@@ -1,14 +1,29 @@
 #!/usr/bin/env bash
 #
 # Module: UI Settings
-# Version: v0.1.3
+# Version: v0.1.5
 # Author: prvctech
 # ---------------------------------------------
 
+# Identify this script for shared logging
+scriptName="ui_settings"
+scriptVersion="v0.1.5"
+
 set -euo pipefail
 
+# Load shared functions (sets up logging, loads config flags)
 source /config/arrbit/process_scripts/functions.bash
 
+# Discover Lidarr endpoint and API key
+getArrAppInfo
+
+# Wait for API readiness and set arrApiVersion
+verifyApiAccess
+
+# Prepare HTTP headers for API calls
+HEADER=( "-H" "X-Api-Key: ${arrApiKey}" "-H" "Content-Type: application/json" )
+
+# Configure UI settings if enabled
 if [ "${CONFIGURE_UI_SETTINGS,,}" = "true" ]; then
   log "⚙️   [Arrbit] Configuring UI Settings..."
   if curl -s --fail --retry 3 --retry-delay 2 \
@@ -30,7 +45,7 @@ if [ "${CONFIGURE_UI_SETTINGS,,}" = "true" ]; then
   "expandOtherByDefault": true,
   "theme": "auto",
   "id": 1
-}'; then
+}' ; then
     log "✅  [Arrbit] UI Settings configured successfully"
   else
     log "⚠️   [Arrbit] UI Settings API call failed"
