@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 #
 # Module: Quality Profile
-# Version: v0.3
+# Version: v0.4
 # Author: prvctech
 # ---------------------------------------------
 
 # Identify this script for shared logging
 scriptName="quality_profile"
-scriptVersion="v0.3"
+scriptVersion="v0.4"
 
 set -euo pipefail
 
@@ -30,10 +30,9 @@ if [ "${CONFIGURE_QUALITY_PROFILE,,}" = "true" ]; then
                        "${arrUrl}/api/${arrApiVersion}/qualityprofile" \
                        -H "X-Api-Key: ${arrApiKey}")
 
-  # 2) Load default profiles list (to delete)
-  default_profiles_json=$(
-    cat /config/arrbit/process_scripts/modules/json_values/quality_profiles-default_values-remove.json
-  )
+  # 2) Load & normalize default profiles JSON (to delete)
+  default_raw=$(cat /config/arrbit/process_scripts/modules/json_values/quality_profiles-default_values-remove.json)
+  default_profiles_json=$(jq -c . <<<"[${default_raw}]")
 
   # 3) Delete each default profile by name if it exists
   for name in $(jq -r '.[].name' <<<"$default_profiles_json"); do
@@ -41,27 +40,28 @@ if [ "${CONFIGURE_QUALITY_PROFILE,,}" = "true" ]; then
     if [[ -n "$id" && "$id" != "null" ]]; then
       log "⚙️   [Arrbit] Deleting default profile '$name' (ID: $id)..."
       curl -s --fail --retry 3 --retry-delay 2 \
-           -X DELETE "${arrUrl}/api/${arrApiVersion}/qualityprofile/$id" \
+           -X DELETE \
+           "${arrUrl}/api/${arrApiVersion}/qualityprofile/$id" \
            -H "X-Api-Key: ${arrApiKey}" \
         && log "✅  [Arrbit] Deleted profile '$name'" \
         || log "⚠️   [Arrbit] Failed deleting profile '$name'"
     fi
   done
 
-  # 4) Load fallback profiles list (to add or update)
-  fallback_profiles_json=$(
-    cat /config/arrbit/process_scripts/modules/json_values/quality_profiles-values_to_add_missing_values.json
-  )
+  # 4) Load & normalize fallback profiles JSON (to add/update)
+  fallback_raw=$(cat /config/arrbit/process_scripts/modules/json_values/quality_profiles-values_to_add_missing_values.json)
+  fallback_profiles_json=$(jq -c . <<<"[${fallback_raw}]")
 
   # 5) For each fallback profile, update if exists else create it
-  while profile=$(jq -c '.[]' <<<"$fallback_profiles_json"); do
+  for profile in $(jq -c '.[]' <<<"$fallback_profiles_json"); do
     pname=$(jq -r '.name' <<<"$profile")
     exists=$(jq -r ".[] | select(.name==\"$pname\") | .id" <<<"$existing_profiles")
 
     if [[ -n "$exists" && "$exists" != "null" ]]; then
       log "⚙️   [Arrbit] Updating profile '$pname' (ID: $exists)..."
       curl -s --fail --retry 3 --retry-delay 2 \
-           -X PUT "${arrUrl}/api/${arrApiVersion}/qualityprofile/$exists" \
+           -X PUT \
+           "${arrUrl}/api/${arrApiVersion}/qualityprofile/$exists" \
            "${HEADER[@]}" \
            --data-raw "$profile" \
         && log "✅  [Arrbit] Updated profile '$pname'" \
@@ -69,13 +69,14 @@ if [ "${CONFIGURE_QUALITY_PROFILE,,}" = "true" ]; then
     else
       log "⚙️   [Arrbit] Creating profile '$pname'..."
       curl -s --fail --retry 3 --retry-delay 2 \
-           -X POST "${arrUrl}/api/${arrApiVersion}/qualityprofile" \
+           -X POST \
+           "${arrUrl}/api/${arrApiVersion}/qualityprofile" \
            "${HEADER[@]}" \
            --data-raw "$profile" \
         && log "✅  [Arrbit] Created profile '$pname'" \
         || log "⚠️   [Arrbit] Failed creating profile '$pname'"
     fi
-  done <<<"$(jq -c '.[]' <<<"$fallback_profiles_json")"
+  done
 
   log "✅  [Arrbit] Quality Profile configuration complete"
 else
