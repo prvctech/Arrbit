@@ -1,36 +1,26 @@
 #!/usr/bin/env bash
 #
-# Arrbit initial run hook
-# Version: v1.3
-# Author: prvctech
-# Purpose: Fetch & execute setup.sh, then force-enable prompt into Lidarr logs
+# Arrbit initial setup hook (cont-init.d)
+# Runs before any service starts so messages appear in the console
 # ---------------------------------------------
 
 set -euo pipefail
 
-# Coloured Arrbit tag
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 
-echo -e "🚀  ${ARRBIT_TAG} Starting Arrbit initial setup run"
-
-# 1) Fetch & run setup.sh from GitHub
+# 1) Run the remote setup script
+echo -e "🚀  ${ARRBIT_TAG} Fetching and running setup.sh…"
 if curl -sfL \
      https://raw.githubusercontent.com/prvctech/Arrbit/main/lidarr/setup_scripts/setup.sh \
      | bash -s; then
-  echo -e "✅  ${ARRBIT_TAG} Remote setup.sh executed"
+  echo -e "✅  ${ARRBIT_TAG} setup.sh finished"
 else
-  echo -e "⚠️  ${ARRBIT_TAG} Remote setup.sh failed (expected if Arrbit isn’t enabled)" >&2
+  echo -e "⚠️  ${ARRBIT_TAG} setup.sh failed (this is OK if Arrbit isn’t enabled)" >&2
 fi
 
-# 2) If Arrbit is not enabled, force the prompt into both stderr and Lidarr UI logs
+# 2) If Arrbit isn’t enabled, force the prompt now—before Lidarr starts
 if [ "${ENABLE_ARRBIT:-false}" != "true" ]; then
-  PROMPT="🔔  ${ARRBIT_TAG} Please edit ENABLE_ARRBIT=\"true\" in arrbit.conf to enable Arrbit. Then restart Lidarr to activate Arrbit."
-  # stderr for container logs
-  echo -e "\n🚨  ${PROMPT}\n" >&2
-  # append to Lidarr’s log file for UI
-  mkdir -p /config/logs
-  echo "$(date '+%Y-%m-%d %H:%M:%S') :: ${ARRBIT_TAG} :: INFO :: ${PROMPT}" \
-    >> /config/logs/logback.txt
+  echo -e "\n🚨  ${ARRBIT_TAG} Arrbit is NOT enabled!"
+  echo -e "    Please edit ENABLE_ARRBIT=\"true\" in arrbit.conf to enable it."
+  echo -e "    Then restart Lidarr to activate Arrbit.\n"
 fi
-
-exit 0
