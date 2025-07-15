@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 #
 # Module: Quality Profile
-# Version: v0.5
+# Version: v1.0
 # Author: prvctech
 # ---------------------------------------------
 
 # Identify this script for shared logging
 scriptName="quality_profile"
-scriptVersion="v0.5"
+scriptVersion="v1.0"
 
 set -euo pipefail
 
@@ -28,37 +28,34 @@ if [ "${CONFIGURE_QUALITY_PROFILE,,}" = "true" ]; then
   existing_raw=$(curl -s --fail --retry 3 --retry-delay 2 \
     "${arrUrl}/api/${arrApiVersion}/qualityprofile" \
     -H "X-Api-Key: ${arrApiKey}")
-
   existing_profiles=$(jq -c . <<<"$existing_raw")
 
-  # 2) Load & normalize default-values JSON (to delete)
+  # 2) Delete default profiles
   remove_file="/config/arrbit/process_scripts/modules/json_values/quality_profiles-default_values-remove.json"
-  if [[ -f "$remove_file" ]]; then
-    if default_profiles_json=$(jq -c 'if type=="array" then . else [.] end' "$remove_file" 2>/dev/null); then
-      for name in $(jq -r '.[].name' <<<"$default_profiles_json"); do
-        id=$(jq -r ".[] | select(.name==\"$name\") | .id" <<<"$existing_profiles")
-        if [[ -n "$id" && "$id" != "null" ]]; then
-          log "⚙️   [Arrbit] Deleting default profile '$name' (ID: $id)..."
-          curl -s --fail --retry 3 --retry-delay 2 \
-            -X DELETE "${arrUrl}/api/${arrApiVersion}/qualityprofile/$id" \
-            -H "X-Api-Key: ${arrApiKey}" \
-            && log "✅  [Arrbit] Deleted profile '$name'" \
-            || log "⚠️   [Arrbit] Failed deleting profile '$name'"
-        fi
-      done
-    else
-      log "⚠️   [Arrbit] Could not parse $remove_file; skipping deletion step"
-    fi
+  if [[ -f "$remove_file" ]] && default_profiles_json=$(jq -c . "$remove_file" 2>/dev/null); then
+    for name in $(jq -r '.[].name' <<<"$default_profiles_json"); do
+      id=$(jq -r ".[] | select(.name==\"$name\") | .id" <<<"$existing_profiles")
+      if [[ -n "$id" && "$id" != "null" ]]; then
+        log "⚙️   [Arrbit] Deleting default profile '$name' (ID: $id)..."
+        curl -s --fail --retry 3 --retry-delay 2 \
+          -X DELETE "${arrUrl}/api/${arrApiVersion}/qualityprofile/$id" \
+          -H "X-Api-Key: ${arrApiKey}" \
+          && log "✅  [Arrbit] Deleted profile '$name'" \
+          || log "⚠️   [Arrbit] Failed deleting profile '$name'"
+      fi
+    done
   else
-    log "⚠️   [Arrbit] Missing $remove_file; skipping deletion step"
+    log "⚠️   [Arrbit] Could not parse default-values JSON; skipping deletion"
   fi
 
-  # 3) Load & normalize fallback JSON (to add/update)
+  # 3) Load & normalize fallback JSON (wrap object into array if needed)
   add_file="/config/arrbit/process_scripts/modules/json_values/quality_profiles-values_to_add_missing_values.json"
   if [[ -f "$add_file" ]]; then
-    fallback_profiles_json=$(jq -c 'if type=="array" then . else [.] end' "$add_file")
+    fallback_raw=$(<"$add_file")
+    fallback_profiles_json=$(jq -c 'if type=="array" then . else [.] end' <<<"$fallback_raw" 2>/dev/null) || fallback_profiles_json="[]"
+    log "📦  [Arrbit] Loaded $(jq length <<<"$fallback_profiles_json") fallback profile(s)"
   else
-    log "⚠️   [Arrbit] Missing $add_file; skipping add/update step"
+    log "⚠️   [Arrbit] Fallback JSON file missing; skipping add/update"
     fallback_profiles_json="[]"
   fi
 
