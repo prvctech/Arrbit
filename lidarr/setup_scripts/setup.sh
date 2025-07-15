@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Arrbit initial setup script
-# Version: v1.5
+# Version: v1.6
 # Author: prvctech
 # Purpose: Download Arrbit config & scripts, then verify ENABLE_ARRBIT and proceed
 # ---------------------------------------------
@@ -47,10 +47,9 @@ source /config/arrbit/config/arrbit.conf
 # 2b) Master flag check: ENABLE_ARRBIT
 # -----------------------------------------------------------------------------
 if [ "${ENABLE_ARRBIT:-false}" != "true" ]; then
-  echo -e "\n🚨  ${ARRBIT_TAG} ARRbit is NOT enabled!"
-  echo -e "    ✏️  Please edit /config/arrbit/config/arrbit.conf and set:"
-  echo -e "      ENABLE_ARRBIT=\"true\""
-  echo -e "    🔁  Then restart Lidarr to activate Arrbit.\n"
+  echo -e "\n🚨  ${ARRBIT_TAG} Arrbit is NOT enabled!"
+  echo -e "    Please edit ENABLE_ARRBIT=\"true\" in arrbit.conf to enable it."
+  echo -e "    Then restart Lidarr to activate Arrbit.\n"
   exit 0
 fi
 
