@@ -33,8 +33,8 @@ if [ "${INSTALL_PLUGIN_DEEZER,,}" = "true" ]; then
     echo "✔ Deezer already installed at $DEEZER_TARGET. Skipping."
   else
     echo "*** Installing Deezer plugin ***"
-    rm -rf /tmp/* 
-    mkdir -p /tmp/deezer 
+    rm -rf /tmp/*
+    mkdir -p /tmp/deezer
     curl -sfL -o /tmp/deezer.zip \
       https://github.com/TrevTV/Lidarr.Plugin.Deezer/releases/latest/download/Lidarr.Plugin.Deezer.net6.0.zip
     unzip -o /tmp/deezer.zip -d /tmp/deezer
