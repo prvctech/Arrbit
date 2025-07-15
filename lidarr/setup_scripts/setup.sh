@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Arrbit initial setup script
-# Version: v1.8
+# Version: v1.5
 # Author: prvctech
 # Purpose: Download Arrbit config & scripts, then verify ENABLE_ARRBIT and proceed
 # ---------------------------------------------
@@ -50,15 +50,15 @@ if [ "${ENABLE_ARRBIT:-false}" != "true" ]; then
   echo -e "\n🚨  ${ARRBIT_TAG} Arrbit is NOT enabled!"
   echo -e "    Please edit ENABLE_ARRBIT=\"true\" in arrbit.conf to enable it."
   echo -e "    Then restart Lidarr to activate Arrbit.\n"
-  # continue so user sees full setup logs
+  exit 0
 fi
 
 # -----------------------------------------------------------------------------
-# 3) Download core scripts (including tagger.bash)
+# 3) Download top-level process_scripts
 # -----------------------------------------------------------------------------
 echo -e "📥  ${ARRBIT_TAG} Downloading core scripts..."
 for file in \
-  tagger.bash \
+  ArrbitTagger.bash \
   functions.bash \
   beets-config.yaml \
   genre-whitelist.txt \
