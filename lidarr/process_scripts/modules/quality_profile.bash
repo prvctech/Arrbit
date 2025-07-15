@@ -1,84 +1,83 @@
 #!/usr/bin/env bash
 #
 # Module: Quality Profile
-# Version: v0.1
+# Version: v0.3
 # Author: prvctech
 # ---------------------------------------------
 
 # Identify this script for shared logging
 scriptName="quality_profile"
-scriptVersion="v0.1"
+scriptVersion="v0.3"
 
 set -euo pipefail
 
-# Bring in shared helpers (sets up logging, loads config flags)
+# Bring in shared helpers (logging, config flags)
 source /config/arrbit/process_scripts/functions.bash
 
-# Discover Lidarr endpoint and API key
+# Discover Lidarr endpoint & API key
 getArrAppInfo
-# Wait for API readiness and set arrApiVersion
+# Wait for API readiness
 verifyApiAccess
 
 # Prepare HTTP headers for API calls
 HEADER=( "-H" "X-Api-Key: ${arrApiKey}" "-H" "Content-Type: application/json" )
 
-# Configure Quality Profile if enabled
 if [ "${CONFIGURE_QUALITY_PROFILE,,}" = "true" ]; then
-  log "⚙️   [Arrbit] Configuring Quality Profile..."
+  log "⚙️   [Arrbit] Starting Quality Profile configuration..."
 
-  # Build JSON for HQ profile
-  quality_profile_json=$(cat <<EOF
-{
-  "name": "hq",
-  "upgradeAllowed": false,
-  "cutoff": 21,
-  "items": [
-    {"quality": {"id": 4, "name": "MP3-320"},     "items": [], "allowed": true},
-    {"quality": {"id": 6, "name": "FLAC"},        "items": [], "allowed": true},
-    {"quality": {"id": 21, "name": "FLAC 24bit"}, "items": [], "allowed": true}
-  ],
-  "minFormatScore": 0,
-  "cutoffFormatScore": 0,
-  "formatItems": [
-    {"format": 24, "name": "WEB",                  "score": 1},
-    {"format": 23, "name": "VIP Edition",         "score": -5},
-    {"format": 22, "name": "Single",              "score": 1},
-    {"format": 21, "name": "Remix",               "score": -5},
-    {"format": 20, "name": "Remastered",          "score": 2},
-    {"format": 19, "name": "Original",            "score": 2},
-    {"format": 18, "name": "LQ Releases",         "score": -10},
-    {"format": 17, "name": "Lossless",            "score": 5},
-    {"format": 16, "name": "Live",                "score": -10},
-    {"format": 15, "name": "Limited Edition",     "score": 1},
-    {"format": 14, "name": "Instrumental",        "score": -10},
-    {"format": 13, "name": "HQ Releases - Tier 2", "score": 9},
-    {"format": 12, "name": "HQ Releases - Tier 1", "score": 10},
-    {"format": 11, "name": "Explicit",            "score": 1},
-    {"format": 10, "name": "Expanded Edition",    "score": -10},
-    {"format": 9,  "name": "EP",                  "score": 0},
-    {"format": 8,  "name": "Drumless",            "score": -10},
-    {"format": 7,  "name": "Demo",                "score": -10},
-    {"format": 6,  "name": "Deluxe Edition",      "score": 2},
-    {"format": 5,  "name": "Compilation",         "score": -2},
-    {"format": 4,  "name": "CD",                  "score": 3},
-    {"format": 3,  "name": "Anniversary Edition",  "score": 1},
-    {"format": 2,  "name": "Acapella",            "score": -10},
-    {"format": 1,  "name": "24bit",               "score": 6}
-  ],
-  "id": 4
-}
-EOF
+  # 1) Fetch existing profiles
+  existing_profiles=$(curl -s --fail --retry 3 --retry-delay 2 \
+                       "${arrUrl}/api/${arrApiVersion}/qualityprofile" \
+                       -H "X-Api-Key: ${arrApiKey}")
+
+  # 2) Load default profiles list (to delete)
+  default_profiles_json=$(
+    cat /config/arrbit/process_scripts/modules/json_values/quality_profiles-default_values-remove.json
   )
 
-  # Send API request
-  if curl -s --fail --retry 3 --retry-delay 2 \
-       "${arrUrl}/api/${arrApiVersion}/qualityprofile/4" \
-       -X PUT "${HEADER[@]}" \
-       --data-raw "$quality_profile_json"; then
-    log "✅  [Arrbit] Quality Profile configured successfully"
-  else
-    log "⚠️   [Arrbit] Quality Profile API call failed"
-  fi
+  # 3) Delete each default profile by name if it exists
+  for name in $(jq -r '.[].name' <<<"$default_profiles_json"); do
+    id=$(jq -r ".[] | select(.name==\"$name\") | .id" <<<"$existing_profiles")
+    if [[ -n "$id" && "$id" != "null" ]]; then
+      log "⚙️   [Arrbit] Deleting default profile '$name' (ID: $id)..."
+      curl -s --fail --retry 3 --retry-delay 2 \
+           -X DELETE "${arrUrl}/api/${arrApiVersion}/qualityprofile/$id" \
+           -H "X-Api-Key: ${arrApiKey}" \
+        && log "✅  [Arrbit] Deleted profile '$name'" \
+        || log "⚠️   [Arrbit] Failed deleting profile '$name'"
+    fi
+  done
+
+  # 4) Load fallback profiles list (to add or update)
+  fallback_profiles_json=$(
+    cat /config/arrbit/process_scripts/modules/json_values/quality_profiles-values_to_add_missing_values.json
+  )
+
+  # 5) For each fallback profile, update if exists else create it
+  while profile=$(jq -c '.[]' <<<"$fallback_profiles_json"); do
+    pname=$(jq -r '.name' <<<"$profile")
+    exists=$(jq -r ".[] | select(.name==\"$pname\") | .id" <<<"$existing_profiles")
+
+    if [[ -n "$exists" && "$exists" != "null" ]]; then
+      log "⚙️   [Arrbit] Updating profile '$pname' (ID: $exists)..."
+      curl -s --fail --retry 3 --retry-delay 2 \
+           -X PUT "${arrUrl}/api/${arrApiVersion}/qualityprofile/$exists" \
+           "${HEADER[@]}" \
+           --data-raw "$profile" \
+        && log "✅  [Arrbit] Updated profile '$pname'" \
+        || log "⚠️   [Arrbit] Failed updating profile '$pname'"
+    else
+      log "⚙️   [Arrbit] Creating profile '$pname'..."
+      curl -s --fail --retry 3 --retry-delay 2 \
+           -X POST "${arrUrl}/api/${arrApiVersion}/qualityprofile" \
+           "${HEADER[@]}" \
+           --data-raw "$profile" \
+        && log "✅  [Arrbit] Created profile '$pname'" \
+        || log "⚠️   [Arrbit] Failed creating profile '$pname'"
+    fi
+  done <<<"$(jq -c '.[]' <<<"$fallback_profiles_json")"
+
+  log "✅  [Arrbit] Quality Profile configuration complete"
 else
   log "⏭️   [Arrbit] Skipping Quality Profile"
 fi
