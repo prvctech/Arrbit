@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Arrbit initial setup script
-# Version: v1.3
+# Version: v1.5
 # Author: prvctech
 # Purpose: Download Arrbit config & scripts, then verify ENABLE_ARRBIT and proceed
 # ---------------------------------------------
@@ -14,7 +14,7 @@ ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 echo -e "🚀  ${ARRBIT_TAG} Starting initial setup run"
 
 # -----------------------------------------------------------------------------
-# 1) Create config & script folders
+# 1) Create all target folders
 # -----------------------------------------------------------------------------
 mkdir -p /config/arrbit/config \
          /config/arrbit/process_scripts \
@@ -22,7 +22,7 @@ mkdir -p /config/arrbit/config \
          /config/arrbit/setup_scripts
 
 # -----------------------------------------------------------------------------
-# 2) Always download arrbit.conf (from lidarr/config path)
+# 2) Always download arrbit.conf (from lidarr/config)
 # -----------------------------------------------------------------------------
 echo -e "📥  ${ARRBIT_TAG} Downloading arrbit.conf..."
 if curl -sfL \
@@ -36,27 +36,26 @@ fi
 # -----------------------------------------------------------------------------
 # 2a) Source arrbit.conf
 # -----------------------------------------------------------------------------
-if [ -f /config/arrbit/config/arrbit.conf ]; then
-  # shellcheck disable=SC1091
-  source /config/arrbit/config/arrbit.conf
-else
+if [ ! -f /config/arrbit/config/arrbit.conf ]; then
   echo -e "⚠️  ${ARRBIT_TAG} arrbit.conf missing after download. Exiting."
   exit 1
 fi
+# shellcheck disable=SC1091
+source /config/arrbit/config/arrbit.conf
 
 # -----------------------------------------------------------------------------
 # 2b) Master flag check: ENABLE_ARRBIT
 # -----------------------------------------------------------------------------
 if [ "${ENABLE_ARRBIT:-false}" != "true" ]; then
   echo -e "\n🚨  ${ARRBIT_TAG} ARRbit is NOT enabled!"
-  echo -e "    ✏️  Edit /config/arrbit/config/arrbit.conf and set:"
+  echo -e "    ✏️  Please edit /config/arrbit/config/arrbit.conf and set:"
   echo -e "      ENABLE_ARRBIT=\"true\""
   echo -e "    🔁  Then restart Lidarr to activate Arrbit.\n"
   exit 0
 fi
 
 # -----------------------------------------------------------------------------
-# 3) Download top-level scripts
+# 3) Download top-level process_scripts
 # -----------------------------------------------------------------------------
 echo -e "📥  ${ARRBIT_TAG} Downloading core scripts..."
 for file in \
@@ -101,13 +100,13 @@ for mod in \
 done
 
 # -----------------------------------------------------------------------------
-# 5) Download custom_formats folder via zip
+# 5) Download custom_formats folder
 # -----------------------------------------------------------------------------
-echo -e "📦  ${ARRBIT_TAG} Downloading custom_formats folder..."
+echo -e "📦  ${ARRBIT_TAG} Downloading custom_formats..."
 tmp_zip="/tmp/arrbit_main.zip"
 tmp_dir="/tmp/arrbit_extracted"
 if curl -sfL -o "$tmp_zip" \
-      https://github.com/prvctech/Arrbit/archive/refs/heads/main.zip \
+     https://github.com/prvctech/Arrbit/archive/refs/heads/main.zip \
    && unzip -q "$tmp_zip" -d "$tmp_dir" \
    && cp -r "$tmp_dir"/Arrbit-main/lidarr/process_scripts/modules/custom_formats \
          /config/arrbit/process_scripts/modules/; then
@@ -138,7 +137,7 @@ chmod +x /config/arrbit/process_scripts/modules/*.bash 2>/dev/null || true
 chmod +x /config/arrbit/setup_scripts/*.bash           2>/dev/null || true
 
 # -----------------------------------------------------------------------------
-# 8) Ensure wide-open permissions
+# 8) Ensure permissive permissions
 # -----------------------------------------------------------------------------
 echo -e "🔑  ${ARRBIT_TAG} Setting 777 on config & plugins dirs..."
 chmod -R 777 /config/arrbit 2>/dev/null || true
