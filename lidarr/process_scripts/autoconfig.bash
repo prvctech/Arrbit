@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
 # Arrbit auto-configuration script
-# Version: v1.5
+# Version: v1.6
 # Author: prvctech
-# Purpose: Run module configurations in Lidarr based on arrbit.conf flags
+# Purpose: Run module configurations in Lidarr based on arrbit-config.conf flags
 # ---------------------------------------------
 
 set -euo pipefail
@@ -11,9 +11,9 @@ set -euo pipefail
 # Colored Arrbit tag for better terminal visibility
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 
-ARRBIT_CONF="/config/arrbit/config/arrbit.conf"
+ARRBIT_CONF="/config/arrbit/config/arrbit-config.conf"
 if [ ! -f "$ARRBIT_CONF" ]; then
-  echo -e "⚠️  ${ARRBIT_TAG} ERROR: arrbit.conf not found at $ARRBIT_CONF. Exiting."
+  echo -e "⚠️  ${ARRBIT_TAG} ERROR: arrbit-config.conf not found at $ARRBIT_CONF. Exiting."
   exit 1
 fi
 
