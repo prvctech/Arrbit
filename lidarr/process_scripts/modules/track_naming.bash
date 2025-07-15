@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 #
 # Module: Track Naming
-# Version: v0.2
+# Version: v0.3
 # Author: prvctech
 # ---------------------------------------------
 
 # Identify this script for shared logging
 scriptName="track_naming"
-scriptVersion="v0.2"
+scriptVersion="v0.3"
 
 set -euo pipefail
 
@@ -15,7 +15,7 @@ set -euo pipefail
 source /config/arrbit/process_scripts/functions.bash
 
 # Discover Lidarr endpoint and API key
-t getArrAppInfo
+getArrAppInfo
 # Wait for API readiness and set arrApiVersion
 verifyApiAccess
 
