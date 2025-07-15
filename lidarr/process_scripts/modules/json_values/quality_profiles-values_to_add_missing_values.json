@@ -1,61 +1,16 @@
 [
   {
     "name": "hq",
-    "upgradeAllowed": true,
+    "upgradeAllowed": false,
     "cutoff": 21,
     "items": [
-      {
-        "quality": { "id": 0, "name": "Unknown" },
-        "items": [],
-        "allowed": false
-      },
-      {
-        "name": "Trash Quality Lossy",
-        "items": [
-          { "quality": { "id": 32, "name": "MP3-8" }, "items": [], "allowed": false },
-          { "quality": { "id": 31, "name": "MP3-16" }, "items": [], "allowed": false },
-          { "quality": { "id": 30, "name": "MP3-24" }, "items": [], "allowed": false },
-          { "quality": { "id": 29, "name": "MP3-32" }, "items": [], "allowed": false },
-          { "quality": { "id": 28, "name": "MP3-40" }, "items": [], "allowed": false },
-          { "quality": { "id": 27, "name": "MP3-48" }, "items": [], "allowed": false },
-          { "quality": { "id": 26, "name": "MP3-56" }, "items": [], "allowed": false },
-          { "quality": { "id": 25, "name": "MP3-64" }, "items": [], "allowed": false },
-          { "quality": { "id": 24, "name": "MP3-80" }, "items": [], "allowed": false }
-        ],
-        "allowed": false,
-        "id": 1000
-      },
-      {
-        "name": "Poor Quality Lossy",
-        "items": [
-          { "quality": { "id": 23, "name": "MP3-96" }, "items": [], "allowed": false },
-          { "quality": { "id": 33, "name": "MP3-112" }, "items": [], "allowed": false },
-          { "quality": { "id": 22, "name": "MP3-128" }, "items": [], "allowed": false },
-          { "quality": { "id": 19, "name": "OGG Vorbis Q5" }, "items": [], "allowed": false },
-          { "quality": { "id": 5, "name": "MP3-160" }, "items": [], "allowed": false }
-        ],
-        "allowed": false,
-        "id": 1001
-      },
-      {
-        "quality": { "id": 4, "name": "MP3-320" },
-        "items": [],
-        "allowed": true
-      },
-      {
-        "quality": { "id": 6, "name": "FLAC" },
-        "items": [],
-        "allowed": true
-      },
-      {
-        "quality": { "id": 21, "name": "FLAC 24bit" },
-        "items": [],
-        "allowed": true
-      }
+      { "quality": { "id": 4, "name": "MP3-320" }, "items": [], "allowed": true },
+      { "quality": { "id": 6, "name": "FLAC" }, "items": [], "allowed": true },
+      { "quality": { "id": 21, "name": "FLAC 24bit" }, "items": [], "allowed": true }
     ],
     "minFormatScore": 0,
     "cutoffFormatScore": 0,
     "formatItems": [],
-    "id": 11
+    "id": 4
   }
 ]
