@@ -1,0 +1,28 @@
+
+{
+  "name": "VIP Edition",
+  "includeCustomFormatWhenRenaming": false,
+  "specifications": [
+    {
+      "name": "VIP Edition",
+      "implementation": "ReleaseTitleSpecification",
+      "implementationName": "Release Title",
+      "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
+      "negate": false,
+      "required": false,
+      "fields": [
+        {
+          "order": 0,
+          "name": "value",
+          "label": "Regular Expression",
+          "helpText": "Custom Format RegEx is Case Insensitive",
+          "value": "(?i)\bVIP\b",
+          "type": "textbox",
+          "advanced": false,
+          "privacy": "normal",
+          "isFloat": false
+        }
+      ]
+    }
+  ]
+}
