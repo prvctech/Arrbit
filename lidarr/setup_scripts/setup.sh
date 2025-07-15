@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Arrbit initial setup script
-# Version: v1.7
+# Version: v1.8
 # Author: prvctech
 # Purpose: Download Arrbit config & scripts, then verify ENABLE_ARRBIT and proceed
 # ---------------------------------------------
@@ -45,21 +45,20 @@ source /config/arrbit/config/arrbit.conf
 
 # -----------------------------------------------------------------------------
 # 2b) Master flag check: ENABLE_ARRBIT
-#     (force prompt to stderr so s6 catches it)
 # -----------------------------------------------------------------------------
 if [ "${ENABLE_ARRBIT:-false}" != "true" ]; then
-  echo -e "\n🚨  ${ARRBIT_TAG} Arrbit is NOT enabled!" >&2
-  echo -e "    Please edit ENABLE_ARRBIT=\"true\" in arrbit.conf to enable it." >&2
-  echo -e "    Then restart Lidarr to activate Arrbit.\n" >&2
-  exit 0
+  echo -e "\n🚨  ${ARRBIT_TAG} Arrbit is NOT enabled!"
+  echo -e "    Please edit ENABLE_ARRBIT=\"true\" in arrbit.conf to enable it."
+  echo -e "    Then restart Lidarr to activate Arrbit.\n"
+  # continue so user sees full setup logs
 fi
 
 # -----------------------------------------------------------------------------
-# 3) Download top-level process_scripts
+# 3) Download core scripts (including tagger.bash)
 # -----------------------------------------------------------------------------
 echo -e "📥  ${ARRBIT_TAG} Downloading core scripts..."
 for file in \
-  ArrbitTagger.bash \
+  tagger.bash \
   functions.bash \
   beets-config.yaml \
   genre-whitelist.txt \
@@ -100,7 +99,7 @@ for mod in \
 done
 
 # -----------------------------------------------------------------------------
-# 5) Download custom_formats folder
+# 5) Download custom_formats folder via zip
 # -----------------------------------------------------------------------------
 echo -e "📦  ${ARRBIT_TAG} Downloading custom_formats..."
 tmp_zip="/tmp/arrbit_main.zip"
