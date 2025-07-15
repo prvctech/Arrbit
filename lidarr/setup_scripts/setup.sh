@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
 # Arrbit initial setup script
-# Version: v1.11
+# Version: v1.13
 # Author: prvctech
-# Purpose: Download arrbit.conf once, but always refresh all other scripts & modules
+# Purpose: Download arrbit.conf & beets-config.yaml once; always refresh other scripts/modules
 # ---------------------------------------------
 
 set -euo pipefail
@@ -14,7 +14,7 @@ BASE_URL="https://raw.githubusercontent.com/prvctech/Arrbit/main/lidarr"
 echo -e "🚀  ${ARRBIT_TAG} Starting initial setup run"
 
 # -----------------------------------------------------------------------------
-# 1) Ensure directory structure & perms
+# 1) Ensure directory structure & permissions
 # -----------------------------------------------------------------------------
 mkdir -p /config/arrbit/{config,process_scripts,process_scripts/modules,setup_scripts}
 chmod -R 777 /config/arrbit
@@ -25,7 +25,7 @@ chmod -R 777 /config/arrbit
 CONF="/config/arrbit/config/arrbit.conf"
 if [ ! -f "$CONF" ]; then
   echo -e "📥  ${ARRBIT_TAG} Downloading arrbit.conf..."
-  if curl -sfL "$BASE_URL/config/arrbit.conf" -o "$CONF"; then
+  if curl -sfL "${BASE_URL}/config/arrbit.conf" -o "$CONF"; then
     echo -e "   • ✅ arrbit.conf saved"
     chmod 777 "$CONF"
   else
@@ -36,22 +36,32 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 3) Source config & check ENABLE_ARRBIT
+# 2.5) Download beets-config.yaml only if missing
+# -----------------------------------------------------------------------------
+BEETS_CONF="/config/arrbit/config/beets-config.yaml"
+if [ ! -f "$BEETS_CONF" ]; then
+  echo -e "📥  ${ARRBIT_TAG} Downloading beets-config.yaml..."
+  if curl -sfL "${BASE_URL}/config/beets-config.yaml" -o "$BEETS_CONF"; then
+    echo -e "   • ✅ beets-config.yaml saved"
+    chmod 777 "$BEETS_CONF"
+  else
+    echo -e "   • ⚠️ Failed to download beets-config.yaml"
+  fi
+else
+  echo -e "⏭️  ${ARRBIT_TAG} beets-config.yaml exists; skipping download"
+fi
+
+# -----------------------------------------------------------------------------
+# 3) Source config so downstream modules get their flags
 # -----------------------------------------------------------------------------
 # shellcheck disable=SC1091
 source "$CONF"
-if [ "${ENABLE_ARRBIT:-false}" != "true" ]; then
-  echo -e "\n🚨  ${ARRBIT_TAG} Arrbit is NOT enabled!"
-  echo -e "    Please edit ENABLE_ARRBIT=\"true\" in arrbit.conf to enable it."
-  echo -e "    Then restart Lidarr to activate Arrbit.\n"
-  # continue so logs show full setup
-fi
 
 # -----------------------------------------------------------------------------
 # 4) Always download core scripts
 # -----------------------------------------------------------------------------
 echo -e "📥  ${ARRBIT_TAG} Fetching core scripts..."
-for file in tagger.bash functions.bash beets-config.yaml genre-whitelist.txt plugins_add.bash autoconfig.bash; do
+for file in tagger.bash functions.bash genre-whitelist.txt plugins_add.bash autoconfig.bash; do
   TARGET="/config/arrbit/process_scripts/${file}"
   curl -sfL "${BASE_URL}/process_scripts/${file}" -o "$TARGET" \
     && echo -e "   • ✅ ${file}" \
@@ -74,37 +84,32 @@ done
 # -----------------------------------------------------------------------------
 # 6) Always download custom_formats folder
 # -----------------------------------------------------------------------------
-CF_DIR="/config/arrbit/process_scripts/modules/custom_formats"
 echo -e "📦  ${ARRBIT_TAG} Refreshing custom_formats..."
-tmp_zip="/tmp/arrbit_cf.zip"
-tmp_dir="/tmp/arrbit_cf"
-curl -sfL -o "$tmp_zip" "https://github.com/prvctech/Arrbit/archive/refs/heads/main.zip" \
-  && { rm -rf "$CF_DIR"; unzip -q "$tmp_zip" -d "$tmp_dir"; \
-       mv "$tmp_dir"/Arrbit-main/lidarr/process_scripts/modules/custom_formats "$CF_DIR"; } \
+CF_DIR="/config/arrbit/process_scripts/modules/custom_formats"
+TMP_ZIP="/tmp/arrbit_cf.zip"
+TMP_DIR="/tmp/arrbit_cf"
+curl -sfL -o "$TMP_ZIP" "https://github.com/prvctech/Arrbit/archive/refs/heads/main.zip" \
+  && { rm -rf "$CF_DIR"; unzip -q "$TMP_ZIP" -d "$TMP_DIR"; mv "$TMP_DIR"/Arrbit-main/lidarr/process_scripts/modules/custom_formats "$CF_DIR"; } \
   && echo -e "   • ✅ custom_formats updated" \
   || echo -e "   • ⚠️ custom_formats update failed"
 chmod -R 777 "$CF_DIR"
-rm -rf "$tmp_zip" "$tmp_dir"
+rm -rf "$TMP_ZIP" "$TMP_DIR"
 
 # -----------------------------------------------------------------------------
 # 7) Always download dependencies script
 # -----------------------------------------------------------------------------
-DEP="/config/arrbit/setup_scripts/dependencies.bash"
 echo -e "🔧  ${ARRBIT_TAG} Fetching dependencies script..."
+DEP="/config/arrbit/setup_scripts/dependencies.bash"
 curl -sfL "${BASE_URL}/setup_scripts/dependencies.bash" -o "$DEP" \
   && echo -e "   • ✅ dependencies.bash" \
   || echo -e "   • ⚠️ dependencies.bash failed"
 chmod 777 "$DEP"
 
 # -----------------------------------------------------------------------------
-# 8) Run dependencies.bash if present
+# 8) Run dependencies
 # -----------------------------------------------------------------------------
-if [ -x "$DEP" ]; then
-  echo -e "🛠️  ${ARRBIT_TAG} Running dependencies script..."
-  bash "$DEP" || echo -e "⚠️  ${ARRBIT_TAG} dependencies.bash failed"
-else
-  echo -e "⏭️  ${ARRBIT_TAG} Skipping dependencies.bash"
-fi
+echo -e "🛠️  ${ARRBIT_TAG} Running dependencies script..."
+bash "$DEP" || echo -e "⚠️  ${ARRBIT_TAG} dependencies.bash failed"
 
 # -----------------------------------------------------------------------------
 # 9) Conditionally run plugins_add and autoconfig
