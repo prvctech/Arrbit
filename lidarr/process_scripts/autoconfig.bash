@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 #
 # Arrbit auto-configuration script
-# Version: v1.4
-# ---------------------------------------------
+# Version: v1.5
 # Author: prvctech
 # Purpose: Run module configurations in Lidarr based on arrbit.conf flags
 # ---------------------------------------------
@@ -24,8 +23,8 @@ source "$ARRBIT_CONF"
 echo -e "🚀  ${ARRBIT_TAG} Starting auto-configuration run"
 
 # Master toggle
-if [ "${INSTALL_AUTOCONFIG:-false}" != "true" ]; then
-  echo -e "⏭️  ${ARRBIT_TAG} Auto-configuration disabled (INSTALL_AUTOCONFIG=$INSTALL_AUTOCONFIG). Exiting."
+if [ "${ENABLE_AUTOCONFIG:-false}" != "true" ]; then
+  echo -e "⏭️  ${ARRBIT_TAG} Auto-configuration disabled (ENABLE_AUTOCONFIG=${ENABLE_AUTOCONFIG}). Exiting."
   exit 0
 fi
 
