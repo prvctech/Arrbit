@@ -2,7 +2,7 @@
 #
 # Arrbit Functions
 # Shared helper functions for Arrbit scripts
-# Version: v1.1
+# Version: v1.2
 # Author: prvctech
 # ---------------------------------------------
 
@@ -41,14 +41,10 @@ getArrAppInfo() {
   local xml="/config/config.xml"
   local port key base basePath
 
-  # extract <Port> value
   port=$(grep -m1 '<Port>' "$xml" | sed -E 's/.*<Port>([^<]+)<\/Port>.*/\1/')
-  # extract <ApiKey> value
   key=$(grep -m1 '<ApiKey>' "$xml" | sed -E 's/.*<ApiKey>([^<]+)<\/ApiKey>.*/\1/')
-  # extract <UrlBase> value (may be empty)
   base=$(grep -m1 '<UrlBase>' "$xml" | sed -E 's/.*<UrlBase>([^<]*)<\/UrlBase>.*/\1/')
 
-  # build basePath (leading slash if non-empty)
   if [ -z "$base" ]; then
     basePath=""
   else
@@ -83,15 +79,14 @@ verifyApiAccess() {
 # ConfValidationCheck: ensure Arrbit config exists and has required flags
 # -----------------------------------------------------------------------------
 ConfValidationCheck() {
-  local cfg="/config/arrbit/config/arrbit.conf"
+  local cfg="/config/arrbit/config/arrbit-config.conf"
 
   if [ ! -f "$cfg" ]; then
-    log "ERROR :: \"arrbit.conf\" is missing at /config/arrbit/config/"
+    log "❌  ERROR :: \"arrbit-config.conf\" is missing at /config/arrbit/config/"
     exit 1
   fi
-  # example check: INSTALL_AUTOCONFIG must be set
-  if [ -z "${INSTALL_AUTOCONFIG:-}" ]; then
-    log "ERROR :: \"INSTALL_AUTOCONFIG\" not set in arrbit.conf"
+  if [ -z "${ENABLE_AUTOCONFIG:-}" ]; then
+    log "❌  ERROR :: \"ENABLE_AUTOCONFIG\" not set in arrbit-config.conf"
     exit 1
   fi
 }
@@ -100,7 +95,7 @@ ConfValidationCheck() {
 # Initialize on source
 # -----------------------------------------------------------------------------
 scriptName="${scriptName:-functions}"
-scriptVersion="${scriptVersion:-v1.1}"
+scriptVersion="${scriptVersion:-v1.2}"
 
 logfileSetup
 ConfValidationCheck
