@@ -1,10 +1,17 @@
 #!/usr/bin/env bash
 #
-# Shared helper functions for Arrbit scripts (no xq needed)
-#
+# Arrbit Functions
+# Shared helper functions for Arrbit scripts
+# Version: v1.0
+# ---------------------------------------------
+# Author: prvctech
+# Purpose: Provide common utilities for all Arrbit modules
+# ---------------------------------------------
+
+set -euo pipefail
 
 # -----------------------------------------------------------------------------
-# log: timestamped logging to both stdout and Arrbit log folder
+# log: timestamped logging to stdout and Arrbit log file (with emojis!)
 # -----------------------------------------------------------------------------
 log() {
   local m_time
@@ -15,7 +22,7 @@ log() {
 }
 
 # -----------------------------------------------------------------------------
-# logfileSetup: rotate old logs and create a fresh Arrbit log file
+# logfileSetup: rotate old logs and create a new Arrbit log file
 # -----------------------------------------------------------------------------
 logfileSetup() {
   logFileName="${scriptName}-$(date +"%Y_%m_%d_%I_%M_%p").txt"
@@ -30,35 +37,40 @@ logfileSetup() {
 }
 
 # -----------------------------------------------------------------------------
-# getArrAppInfo: read URL, port, base path & API key from /config/config.xml
+# getArrAppInfo: retrieve Lidarr URL, port, base path & API key from XML
 # -----------------------------------------------------------------------------
 getArrAppInfo() {
   local xml="/config/config.xml"
   local port key base basePath
 
-  # extract <Port> value
+  if [ ! -f "$xml" ]; then
+    log "⚠️ ERROR :: config.xml not found at $xml"
+    exit 1
+  fi
+
   port=$(grep -m1 '<Port>' "$xml" | sed -E 's/.*<Port>([^<]+)<\/Port>.*/\1/')
-  # extract <ApiKey> value
   key=$(grep -m1 '<ApiKey>' "$xml" | sed -E 's/.*<ApiKey>([^<]+)<\/ApiKey>.*/\1/')
-  # extract <UrlBase> value (may be empty)
   base=$(grep -m1 '<UrlBase>' "$xml" | sed -E 's/.*<UrlBase>([^<]*)<\/UrlBase>.*/\1/')
 
-  # build basePath (leading slash if non‑empty)
+  if [ -z "$port" ] || [ -z "$key" ]; then
+    log "⚠️ ERROR :: Could not retrieve Port or ApiKey from config.xml"
+    exit 1
+  fi
+
   if [ -z "$base" ]; then
     basePath=""
   else
-    # strip extra slashes
     basePath="/${base#/}"
   fi
 
   arrApiKey="$key"
   arrUrl="http://127.0.0.1:${port}${basePath}"
 
-  log "Discovered Lidarr at ${arrUrl} with API key ending …${arrApiKey: -6}"
+  log "🔑 Retrieved API key (ending …${arrApiKey: -6}) and Lidarr URL ${arrUrl}"
 }
 
 # -----------------------------------------------------------------------------
-# verifyApiAccess: wait until Lidarr API v1 responds
+# verifyApiAccess: wait until Lidarr API v1 is reachable
 # -----------------------------------------------------------------------------
 verifyApiAccess() {
   local apiTest=""
@@ -67,27 +79,28 @@ verifyApiAccess() {
                 | jq -r .instanceName 2>/dev/null)
     if [ -n "$apiTest" ]; then
       arrApiVersion="v1"
-      log "✅ Connected to ${apiTest} at ${arrUrl} using API ${arrApiVersion}"
+      log "✅ Successfully connected to ${apiTest} at ${arrUrl} using API ${arrApiVersion}"
       return 0
     fi
-    log "⏳ Lidarr not ready at ${arrUrl}, retrying..."
+    log "⏳ Waiting for Lidarr to become ready at ${arrUrl}..."
     sleep 1
   done
 }
 
 # -----------------------------------------------------------------------------
-# ConfValidationCheck: ensure Arrbit config exists and has required flags
+# ConfValidationCheck: ensure arrbit.conf exists and core flags are set
 # -----------------------------------------------------------------------------
 ConfValidationCheck() {
   local cfg="/config/arrbit/config/arrbit.conf"
 
   if [ ! -f "$cfg" ]; then
-    log "ERROR :: \"arrbit.conf\" is missing at /config/arrbit/config/"
+    log "⚠️ ERROR :: arrbit.conf missing at /config/arrbit/config/"
     exit 1
   fi
-  # example check: INSTALL_AUTOCONFIG must be set
+
+  # Example required flag
   if [ -z "${INSTALL_AUTOCONFIG:-}" ]; then
-    log "ERROR :: \"INSTALL_AUTOCONFIG\" not set in arrbit.conf"
+    log "⚠️ ERROR :: INSTALL_AUTOCONFIG not set in arrbit.conf"
     exit 1
   fi
 }
@@ -96,7 +109,7 @@ ConfValidationCheck() {
 # Initialize on source
 # -----------------------------------------------------------------------------
 scriptName="${scriptName:-functions}"
-scriptVersion="${scriptVersion:-1.0}"
+scriptVersion="${scriptVersion:-v1.0}"
 
 logfileSetup
 ConfValidationCheck
