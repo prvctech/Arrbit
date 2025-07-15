@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
 # Arrbit initial setup script
-# Version: v1.17
+# Version: v1.18
 # Author: prvctech
-# Purpose: Download arrbit-config.conf & beets-config.yaml once; force-refresh all other scripts/modules and json values
+# Purpose: Download arrbit-config.conf & beets-config.yaml once; force-refresh all other scripts/modules
 # ---------------------------------------------
 
 set -euo pipefail
@@ -82,18 +82,14 @@ for mod in media_management.bash metadata_consumer.bash metadata_write.bash meta
 done
 
 # -----------------------------------------------------------------------------
-# 5.5) Force-refresh JSON value files
+# 5.5) Force-refresh default JSON values only
 # -----------------------------------------------------------------------------
-echo -e "📥  ${ARRBIT_TAG} Fetching JSON value files..."
-for j in \
-  quality_profiles-default_values-remove.json \
-  quality_profiles-values_to_add_missing_values.json; do
-  TARGET="/config/arrbit/process_scripts/modules/json_values/${j}"
-  curl -sfL "${BASE_URL}/process_scripts/modules/json_values/${j}" -o "$TARGET" \
-    && echo -e "    • ✅ ${j}" \
-    || echo -e "    • ⚠️  ${j} failed"
-  chmod 777 "$TARGET"
-done
+echo -e "📥  ${ARRBIT_TAG} Fetching default JSON value file..."
+TARGET="/config/arrbit/process_scripts/modules/json_values/quality_profiles-default_values-remove.json"
+curl -sfL "${BASE_URL}/process_scripts/modules/json_values/quality_profiles-default_values-remove.json" -o "$TARGET" \
+  && echo -e "    • ✅ quality_profiles-default_values-remove.json" \
+  || echo -e "    • ⚠️  quality_profiles-default_values-remove.json failed"
+chmod 777 "$TARGET"
 
 # -----------------------------------------------------------------------------
 # 6) Force-refresh custom_formats folder
