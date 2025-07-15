@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
 # Arrbit initial setup script
-# Version: v1.13
+# Version: v1.14
 # Author: prvctech
-# Purpose: Download arrbit.conf & beets-config.yaml once; always refresh other scripts/modules
+# Purpose: Download arrbit-config.conf & beets-config.yaml once; always refresh other scripts/modules
 # ---------------------------------------------
 
 set -euo pipefail
@@ -20,19 +20,19 @@ mkdir -p /config/arrbit/{config,process_scripts,process_scripts/modules,setup_sc
 chmod -R 777 /config/arrbit
 
 # -----------------------------------------------------------------------------
-# 2) Download arrbit.conf only if missing
+# 2) Download arrbit-config.conf only if missing
 # -----------------------------------------------------------------------------
-CONF="/config/arrbit/config/arrbit.conf"
+CONF="/config/arrbit/config/arrbit-config.conf"
 if [ ! -f "$CONF" ]; then
-  echo -e "📥  ${ARRBIT_TAG} Downloading arrbit.conf..."
-  if curl -sfL "${BASE_URL}/config/arrbit.conf" -o "$CONF"; then
-    echo -e "   • ✅ arrbit.conf saved"
+  echo -e "📥  ${ARRBIT_TAG} Downloading arrbit-config.conf..."
+  if curl -sfL "${BASE_URL}/config/arrbit-config.conf" -o "$CONF"; then
+    echo -e "   • ✅ arrbit-config.conf saved"
     chmod 777 "$CONF"
   else
-    echo -e "   • ⚠️ Failed to download arrbit.conf"
+    echo -e "   • ⚠️ Failed to download arrbit-config.conf"
   fi
 else
-  echo -e "⏭️  ${ARRBIT_TAG} arrbit.conf exists; skipping download"
+  echo -e "⏭️  ${ARRBIT_TAG} arrbit-config.conf exists; skipping download"
 fi
 
 # -----------------------------------------------------------------------------
