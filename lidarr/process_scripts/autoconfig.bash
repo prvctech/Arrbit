@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Arrbit auto-configuration script
-# Version: v1.6
+# Version: v1.7
 # Author: prvctech
 # Purpose: Run module configurations in Lidarr based on arrbit-config.conf flags
 # ---------------------------------------------
@@ -46,6 +46,14 @@ run_module() {
 }
 
 # -----------------------------------------------------------------------------
+# Combine CUSTOM_FORMATS and QUALITY_PROFILE flags
+# -----------------------------------------------------------------------------
+QUAL_FLAG="false"
+if [ "${CONFIGURE_CUSTOM_FORMATS,,}" = "true" ] && [ "${CONFIGURE_QUALITY_PROFILE,,}" = "true" ]; then
+  QUAL_FLAG="true"
+fi
+
+# -----------------------------------------------------------------------------
 # Modules execution
 # -----------------------------------------------------------------------------
 run_module "media_management"        "${CONFIGURE_MEDIA_MANAGEMENT:-false}"
@@ -58,7 +66,7 @@ run_module "ui_settings"             "${CONFIGURE_UI_SETTINGS:-false}"
 run_module "custom_scripts"          "${CONFIGURE_CUSTOM_SCRIPTS:-false}"
 run_module "custom_formats"          "${CONFIGURE_CUSTOM_FORMATS:-false}"
 run_module "delay_profiles"          "${CONFIGURE_DELAY_PROFILES:-false}"
-run_module "quality_profile"         "${CONFIGURE_QUALITY_PROFILE:-false}"
+run_module "quality_profile"         "${QUAL_FLAG}"
 
 echo -e "✅  ${ARRBIT_TAG} Auto-configuration run complete!"
 exit 0
