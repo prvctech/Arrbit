@@ -2,11 +2,28 @@
 #
 # Arrbit Functions
 # Shared helper functions for Arrbit scripts
-# Version: v1.2
+# Version: v1.4
 # Author: prvctech
 # ---------------------------------------------
 
 set -euo pipefail
+
+# -----------------------------------------------------------------------------
+# Constants
+# -----------------------------------------------------------------------------
+ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
+ARRBIT_CONF="/config/arrbit/config/arrbit-config.conf"
+
+# -----------------------------------------------------------------------------
+# Config validation: ensure config file exists
+# -----------------------------------------------------------------------------
+if [ ! -f "$ARRBIT_CONF" ]; then
+  echo -e "❌  ${ARRBIT_TAG} ERROR: \"arrbit-config.conf\" is missing at /config/arrbit/config/"
+  exit 1
+fi
+
+# Load all config flags (no validation of specific flags here)
+source "$ARRBIT_CONF"
 
 # -----------------------------------------------------------------------------
 # log: timestamped logging to both stdout and Arrbit log folder
@@ -54,7 +71,7 @@ getArrAppInfo() {
   arrApiKey="$key"
   arrUrl="http://127.0.0.1:${port}${basePath}"
 
-  log "Discovered Lidarr at ${arrUrl} with API key ending …${arrApiKey: -6}"
+  log "✅  ${ARRBIT_TAG} Discovered Lidarr at ${arrUrl} (API key …${arrApiKey: -6})"
 }
 
 # -----------------------------------------------------------------------------
@@ -63,39 +80,21 @@ getArrAppInfo() {
 verifyApiAccess() {
   local apiTest=""
   until [ -n "$apiTest" ]; do
-    apiTest=$(curl -s "${arrUrl}/api/v1/system/status?apikey=${arrApiKey}" \
-                | jq -r .instanceName 2>/dev/null)
+    apiTest=$(curl -s "${arrUrl}/api/v1/system/status?apikey=${arrApiKey}" | jq -r .instanceName 2>/dev/null)
     if [ -n "$apiTest" ]; then
       arrApiVersion="v1"
-      log "✅ Connected to ${apiTest} at ${arrUrl} using API ${arrApiVersion}"
+      log "✅  ${ARRBIT_TAG} Connected to ${apiTest} at ${arrUrl} (API ${arrApiVersion})"
       return 0
     fi
-    log "⏳ Lidarr not ready at ${arrUrl}, retrying..."
+    log "⏳  ${ARRBIT_TAG} Lidarr not ready at ${arrUrl}, retrying..."
     sleep 1
   done
-}
-
-# -----------------------------------------------------------------------------
-# ConfValidationCheck: ensure Arrbit config exists and has required flags
-# -----------------------------------------------------------------------------
-ConfValidationCheck() {
-  local cfg="/config/arrbit/config/arrbit-config.conf"
-
-  if [ ! -f "$cfg" ]; then
-    log "❌  ERROR :: \"arrbit-config.conf\" is missing at /config/arrbit/config/"
-    exit 1
-  fi
-  if [ -z "${ENABLE_AUTOCONFIG:-}" ]; then
-    log "❌  ERROR :: \"ENABLE_AUTOCONFIG\" not set in arrbit-config.conf"
-    exit 1
-  fi
 }
 
 # -----------------------------------------------------------------------------
 # Initialize on source
 # -----------------------------------------------------------------------------
 scriptName="${scriptName:-functions}"
-scriptVersion="${scriptVersion:-v1.2}"
+scriptVersion="${scriptVersion:-v1.4}"
 
 logfileSetup
-ConfValidationCheck
