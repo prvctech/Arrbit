@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Arrbit initial setup script
-# Version: v1.18
+# Version: v1.19
 # Author: prvctech
 # Purpose: Download arrbit-config.conf & beets-config.yaml once; force-refresh all other scripts/modules
 # ---------------------------------------------
@@ -90,24 +90,6 @@ curl -sfL "${BASE_URL}/process_scripts/modules/json_values/quality_profiles-defa
   && echo -e "    • ✅ quality_profiles-default_values-remove.json" \
   || echo -e "    • ⚠️  quality_profiles-default_values-remove.json failed"
 chmod 777 "$TARGET"
-
-# -----------------------------------------------------------------------------
-# 6) Force-refresh custom_formats folder
-# -----------------------------------------------------------------------------
-echo -e "📦  ${ARRBIT_TAG} Refreshing custom_formats..."
-CF_DIR="/config/arrbit/process_scripts/modules/custom_formats"
-TMP_ZIP="/tmp/arrbit_cf.zip"
-TMP_DIR="/tmp/arrbit_cf"
-if curl -sfL -o "$TMP_ZIP" "https://github.com/prvctech/Arrbit/archive/refs/heads/main.zip"; then
-  rm -rf "$CF_DIR"
-  unzip -q "$TMP_ZIP" -d "$TMP_DIR"
-  mv "$TMP_DIR"/Arrbit-main/lidarr/process_scripts/modules/custom_formats "$CF_DIR"
-  echo -e "    • ✅ custom_formats updated"
-  chmod -R 777 "$CF_DIR"
-else
-  echo -e "    • ⚠️  custom_formats update failed"
-fi
-rm -rf "$TMP_ZIP" "$TMP_DIR"
 
 # -----------------------------------------------------------------------------
 # 7) Force-refresh dependencies script
