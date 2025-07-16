@@ -1,69 +1,71 @@
 #!/usr/bin/env bash
 #
-# Module: Custom Formats
-# Version: v0.7
+# Arrbit Custom Formats Importer Module
+# Imports custom formats from JSON into Lidarr
+# Version: v1.4
 # Author: prvctech
 # ---------------------------------------------
 
 set -euo pipefail
 
-# Shared helpers
+# Source shared Arrbit functions
 source /config/arrbit/process_scripts/functions.bash
 
-# Discover & wait for Lidarr API
+scriptName="custom_formats"
+scriptVersion="v1.4"
+
+# Setup logging
+logfileSetup
+
+log "🚀  ${ARRBIT_TAG} Starting custom formats module..."
+
+# Get API info and verify connection
 getArrAppInfo
 verifyApiAccess
 
-HEADER=( "-H" "X-Api-Key: ${arrApiKey}" "-H" "Content-Type: application/json" )
+# Path to custom formats JSON
+JSON_PATH="/config/arrbit/process_scripts/modules/json_values/custom_formats_master.json"
 
-if [ "${CONFIGURE_CUSTOM_FORMATS,,}" != "true" ]; then
-  log "⏭️  [Arrbit] Skipping Custom Formats"
-  exit 0
+# Check if JSON file exists
+if [[ ! -f "$JSON_PATH" ]]; then
+  log "❌  ${ARRBIT_TAG} File not found: ${JSON_PATH}"
+  exit 1
 fi
 
-log "⚙️  [Arrbit] Starting Custom Formats import..."
+log "📄  ${ARRBIT_TAG} Reading custom formats from: ${JSON_PATH}"
 
-MODULES_DIR="/config/arrbit/process_scripts/modules/custom_formats"
+# Read and loop through each format
+jq -c '.[]' "$JSON_PATH" | while IFS= read -r format; do
+  format_name=$(echo "$format" | jq -r '.name')
 
-# Fetch existing formats
-existing_formats=$(curl -s --fail --retry 3 --retry-delay 2 "${arrUrl}/api/${arrApiVersion}/customformat" "${HEADER[@]}")
+  # Check if format already exists in Lidarr
+  existing=$(curl -s "${arrUrl}/api/${arrApiVersion}/customformat?apikey=${arrApiKey}" | jq -r --arg NAME "$format_name" '.[] | select(.name == $NAME)')
 
-for json_file in "$MODULES_DIR"/*.json; do
-  [ -e "$json_file" ] || continue
-  name=$(jq -r '.name' < "$json_file")
+  if [[ -z "$existing" ]]; then
+    # Format doesn't exist, remove ID before POST
+    new_format=$(echo "$format" | jq 'del(.id)')
+    response=$(curl -s -X POST "${arrUrl}/api/${arrApiVersion}/customformat?apikey=${arrApiKey}" \
+      -H "Content-Type: application/json" \
+      -d "$new_format")
 
-  # Validate required fields
-  if ! jq 'has("specifications") and has("name")' "$json_file" | grep -q true; then
-    log "⚠️  [Arrbit] Skipping '$json_file': Missing required fields."
-    continue
-  fi
-
-  log "→ Processing custom format '$name'"
-
-  id=$(jq -r ".[] | select(.name==\"$name\") | .id" <<<"$existing_formats")
-  if [[ -n "$id" && "$id" != "null" ]]; then
-    log "🗑️  [Arrbit] Deleting existing '$name' (ID: $id)..."
-    curl -s --fail -X DELETE "${arrUrl}/api/${arrApiVersion}/customformat/$id" "${HEADER[@]}" \
-      && log "✅  [Arrbit] Deleted '$name'" \
-      || log "⚠️  [Arrbit] Failed deleting '$name'"
-  fi
-
-  log "➕  [Arrbit] Adding custom format '$name'..."
-  response=$(curl -s -w "%{http_code}" -o /tmp/arrbit_cf_resp.txt \
-    -X POST "${arrUrl}/api/${arrApiVersion}/customformat" \
-    "${HEADER[@]}" \
-    --data-binary @"$json_file")
-
-  http_code=$(tail -c 3 <<<"$response")
-  body=$(cat /tmp/arrbit_cf_resp.txt)
-
-  if [[ "$http_code" == "200" || "$http_code" == "201" ]]; then
-    log "✅  [Arrbit] Added '$name'"
+    if [[ "$(echo "$response" | jq -r '.id')" != "null" ]]; then
+      log "✨  ${ARRBIT_TAG} Imported new custom format: ${format_name}"
+    else
+      log "⚠️  ${ARRBIT_TAG} Failed to import format: ${format_name} :: Response: ${response}"
+    fi
   else
-    log "⚠️  [Arrbit] Failed adding '$name' (HTTP $http_code): $body"
-  fi
+    # Format exists, update using PUT
+    existing_id=$(echo "$existing" | jq -r '.id')
+    response=$(curl -s -X PUT "${arrUrl}/api/${arrApiVersion}/customformat/${existing_id}?apikey=${arrApiKey}" \
+      -H "Content-Type: application/json" \
+      -d "$format")
 
+    if [[ "$(echo "$response" | jq -r '.id')" != "null" ]]; then
+      log "♻️  ${ARRBIT_TAG} Updated existing custom format: ${format_name}"
+    else
+      log "⚠️  ${ARRBIT_TAG} Failed to update format: ${format_name} :: Response: ${response}"
+    fi
+  fi
 done
 
-log "✅  [Arrbit] Custom Formats import complete"
-exit 0
+log "🎉  ${ARRBIT_TAG} Finished importing custom formats!"
