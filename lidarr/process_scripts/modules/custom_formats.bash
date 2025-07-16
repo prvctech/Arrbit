@@ -1,50 +1,71 @@
 #!/usr/bin/env bash
 #
-# Arrbit Module - Register tagger.bash as Lidarr custom script
-# Version: v1.2
+# Arrbit Custom Formats Importer Module
+# Imports custom formats from JSON into Lidarr
+# Version: v1.4
 # Author: prvctech
 # ---------------------------------------------
 
 set -euo pipefail
 
-# Source functions
+# Source shared Arrbit functions
 source /config/arrbit/process_scripts/functions.bash
 
-scriptName="custom_scripts"
-scriptVersion="v1.2"
+scriptName="custom_formats"
+scriptVersion="v1.4"
 
 # Setup logging
 logfileSetup
-log "🚀  ${ARRBIT_TAG} Starting custom_scripts.bash..."
 
-# Connect to Lidarr
+log "🚀  ${ARRBIT_TAG} Starting custom formats module..."
+
+# Get API info and verify connection
 getArrAppInfo
 verifyApiAccess
 
-# Check if tagger.bash is already registered as "arrbit-tagger"
-if ! curl -s "${arrUrl}/api/${arrApiVersion}/notification?apikey=${arrApiKey}" \
-  | jq -e '.[] | select(.name=="arrbit-tagger")' >/dev/null; then
+# Path to custom formats JSON
+JSON_PATH="/config/arrbit/process_scripts/modules/json_values/custom_formats_master.json"
 
-  log "🔧  ${ARRBIT_TAG} Registering arrbit-tagger (tagger.bash)..."
-
-  curl -s -X POST "${arrUrl}/api/${arrApiVersion}/notification?apikey=${arrApiKey}" \
-    -H "Content-Type: application/json" \
-    --data-raw '{
-      "name": "arrbit-tagger",
-      "implementation": "CustomScript",
-      "configContract": "CustomScriptSettings",
-      "onReleaseImport": true,
-      "onUpgrade": true,
-      "fields": [
-        { "name": "path", "value": "/config/arrbit/process_scripts/tagger.bash" }
-      ]
-    }' \
-    && log "✅  ${ARRBIT_TAG} Registered arrbit-tagger script" \
-    || log "❌  ${ARRBIT_TAG} Failed to register arrbit-tagger script"
-
-else
-  log "⏭️  ${ARRBIT_TAG} arrbit-tagger already registered; skipping"
+# Check if JSON file exists
+if [[ ! -f "$JSON_PATH" ]]; then
+  log "❌  ${ARRBIT_TAG} File not found: ${JSON_PATH}"
+  exit 1
 fi
 
-log "✅  ${ARRBIT_TAG} Done with custom_scripts.bash!"
-exit 0
+log "📄  ${ARRBIT_TAG} Reading custom formats from: ${JSON_PATH}"
+
+# Read and loop through each format
+jq -c '.[]' "$JSON_PATH" | while IFS= read -r format; do
+  format_name=$(echo "$format" | jq -r '.name')
+
+  # Check if format already exists in Lidarr
+  existing=$(curl -s "${arrUrl}/api/${arrApiVersion}/customformat?apikey=${arrApiKey}" | jq -r --arg NAME "$format_name" '.[] | select(.name == $NAME)')
+
+  if [[ -z "$existing" ]]; then
+    # Format doesn't exist, remove ID before POST
+    new_format=$(echo "$format" | jq 'del(.id)')
+    response=$(curl -s -X POST "${arrUrl}/api/${arrApiVersion}/customformat?apikey=${arrApiKey}" \
+      -H "Content-Type: application/json" \
+      -d "$new_format")
+
+    if [[ "$(echo "$response" | jq -r '.id')" != "null" ]]; then
+      log "✨  ${ARRBIT_TAG} Imported new custom format: ${format_name}"
+    else
+      log "⚠️  ${ARRBIT_TAG} Failed to import format: ${format_name} :: Response: ${response}"
+    fi
+  else
+    # Format exists, update using PUT
+    existing_id=$(echo "$existing" | jq -r '.id')
+    response=$(curl -s -X PUT "${arrUrl}/api/${arrApiVersion}/customformat/${existing_id}?apikey=${arrApiKey}" \
+      -H "Content-Type: application/json" \
+      -d "$format")
+
+    if [[ "$(echo "$response" | jq -r '.id')" != "null" ]]; then
+      log "♻️  ${ARRBIT_TAG} Updated existing custom format: ${format_name}"
+    else
+      log "⚠️  ${ARRBIT_TAG} Failed to update format: ${format_name} :: Response: ${response}"
+    fi
+  fi
+done
+
+log "🎉  ${ARRBIT_TAG} Finished importing custom formats!"
