@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 #
-# Arrbit Custom Formats Importer Module
-# Imports custom formats from JSON into Lidarr
-# Version: v1.4
+# Arrbit Module - Import custom formats from JSON into Lidarr
+# Version: v1.5
 # Author: prvctech
 # ---------------------------------------------
 
@@ -12,60 +11,81 @@ set -euo pipefail
 source /config/arrbit/process_scripts/functions.bash
 
 scriptName="custom_formats"
-scriptVersion="v1.4"
+scriptVersion="v1.5"
 
-# Setup logging
+# Setup golden log format
+logfileSetup() {
+  timestamp=$(date +"%Y_%m_%d-%H_%M")
+  logFileName="arrbit-${scriptName}-${timestamp}.log"
+  logFilePath="/config/logs/${logFileName}"
+  mkdir -p /config/logs
+  find "/config/logs" -type f -iname "arrbit-${scriptName}-*.log" -mtime +5 -delete
+  touch "$logFilePath"
+  chmod 666 "$logFilePath"
+}
+
+log() {
+  local m_time
+  m_time=$(date "+%F %T")
+  echo -e "${m_time} :: ${scriptName} :: ${scriptVersion} :: $1" | tee -a "$logFilePath"
+}
+
 logfileSetup
+log "🚀  ${ARRBIT_TAG} Starting ${scriptName}.bash..."
 
-log "🚀  ${ARRBIT_TAG} Starting custom formats module..."
-
-# Get API info and verify connection
+# Get Lidarr connection info
 getArrAppInfo
 verifyApiAccess
 
-# Path to custom formats JSON
+# Custom formats JSON file
 JSON_PATH="/config/arrbit/process_scripts/modules/json_values/custom_formats_master.json"
 
-# Check if JSON file exists
 if [[ ! -f "$JSON_PATH" ]]; then
-  log "❌  ${ARRBIT_TAG} File not found: ${JSON_PATH}"
+  log "⚠️  ${ARRBIT_TAG} File not found: ${JSON_PATH}"
   exit 1
 fi
 
 log "📄  ${ARRBIT_TAG} Reading custom formats from: ${JSON_PATH}"
 
-# Read and loop through each format
 jq -c '.[]' "$JSON_PATH" | while IFS= read -r format; do
   format_name=$(echo "$format" | jq -r '.name')
 
   # Check if format already exists in Lidarr
-  existing=$(curl -s "${arrUrl}/api/${arrApiVersion}/customformat?apikey=${arrApiKey}" | jq -r --arg NAME "$format_name" '.[] | select(.name == $NAME)')
+  existing=$(curl -s "${arrUrl}/api/${arrApiVersion}/customformat?apikey=${arrApiKey}" \
+    | jq -r --arg NAME "$format_name" '.[] | select(.name == $NAME)')
 
   if [[ -z "$existing" ]]; then
-    # Format doesn't exist, remove ID before POST
+    # Add new format (POST)
     new_format=$(echo "$format" | jq 'del(.id)')
+
+    {
+      echo -e "\n[Payload - ${format_name}] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+      echo "$new_format"
+      echo "[/Payload - ${format_name}] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+    } >> "$logFilePath"
+
     response=$(curl -s -X POST "${arrUrl}/api/${arrApiVersion}/customformat?apikey=${arrApiKey}" \
       -H "Content-Type: application/json" \
       -d "$new_format")
 
-    if [[ "$(echo "$response" | jq -r '.id')" != "null" ]]; then
-      log "✨  ${ARRBIT_TAG} Imported new custom format: ${format_name}"
-    else
-      log "⚠️  ${ARRBIT_TAG} Failed to import format: ${format_name} :: Response: ${response}"
-    fi
-  else
-    # Format exists, update using PUT
-    existing_id=$(echo "$existing" | jq -r '.id')
-    response=$(curl -s -X PUT "${arrUrl}/api/${arrApiVersion}/customformat/${existing_id}?apikey=${arrApiKey}" \
-      -H "Content-Type: application/json" \
-      -d "$format")
+    {
+      echo -e "[Response - ${format_name}] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+      echo "$response"
+      echo "[/Response - ${format_name}] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+    } >> "$logFilePath"
 
-    if [[ "$(echo "$response" | jq -r '.id')" != "null" ]]; then
-      log "♻️  ${ARRBIT_TAG} Updated existing custom format: ${format_name}"
+    if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
+      log "📥  ${ARRBIT_TAG} Imported new custom format: ${format_name}"
     else
-      log "⚠️  ${ARRBIT_TAG} Failed to update format: ${format_name} :: Response: ${response}"
+      log "⚠️  ${ARRBIT_TAG} Failed to import format: ${format_name}"
     fi
+
+  else
+    # Format exists — skip re-importing
+    log "⏩  ${ARRBIT_TAG} Format already exists, skipping: ${format_name}"
   fi
 done
 
-log "🎉  ${ARRBIT_TAG} Finished importing custom formats!"
+log "📄  ${ARRBIT_TAG} Log saved to /config/logs/${logFileName}"
+log "✅  ${ARRBIT_TAG} Done with ${scriptName}.bash!"
+exit 0
