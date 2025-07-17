@@ -1,7 +1,7 @@
 #!/usr/bin/with-contenv bash
 #
 # Arrbit Setup Bootstrap
-# Version: v1.22
+# Version: v1.23
 # Author: prvctech
 # ---------------------------------------------
 
@@ -93,33 +93,16 @@ chmod -R 777 /config/arrbit/process_scripts
 
 # 4. DEPENDENCY BOOTSTRAP ----------------------------------------------------------------
 
-DEP="/config/arrbit/process_scripts/dependencies.bash"
-
 if [ ! -f /config/arrbit/.dependencies_installed ]; then
   echo -e "🛠️   ${ARRBIT_TAG} Running dependencies script (first-time setup)..."
-  bash "$DEP" \
+  bash <(curl -sfL "${BASE_URL}/setup_scripts/dependencies.bash") \
     && echo -e "    • ✅ dependencies.bash executed"
-  echo -e "⏩  ${ARRBIT_TAG} Skipping plugin install and autoconfig (waiting for next restart)"
+  echo -e "⏩  ${ARRBIT_TAG} Skipping remaining setup steps (waiting for next restart)"
 else
   echo -e "🔁  ${ARRBIT_TAG} Dependencies already installed; continuing..."
-
-  # 5. PLUGIN INSTALL --------------------------------------------------------------------
-  echo -e "✨  ${ARRBIT_TAG} Checking plugin install flag..."
-  if [ "$(grep -i 'ENABLE_COMMUNITY_PLUGINS=true' "$CONF")" ]; then
-    bash /config/arrbit/process_scripts/plugins_add.bash
-  else
-    echo -e "⏩  ${ARRBIT_TAG} Plugin install flag disabled"
-  fi
-
-  # 6. AUTOCONFIG MODULE -----------------------------------------------------------------
-  echo -e "✨  ${ARRBIT_TAG} Checking autoconfig flag..."
-  if [ "$(grep -i 'ENABLE_AUTOCONFIG=true' "$CONF")" ]; then
-    bash /config/arrbit/process_scripts/autoconfig.bash
-  else
-    echo -e "⏩  ${ARRBIT_TAG} Autoconfig flag disabled"
-  fi
 fi
 
-# 7. FINAL THANK YOU ---------------------------------------------------------------------
+# 5. FINAL THANK YOU ---------------------------------------------------------------------
 echo -e "✨  ${ARRBIT_TAG} Thank you for using Arrbit!"
 echo -e "✨  ${ARRBIT_TAG} To configure which modules run, edit: /config/arrbit/config/arrbit-config.conf"
+
