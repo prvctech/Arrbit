@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Arrbit Module - Configure Track Naming
-# Version: v1.1
+# Version: v2.0
 # Author: prvctech
 # ---------------------------------------------
 
@@ -11,7 +11,7 @@ source /config/arrbit/process_scripts/functions.bash
 
 rawScriptName="$(basename "${BASH_SOURCE[0]}" .bash)"
 scriptName="${rawScriptName//_/ } module"
-scriptVersion="v1.1"
+scriptVersion="v2.0"
 
 logfileSetup() {
   timestamp=$(date +"%Y_%m_%d-%H_%M")
@@ -24,18 +24,30 @@ logfileSetup() {
 }
 
 log() {
-  echo -e "$1" | tee -a "$logFilePath"
+  echo -e "$1"
+  logRaw "$1"
+}
+
+logRaw() {
+  local stripped
+  stripped=$(echo -e "$1" \
+    | sed -E 's/\x1B\[[0-9;]*[a-zA-Z]//g' \
+    | sed -E 's/\\033\[[0-9;]*m//g' \
+    | sed -E 's/[🔵🟢⚠️📥📄⏩🚀✅❌🔧🔴🟪🟦🟩🟥]//g' \
+    | sed -E 's/\\n/\n/g' \
+    | sed -E 's/^[[:space:]]+\[Arrbit\]/[Arrbit]/')
+  echo "$stripped" >> "$logFilePath"
 }
 
 logfileSetup
 log "🚀  ${ARRBIT_TAG} Starting \033[1;33m${scriptName}\033[0m ${scriptVersion}..."
 
-# Connect to Lidarr
 getArrAppInfo
 verifyApiAccess
 
 if [[ "${CONFIGURE_TRACK_NAMING,,}" == "true" ]]; then
   log "📥  ${ARRBIT_TAG} Configuring Track Naming..."
+  logRaw "[Arrbit] Configuring Track Naming..."
 
   payload='{
     "renameTracks": true,
@@ -50,31 +62,30 @@ if [[ "${CONFIGURE_TRACK_NAMING,,}" == "true" ]]; then
     "id": 1
   }'
 
-  {
-    echo -e "\n[Payload] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-    echo "$payload"
-    echo "[/Payload] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
-  } >> "$logFilePath"
+  logRaw "[Payload] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+  echo "$payload" >> "$logFilePath"
+  logRaw "[/Payload] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
 
   response=$(curl -s --fail --retry 3 --retry-delay 2 \
     -X PUT "${arrUrl}/api/${arrApiVersion}/config/naming?apikey=${arrApiKey}" \
     -H "Content-Type: application/json" \
     --data-raw "$payload")
 
-  {
-    echo -e "[Response] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-    echo "$response"
-    echo "[/Response] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
-  } >> "$logFilePath"
+  logRaw "[Response] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+  echo "$response" >> "$logFilePath"
+  logRaw "[/Response] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
 
   if echo "$response" | jq -e '.renameTracks' >/dev/null 2>&1; then
-    log "✅  ${ARRBIT_TAG} Track Naming configured successfully"
+    logRaw "[SUCCESS] Track Naming config applied"
+    log "✅  ${ARRBIT_TAG} Track Naming has been configured successfully"
   else
     log "⚠️  ${ARRBIT_TAG} Track Naming API call failed"
+    logRaw "[ERROR] Failed to apply Track Naming config"
   fi
 
 else
   log "⏩  ${ARRBIT_TAG} Skipping Track Naming"
+  logRaw "[SKIP] CONFIGURE_TRACK_NAMING=false; skipping"
 fi
 
 log "📄  ${ARRBIT_TAG} Log saved to /config/logs/${logFileName}"
