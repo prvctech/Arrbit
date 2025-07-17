@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Arrbit Module - Register tagger.bash as Lidarr custom script
-# Version: v1.8
+# Version: v1.9
 # Author: prvctech
 # ---------------------------------------------
 
@@ -10,41 +10,40 @@ set -euo pipefail
 # Source shared functions
 source /config/arrbit/process_scripts/functions.bash
 
-scriptName="custom_scripts"
-scriptVersion="v1.8"
+# Extract module name for display
+rawScriptName="$(basename "${BASH_SOURCE[0]}" .bash)"
+scriptName="${rawScriptName//_/ } module"
+scriptVersion="v1.9"
 
-# Override logfileSetup for custom filename format
+# Logfile setup
 logfileSetup() {
   timestamp=$(date +"%Y_%m_%d-%H_%M")
-  logFileName="arrbit-${scriptName}-${timestamp}.log"
+  logFileName="arrbit-${rawScriptName}-${timestamp}.log"
   logFilePath="/config/logs/${logFileName}"
   mkdir -p /config/logs
-  find "/config/logs" -type f -iname "arrbit-${scriptName}-*.log" -mtime +5 -delete
+  find "/config/logs" -type f -iname "arrbit-${rawScriptName}-*.log" -mtime +5 -delete
   touch "$logFilePath"
   chmod 666 "$logFilePath"
 }
 
-# Custom logger to both screen and log file
+# Clean logger
 log() {
-  local m_time
-  m_time=$(date "+%F %T")
-  echo -e "${m_time} :: ${scriptName} :: ${scriptVersion} :: $1" | tee -a "$logFilePath"
+  echo -e "$1" | tee -a "$logFilePath"
 }
 
 logfileSetup
-log "🚀  ${ARRBIT_TAG} Starting ${scriptName}.bash..."
+log "🚀  ${ARRBIT_TAG} Starting \033[1;33m${scriptName}\033[0m ${scriptVersion}..."
 
 # Connect to Lidarr
 getArrAppInfo
 verifyApiAccess
 
-# Check if tagger.bash is already registered
+# Check if arrbit-tagger already registered
 if ! curl -s "${arrUrl}/api/${arrApiVersion}/notification?apikey=${arrApiKey}" \
   | jq -e '.[] | select(.name=="arrbit-tagger")' >/dev/null; then
 
   log "📥  ${ARRBIT_TAG} Registering arrbit-tagger (tagger.bash)..."
 
-  # Define the JSON payload
   payload=$(cat <<EOF
 {
   "name": "arrbit-tagger",
@@ -59,11 +58,10 @@ if ! curl -s "${arrUrl}/api/${arrApiVersion}/notification?apikey=${arrApiKey}" \
 EOF
 )
 
-  # Save raw payload and response to log (no emojis)
   {
     echo -e "\n[Payload] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
     echo "$payload"
-    echo -e "[/Payload] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n"
+    echo "[/Payload] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
   } >> "$logFilePath"
 
   response=$(curl -s -X POST "${arrUrl}/api/${arrApiVersion}/notification?apikey=${arrApiKey}" \
@@ -73,7 +71,7 @@ EOF
   {
     echo -e "[Response] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
     echo "$response"
-    echo -e "[/Response] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n"
+    echo "[/Response] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
   } >> "$logFilePath"
 
   if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
@@ -87,5 +85,5 @@ else
 fi
 
 log "📄  ${ARRBIT_TAG} Log saved to /config/logs/${logFileName}"
-log "✅  ${ARRBIT_TAG} Done with ${scriptName}.bash!"
+log "✅  ${ARRBIT_TAG} Done with ${rawScriptName}.bash!"
 exit 0
