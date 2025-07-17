@@ -1,4 +1,4 @@
-#!/usr/bin/with-contenv bash
+ #!/usr/bin/with-contenv bash
 #
 # Arrbit Setup Bootstrap
 # Version: v1.23
@@ -6,6 +6,9 @@
 # ---------------------------------------------
 
 set -euo pipefail
+
+# Redirect all output to Docker logs, unbuffered
+exec > >(tee /dev/stderr) 2>&1
 
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 BASE_URL="https://raw.githubusercontent.com/prvctech/Arrbit/main/lidarr"
@@ -106,3 +109,8 @@ fi
 echo -e "✨  ${ARRBIT_TAG} Thank you for using Arrbit!"
 echo -e "✨  ${ARRBIT_TAG} To configure which modules run, edit: /config/arrbit/config/arrbit-config.conf"
 
+# Final finish marker for debugging/log completeness
+echo "💡 setup.sh finished at $(date '+%T')"
+
+# Tiny pause to allow log output to flush
+sleep 0.5
