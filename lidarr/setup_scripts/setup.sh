@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 #
 # Arrbit initial setup script
-# Version: v1.19
+# Version: v1.20
 # Author: prvctech
-# Purpose: Download arrbit-config.conf & beets-config.yaml once; force-refresh all other scripts/modules
 # ---------------------------------------------
 
 set -euo pipefail
@@ -32,7 +31,7 @@ if [ ! -f "$CONF" ]; then
     echo -e "    • ⚠️  Failed to download arrbit-config.conf"
   fi
 else
-  echo -e "⏭️   ${ARRBIT_TAG} arrbit-config.conf exists; skipping download"
+  echo -e "⏩  ${ARRBIT_TAG} arrbit-config.conf exists; skipping download"
 fi
 
 # -----------------------------------------------------------------------------
@@ -48,7 +47,23 @@ if [ ! -f "$BEETS_CONF" ]; then
     echo -e "    • ⚠️  Failed to download beets-config.yaml"
   fi
 else
-  echo -e "⏭️   ${ARRBIT_TAG} beets-config.yaml exists; skipping download"
+  echo -e "⏩  ${ARRBIT_TAG} beets-config.yaml exists; skipping download"
+fi
+
+# -----------------------------------------------------------------------------
+# 2.6) Download metadata_profiles_master.json only if missing
+# -----------------------------------------------------------------------------
+META_PROFILES_JSON="/config/arrbit/process_scripts/modules/json_values/metadata_profiles_master.json"
+if [ ! -f "$META_PROFILES_JSON" ]; then
+  echo -e "📥  ${ARRBIT_TAG} Downloading metadata_profiles_master.json..."
+  if curl -sfL "${BASE_URL}/process_scripts/modules/json_values/metadata_profiles_master.json" -o "$META_PROFILES_JSON"; then
+    echo -e "    • ✅ metadata_profiles_master.json saved"
+    chmod 777 "$META_PROFILES_JSON"
+  else
+    echo -e "    • ⚠️  Failed to download metadata_profiles_master.json"
+  fi
+else
+  echo -e "⏩  ${ARRBIT_TAG} metadata_profiles_master.json exists; skipping download"
 fi
 
 # -----------------------------------------------------------------------------
@@ -120,7 +135,7 @@ if [ "${ENABLE_COMMUNITY_PLUGINS:-false}" = "true" ]; then
     && echo -e "    • ✅ plugins_add.bash executed" \
     || echo -e "    • ⚠️  plugins_add.bash failed"
 else
-  echo -e "⏭️   ${ARRBIT_TAG} Skipping plugins_add.bash"
+  echo -e "⏩  ${ARRBIT_TAG} Skipping plugins_add.bash"
 fi
 
 if [ "${ENABLE_AUTOCONFIG:-false}" = "true" ]; then
@@ -129,7 +144,7 @@ if [ "${ENABLE_AUTOCONFIG:-false}" = "true" ]; then
     && echo -e "    • ✅ autoconfig.bash executed" \
     || echo -e "    • ⚠️  autoconfig.bash failed"
 else
-  echo -e "⏭️   ${ARRBIT_TAG} Skipping autoconfig.bash"
+  echo -e "⏩  ${ARRBIT_TAG} Skipping autoconfig.bash"
 fi
 
 # -----------------------------------------------------------------------------
