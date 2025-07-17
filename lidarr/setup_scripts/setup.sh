@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/with-contenv bash
 #
 # Arrbit Setup Bootstrap
 # Version: v1.22
