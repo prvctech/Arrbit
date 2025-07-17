@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Arrbit Module - Import metadata profiles from JSON into Lidarr
-# Version: v1.7
+# Version: v2.0
 # Author: prvctech
 # ---------------------------------------------
 
@@ -11,7 +11,7 @@ source /config/arrbit/process_scripts/functions.bash
 
 rawScriptName="$(basename "${BASH_SOURCE[0]}" .bash)"
 scriptName="${rawScriptName//_/ } module"
-scriptVersion="v1.7"
+scriptVersion="v2.0"
 
 logfileSetup() {
   timestamp=$(date +"%Y_%m_%d-%H_%M")
@@ -61,7 +61,8 @@ fi
 log "📄  ${ARRBIT_TAG} Reading metadata profiles from: ${JSON_PATH}"
 logRaw "[INFO] Reading JSON from: ${JSON_PATH}"
 
-existing_names=$(curl -s "${arrUrl}/api/${arrApiVersion}/metadataprofile?apikey=${arrApiKey}" | jq -r '.[].name' | tr '[:upper:]' '[:lower:]')
+existing_names=$(curl -s "${arrUrl}/api/${arrApiVersion}/metadataprofile?apikey=${arrApiKey}" \
+  | jq -r '.[].name' | tr '[:upper:]' '[:lower:]')
 
 jq -c '.[]' "$JSON_PATH" | while IFS= read -r profile; do
   profile_name=$(echo "$profile" | jq -r '.name')
@@ -78,8 +79,8 @@ jq -c '.[]' "$JSON_PATH" | while IFS= read -r profile; do
     continue
   fi
 
-  log "📥  ${ARRBIT_TAG} Creating metadata profile: ${profile_name}"
-  logRaw "[Arrbit] Creating metadata profile: $profile_name"
+  log "📥  ${ARRBIT_TAG} Importing metadata profile: ${profile_name}"
+  logRaw "[Arrbit] Importing metadata profile: $profile_name"
   logRaw "[CREATE] Sending POST to: ${arrUrl}/api/${arrApiVersion}/metadataprofile"
 
   logRaw "[Payload] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
@@ -96,7 +97,6 @@ jq -c '.[]' "$JSON_PATH" | while IFS= read -r profile; do
   logRaw "[/Response] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
 
   if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
-    log "✅  ${ARRBIT_TAG} Created metadata profile: ${profile_name}"
     logRaw "[SUCCESS] Metadata profile created: $profile_name"
   else
     log "⚠️  ${ARRBIT_TAG} Failed to create metadata profile: ${profile_name}"
@@ -105,5 +105,6 @@ jq -c '.[]' "$JSON_PATH" | while IFS= read -r profile; do
 done
 
 log "📄  ${ARRBIT_TAG} Log saved to /config/logs/${logFileName}"
+log "✅  ${ARRBIT_TAG} All metadata profiles have been imported successfully"
 log "✅  ${ARRBIT_TAG} Done with ${rawScriptName}.bash!"
 exit 0
