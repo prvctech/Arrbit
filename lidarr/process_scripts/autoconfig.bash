@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/with-contenv bash
 #
 # Arrbit auto-configuration script
 # Version: v2.1
