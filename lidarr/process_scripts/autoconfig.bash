@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Arrbit auto-configuration script
-# Version: v1.7
+# Version: v1.8
 # Author: prvctech
 # Purpose: Run module configurations in Lidarr based on arrbit-config.conf flags
 # ---------------------------------------------
@@ -58,7 +58,7 @@ fi
 # -----------------------------------------------------------------------------
 run_module "media_management"        "${CONFIGURE_MEDIA_MANAGEMENT:-false}"
 run_module "metadata_consumer"       "${CONFIGURE_METADATA_CONSUMER:-false}"
-run_module "metadata_write"          "${CONFIGURE_METADATA_PROVIDER:-false}"
+run_module "metadata_write"          "${CONFIGURE_METADATA_WRITE:-false}"
 run_module "metadata_plugin"         "${CONFIGURE_METADATA_PLUGIN:-false}"
 run_module "metadata_profiles"       "${CONFIGURE_METADATA_PROFILES:-false}"
 run_module "track_naming"            "${CONFIGURE_TRACK_NAMING:-false}"
@@ -66,7 +66,7 @@ run_module "ui_settings"             "${CONFIGURE_UI_SETTINGS:-false}"
 run_module "custom_scripts"          "${CONFIGURE_CUSTOM_SCRIPTS:-false}"
 run_module "custom_formats"          "${CONFIGURE_CUSTOM_FORMATS:-false}"
 run_module "delay_profiles"          "${CONFIGURE_DELAY_PROFILES:-false}"
-run_module "quality_profile"         "${QUAL_FLAG}"
+run_module "quality_profile"         "${CONFIGURE_QUALITY_PROFILE:-false}"
 
 echo -e "✅  ${ARRBIT_TAG} Auto-configuration run complete!"
 exit 0
