@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Arrbit Module - Import custom formats from JSON into Lidarr
-# Version: v1.8
+# Version: v2.0
 # Author: prvctech
 # ---------------------------------------------
 
@@ -11,7 +11,7 @@ source /config/arrbit/process_scripts/functions.bash
 
 rawScriptName="$(basename "${BASH_SOURCE[0]}" .bash)"
 scriptName="${rawScriptName//_/ } module"
-scriptVersion="v1.8"
+scriptVersion="v2.0"
 
 logfileSetup() {
   timestamp=$(date +"%Y_%m_%d-%H_%M")
