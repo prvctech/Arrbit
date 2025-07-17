@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Arrbit Module - Configure UI Settings
-# Version: v1.1
+# Version: v2.0
 # Author: prvctech
 # ---------------------------------------------
 
@@ -11,7 +11,7 @@ source /config/arrbit/process_scripts/functions.bash
 
 rawScriptName="$(basename "${BASH_SOURCE[0]}" .bash)"
 scriptName="${rawScriptName//_/ } module"
-scriptVersion="v1.1"
+scriptVersion="v2.0"
 
 logfileSetup() {
   timestamp=$(date +"%Y_%m_%d-%H_%M")
@@ -24,18 +24,30 @@ logfileSetup() {
 }
 
 log() {
-  echo -e "$1" | tee -a "$logFilePath"
+  echo -e "$1"
+  logRaw "$1"
+}
+
+logRaw() {
+  local stripped
+  stripped=$(echo -e "$1" \
+    | sed -E 's/\x1B\[[0-9;]*[a-zA-Z]//g' \
+    | sed -E 's/\\033\[[0-9;]*m//g' \
+    | sed -E 's/[🔵🟢⚠️📥📄⏩🚀✅❌🔧🔴🟪🟦🟩🟥]//g' \
+    | sed -E 's/\\n/\n/g' \
+    | sed -E 's/^[[:space:]]+\[Arrbit\]/[Arrbit]/')
+  echo "$stripped" >> "$logFilePath"
 }
 
 logfileSetup
 log "🚀  ${ARRBIT_TAG} Starting \033[1;33m${scriptName}\033[0m ${scriptVersion}..."
 
-# Connect to Lidarr
 getArrAppInfo
 verifyApiAccess
 
 if [[ "${CONFIGURE_UI_SETTINGS,,}" == "true" ]]; then
   log "📥  ${ARRBIT_TAG} Configuring UI Settings..."
+  logRaw "[Arrbit] Configuring UI Settings..."
 
   payload='{
     "firstDayOfWeek": 0,
@@ -55,30 +67,29 @@ if [[ "${CONFIGURE_UI_SETTINGS,,}" == "true" ]]; then
     "id": 1
   }'
 
-  {
-    echo -e "\n[Payload] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-    echo "$payload"
-    echo "[/Payload] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
-  } >> "$logFilePath"
+  logRaw "[Payload] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+  echo "$payload" >> "$logFilePath"
+  logRaw "[/Payload] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
 
   response=$(curl -s --fail --retry 3 --retry-delay 2 \
     -X PUT "${arrUrl}/api/${arrApiVersion}/config/ui?apikey=${arrApiKey}" \
     -H "Content-Type: application/json" \
     --data-raw "$payload")
 
-  {
-    echo -e "[Response] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-    echo "$response"
-    echo "[/Response] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
-  } >> "$logFilePath"
+  logRaw "[Response] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+  echo "$response" >> "$logFilePath"
+  logRaw "[/Response] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
 
   if echo "$response" | jq -e '.theme' >/dev/null 2>&1; then
-    log "✅  ${ARRBIT_TAG} UI Settings configured successfully"
+    logRaw "[SUCCESS] UI Settings updated"
+    log "✅  ${ARRBIT_TAG} UI Settings have been configured successfully"
   else
     log "⚠️  ${ARRBIT_TAG} UI Settings API call failed"
+    logRaw "[ERROR] Failed to apply UI Settings"
   fi
 else
   log "⏩  ${ARRBIT_TAG} Skipping UI Settings"
+  logRaw "[SKIP] CONFIGURE_UI_SETTINGS=false; skipping"
 fi
 
 log "📄  ${ARRBIT_TAG} Log saved to /config/logs/${logFileName}"
