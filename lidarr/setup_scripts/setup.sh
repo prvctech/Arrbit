@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Arrbit Setup Bootstrap
-# Version: v1.21
+# Version: v1.22
 # Author: prvctech
 # ---------------------------------------------
 
@@ -14,7 +14,7 @@ echo -e "🚀  ${ARRBIT_TAG} Running initial Arrbit setup..."
 
 # 1. FOLDER STRUCTURE -------------------------------------------------------------------
 echo -e "📁  ${ARRBIT_TAG} Ensuring folder structure is created"
-mkdir -p /config/arrbit/{config,process_scripts,logs}
+mkdir -p /config/arrbit/{config,process_scripts}
 mkdir -p /config/arrbit/process_scripts/modules/json_values
 chmod -R 777 /config/arrbit
 
@@ -73,6 +73,8 @@ FILES=(
   autoconfig.bash
   plugins_add.bash
   dependencies.bash
+  tagger.bash
+  genre-whitelist.txt
 )
 
 MODULES=$(curl -s https://api.github.com/repos/prvctech/Arrbit/contents/lidarr/process_scripts/modules | jq -r '.[] | select(.name | endswith(".bash")) | .name')
