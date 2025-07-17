@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 #
 # Arrbit auto-configuration script
-# Version: v1.8
+# Version: v1.9
 # Author: prvctech
 # Purpose: Run module configurations in Lidarr based on arrbit-config.conf flags
 # ---------------------------------------------
 
 set -euo pipefail
 
-# Colored Arrbit tag for better terminal visibility
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 
 ARRBIT_CONF="/config/arrbit/config/arrbit-config.conf"
@@ -17,14 +16,26 @@ if [ ! -f "$ARRBIT_CONF" ]; then
   exit 1
 fi
 
-# Load user's flags
 source "$ARRBIT_CONF"
 
-echo -e "🚀  ${ARRBIT_TAG} Starting auto-configuration run"
+timestamp=$(date +"%Y_%m_%d-%H_%M")
+logFileName="arrbit-autoconfig-${timestamp}.log"
+logFilePath="/config/logs/${logFileName}"
+mkdir -p /config/logs
+touch "$logFilePath"
+chmod 666 "$logFilePath"
+
+log() {
+  local m_time
+  m_time=$(date "+%F %T")
+  echo -e "${m_time} :: autoconfig :: v1.9 :: $1" | tee -a "$logFilePath"
+}
+
+log "🚀  ${ARRBIT_TAG} Starting auto-configuration run"
 
 # Master toggle
 if [ "${ENABLE_AUTOCONFIG:-false}" != "true" ]; then
-  echo -e "⏭️  ${ARRBIT_TAG} Auto-configuration disabled (ENABLE_AUTOCONFIG=${ENABLE_AUTOCONFIG}). Exiting."
+  log "⏩  ${ARRBIT_TAG} Auto-configuration disabled (ENABLE_AUTOCONFIG=${ENABLE_AUTOCONFIG}). Exiting."
   exit 0
 fi
 
@@ -36,18 +47,19 @@ run_module() {
   local flag="$2"
   local script_path="/config/arrbit/process_scripts/modules/${module_name}.bash"
 
-  if [ "${flag:-false}" = "true" ]; then
-    echo -e "⚙️  ${ARRBIT_TAG} Configuring ${module_name//_/ }"
-    bash -c "$script_path" \
-      || echo -e "⚠️  ${ARRBIT_TAG} ${module_name}.bash failed, continuing"
+  if [ "${flag,,}" = "true" ]; then
+    log "📥  ${ARRBIT_TAG} Configuring ${module_name//_/ }..."
+    if bash "$script_path"; then
+      log "✅  ${ARRBIT_TAG} ${module_name//_/ } completed"
+    else
+      log "⚠️  ${ARRBIT_TAG} ${module_name//_/ }.bash failed"
+    fi
   else
-    echo -e "⏭️  ${ARRBIT_TAG} Skipping ${module_name//_/ } (flag disabled)"
+    log "⏩  ${ARRBIT_TAG} Skipping ${module_name//_/ } (flag disabled)"
   fi
 }
 
-# -----------------------------------------------------------------------------
-# Combine CUSTOM_FORMATS and QUALITY_PROFILE flags
-# -----------------------------------------------------------------------------
+# Combined override for quality profile + custom formats
 QUAL_FLAG="false"
 if [ "${CONFIGURE_CUSTOM_FORMATS,,}" = "true" ] && [ "${CONFIGURE_QUALITY_PROFILE,,}" = "true" ]; then
   QUAL_FLAG="true"
@@ -68,5 +80,6 @@ run_module "custom_formats"          "${CONFIGURE_CUSTOM_FORMATS:-false}"
 run_module "delay_profiles"          "${CONFIGURE_DELAY_PROFILES:-false}"
 run_module "quality_profile"         "${CONFIGURE_QUALITY_PROFILE:-false}"
 
-echo -e "✅  ${ARRBIT_TAG} Auto-configuration run complete!"
+log "📄  ${ARRBIT_TAG} Log saved to /config/logs/${logFileName}"
+log "✅  ${ARRBIT_TAG} Auto-configuration run complete!"
 exit 0
