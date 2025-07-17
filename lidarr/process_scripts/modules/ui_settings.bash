@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Arrbit Module - Configure UI Settings
-# Version: v1.0
+# Version: v1.1
 # Author: prvctech
 # ---------------------------------------------
 
@@ -9,34 +9,31 @@ set -euo pipefail
 
 source /config/arrbit/process_scripts/functions.bash
 
-scriptName="ui_settings"
-scriptVersion="v1.0"
+rawScriptName="$(basename "${BASH_SOURCE[0]}" .bash)"
+scriptName="${rawScriptName//_/ } module"
+scriptVersion="v1.1"
 
-# Setup log file
 logfileSetup() {
   timestamp=$(date +"%Y_%m_%d-%H_%M")
-  logFileName="arrbit-${scriptName}-${timestamp}.log"
+  logFileName="arrbit-${rawScriptName}-${timestamp}.log"
   logFilePath="/config/logs/${logFileName}"
   mkdir -p /config/logs
-  find "/config/logs" -type f -iname "arrbit-${scriptName}-*.log" -mtime +5 -delete
+  find "/config/logs" -type f -iname "arrbit-${rawScriptName}-*.log" -mtime +5 -delete
   touch "$logFilePath"
   chmod 666 "$logFilePath"
 }
 
 log() {
-  local m_time
-  m_time=$(date "+%F %T")
-  echo -e "${m_time} :: ${scriptName} :: ${scriptVersion} :: $1" | tee -a "$logFilePath"
+  echo -e "$1" | tee -a "$logFilePath"
 }
 
 logfileSetup
-log "🚀  ${ARRBIT_TAG} Starting ${scriptName}.bash..."
+log "🚀  ${ARRBIT_TAG} Starting \033[1;33m${scriptName}\033[0m ${scriptVersion}..."
 
 # Connect to Lidarr
 getArrAppInfo
 verifyApiAccess
 
-# UI settings flag
 if [[ "${CONFIGURE_UI_SETTINGS,,}" == "true" ]]; then
   log "📥  ${ARRBIT_TAG} Configuring UI Settings..."
 
@@ -85,5 +82,5 @@ else
 fi
 
 log "📄  ${ARRBIT_TAG} Log saved to /config/logs/${logFileName}"
-log "✅  ${ARRBIT_TAG} Done with ${scriptName}.bash!"
+log "✅  ${ARRBIT_TAG} Done with ${rawScriptName}.bash!"
 exit 0
