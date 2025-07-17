@@ -1,183 +1,109 @@
 #!/usr/bin/env bash
+#
+# Arrbit Module - Import metadata profiles from JSON into Lidarr
+# Version: v1.7
+# Author: prvctech
+# ---------------------------------------------
+
 set -euo pipefail
 
-echo "*** [Arrbit] Configuring metadata profiles ***"
-
-# Load functions
 source /config/arrbit/process_scripts/functions.bash
 
-# Check toggle
-if [[ "${CONFIGURE_METADATA_PROFILES}" != "true" ]]; then
-  echo "*** [Arrbit] CONFIGURE_METADATA_PROFILES disabled. Skipping. ***"
+rawScriptName="$(basename "${BASH_SOURCE[0]}" .bash)"
+scriptName="${rawScriptName//_/ } module"
+scriptVersion="v1.7"
+
+logfileSetup() {
+  timestamp=$(date +"%Y_%m_%d-%H_%M")
+  logFileName="arrbit-${rawScriptName}-${timestamp}.log"
+  logFilePath="/config/logs/${logFileName}"
+  mkdir -p /config/logs
+  find "/config/logs" -type f -iname "arrbit-${rawScriptName}-*.log" -mtime +5 -delete
+  touch "$logFilePath"
+  chmod 666 "$logFilePath"
+}
+
+log() {
+  echo -e "$1"
+  logRaw "$1"
+}
+
+logRaw() {
+  local stripped
+  stripped=$(echo -e "$1" \
+    | sed -E 's/\x1B\[[0-9;]*[a-zA-Z]//g' \
+    | sed -E 's/\\033\[[0-9;]*m//g' \
+    | sed -E 's/[🔵🟢⚠️📥📄⏩🚀✅❌🔧🔴🟪🟦🟩🟥]//g' \
+    | sed -E 's/\\n/\n/g' \
+    | sed -E 's/^[[:space:]]+\[Arrbit\]/[Arrbit]/')
+  echo "$stripped" >> "$logFilePath"
+}
+
+logfileSetup
+log "🚀  ${ARRBIT_TAG} Starting \033[1;33m${scriptName}\033[0m ${scriptVersion}..."
+
+if [[ "${CONFIGURE_METADATA_PROFILES,,}" != "true" ]]; then
+  log "⏩  ${ARRBIT_TAG} Skipping metadata profile import (flag disabled)"
   exit 0
 fi
 
-# Function to update a profile
-update_profile() {
-  local id=$1
-  local data=$2
+getArrAppInfo
+verifyApiAccess
 
-  curl -sfL \
-    -H "X-Api-Key: $(api_key)" \
+JSON_PATH="/config/arrbit/process_scripts/modules/json_values/metadata_profiles_master.json"
+
+if [[ ! -f "$JSON_PATH" ]]; then
+  log "⚠️  ${ARRBIT_TAG} File not found: ${JSON_PATH}"
+  logRaw "[ERROR] metadata_profiles_master.json not found at ${JSON_PATH}"
+  exit 1
+fi
+
+log "📄  ${ARRBIT_TAG} Reading metadata profiles from: ${JSON_PATH}"
+logRaw "[INFO] Reading JSON from: ${JSON_PATH}"
+
+existing_names=$(curl -s "${arrUrl}/api/${arrApiVersion}/metadataprofile?apikey=${arrApiKey}" | jq -r '.[].name' | tr '[:upper:]' '[:lower:]')
+
+jq -c '.[]' "$JSON_PATH" | while IFS= read -r profile; do
+  profile_name=$(echo "$profile" | jq -r '.name')
+  profile_id=$(echo "$profile" | jq -r '.id')
+  payload=$(echo "$profile" | jq 'del(.id)')
+  lowercase_name=$(echo "$profile_name" | tr '[:upper:]' '[:lower:]')
+
+  logRaw "\n[START] Profile: $profile_name (ID: $profile_id)"
+  logRaw "[ACTION] Checking if profile name already exists in Lidarr"
+
+  if echo "$existing_names" | grep -Fxq "$lowercase_name"; then
+    log "⏩  ${ARRBIT_TAG} Metadata profile already exists, skipping: ${profile_name}"
+    logRaw "[SKIP] Profile already exists in Lidarr: $profile_name"
+    continue
+  fi
+
+  log "📥  ${ARRBIT_TAG} Creating metadata profile: ${profile_name}"
+  logRaw "[Arrbit] Creating metadata profile: $profile_name"
+  logRaw "[CREATE] Sending POST to: ${arrUrl}/api/${arrApiVersion}/metadataprofile"
+
+  logRaw "[Payload] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+  echo "$payload" >> "$logFilePath"
+  logRaw "[/Payload] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+
+  response=$(curl -s --fail --retry 3 --retry-delay 2 \
+    -X POST "${arrUrl}/api/${arrApiVersion}/metadataprofile?apikey=${arrApiKey}" \
     -H "Content-Type: application/json" \
-    -X PUT \
-    --data "${data}" \
-    "$(api_url)/api/v1/metadataprofile/${id}" \
-    && echo "✅ Profile ID ${id} updated." \
-    || echo "⚠ Failed to update profile ID ${id}."
-}
+    --data-raw "$payload")
 
-# ------------------------
-# Profile: standard
-# ------------------------
-standard_profile=$(cat <<EOF
-{
-  "name": "standard",
-  "id": 1,
-  "primaryAlbumTypes": [
-    {"albumType": {"id": 0, "name": "Album"}, "allowed": true},
-    {"albumType": {"id": 1, "name": "EP"}, "allowed": true},
-    {"albumType": {"id": 2, "name": "Single"}, "allowed": true},
-    {"albumType": {"id": 3, "name": "Broadcast"}, "allowed": false},
-    {"albumType": {"id": 4, "name": "Other"}, "allowed": false}
-  ],
-  "secondaryAlbumTypes": [
-    {"albumType": {"id": 0, "name": "Studio"}, "allowed": true},
-    {"albumType": {"id": 1, "name": "Compilation"}, "allowed": false},
-    {"albumType": {"id": 2, "name": "Soundtrack"}, "allowed": false},
-    {"albumType": {"id": 3, "name": "Spokenword"}, "allowed": false},
-    {"albumType": {"id": 4, "name": "Interview"}, "allowed": false},
-    {"albumType": {"id": 6, "name": "Live"}, "allowed": false},
-    {"albumType": {"id": 7, "name": "Remix"}, "allowed": false},
-    {"albumType": {"id": 8, "name": "DJ-mix"}, "allowed": false},
-    {"albumType": {"id": 9, "name": "Mixtape/Street"}, "allowed": false},
-    {"albumType": {"id": 10, "name": "Demo"}, "allowed": false},
-    {"albumType": {"id": 11, "name": "Audio drama"}, "allowed": false}
-  ],
-  "releaseStatuses": [
-    {"releaseStatus": {"id": 0, "name": "Official"}, "allowed": true},
-    {"releaseStatus": {"id": 1, "name": "Promotion"}, "allowed": false},
-    {"releaseStatus": {"id": 2, "name": "Bootleg"}, "allowed": false},
-    {"releaseStatus": {"id": 3, "name": "Pseudo-Release"}, "allowed": false}
-  ]
-}
-EOF
-)
-update_profile 1 "$standard_profile"
+  logRaw "[Response] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+  echo "$response" >> "$logFilePath"
+  logRaw "[/Response] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
 
-# ------------------------
-# Profile: None
-# ------------------------
-none_profile=$(cat <<EOF
-{
-  "name": "None",
-  "id": 2,
-  "primaryAlbumTypes": [
-    {"albumType": {"id": 0, "name": "Album"}, "allowed": false},
-    {"albumType": {"id": 1, "name": "EP"}, "allowed": false},
-    {"albumType": {"id": 2, "name": "Single"}, "allowed": false},
-    {"albumType": {"id": 3, "name": "Broadcast"}, "allowed": false},
-    {"albumType": {"id": 4, "name": "Other"}, "allowed": false}
-  ],
-  "secondaryAlbumTypes": [
-    {"albumType": {"id": 0, "name": "Studio"}, "allowed": false},
-    {"albumType": {"id": 1, "name": "Compilation"}, "allowed": false},
-    {"albumType": {"id": 2, "name": "Soundtrack"}, "allowed": false},
-    {"albumType": {"id": 3, "name": "Spokenword"}, "allowed": false},
-    {"albumType": {"id": 4, "name": "Interview"}, "allowed": false},
-    {"albumType": {"id": 6, "name": "Live"}, "allowed": false},
-    {"albumType": {"id": 7, "name": "Remix"}, "allowed": false},
-    {"albumType": {"id": 8, "name": "DJ-mix"}, "allowed": false},
-    {"albumType": {"id": 9, "name": "Mixtape/Street"}, "allowed": false},
-    {"albumType": {"id": 10, "name": "Demo"}, "allowed": false},
-    {"albumType": {"id": 11, "name": "Audio drama"}, "allowed": false}
-  ],
-  "releaseStatuses": [
-    {"releaseStatus": {"id": 0, "name": "Official"}, "allowed": false},
-    {"releaseStatus": {"id": 1, "name": "Promotion"}, "allowed": false},
-    {"releaseStatus": {"id": 2, "name": "Bootleg"}, "allowed": false},
-    {"releaseStatus": {"id": 3, "name": "Pseudo-Release"}, "allowed": false}
-  ]
-}
-EOF
-)
-update_profile 2 "$none_profile"
+  if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
+    log "✅  ${ARRBIT_TAG} Created metadata profile: ${profile_name}"
+    logRaw "[SUCCESS] Metadata profile created: $profile_name"
+  else
+    log "⚠️  ${ARRBIT_TAG} Failed to create metadata profile: ${profile_name}"
+    logRaw "[ERROR] Failed to create profile: $profile_name"
+  fi
+done
 
-# ------------------------
-# Profile: edm
-# ------------------------
-edm_profile=$(cat <<EOF
-{
-  "name": "edm",
-  "id": 3,
-  "primaryAlbumTypes": [
-    {"albumType": {"id": 0, "name": "Album"}, "allowed": true},
-    {"albumType": {"id": 1, "name": "EP"}, "allowed": true},
-    {"albumType": {"id": 2, "name": "Single"}, "allowed": true},
-    {"albumType": {"id": 3, "name": "Broadcast"}, "allowed": false},
-    {"albumType": {"id": 4, "name": "Other"}, "allowed": false}
-  ],
-  "secondaryAlbumTypes": [
-    {"albumType": {"id": 0, "name": "Studio"}, "allowed": true},
-    {"albumType": {"id": 1, "name": "Compilation"}, "allowed": true},
-    {"albumType": {"id": 2, "name": "Soundtrack"}, "allowed": true},
-    {"albumType": {"id": 3, "name": "Spokenword"}, "allowed": false},
-    {"albumType": {"id": 4, "name": "Interview"}, "allowed": false},
-    {"albumType": {"id": 6, "name": "Live"}, "allowed": false},
-    {"albumType": {"id": 7, "name": "Remix"}, "allowed": true},
-    {"albumType": {"id": 8, "name": "DJ-mix"}, "allowed": false},
-    {"albumType": {"id": 9, "name": "Mixtape/Street"}, "allowed": false},
-    {"albumType": {"id": 10, "name": "Demo"}, "allowed": false},
-    {"albumType": {"id": 11, "name": "Audio drama"}, "allowed": false}
-  ],
-  "releaseStatuses": [
-    {"releaseStatus": {"id": 0, "name": "Official"}, "allowed": true},
-    {"releaseStatus": {"id": 1, "name": "Promotion"}, "allowed": false},
-    {"releaseStatus": {"id": 2, "name": "Bootleg"}, "allowed": false},
-    {"releaseStatus": {"id": 3, "name": "Pseudo-Release"}, "allowed": false}
-  ]
-}
-EOF
-)
-update_profile 3 "$edm_profile"
-
-# ------------------------
-# Profile: latino
-# ------------------------
-latino_profile=$(cat <<EOF
-{
-  "name": "latino",
-  "id": 4,
-  "primaryAlbumTypes": [
-    {"albumType": {"id": 0, "name": "Album"}, "allowed": true},
-    {"albumType": {"id": 1, "name": "EP"}, "allowed": false},
-    {"albumType": {"id": 2, "name": "Single"}, "allowed": true},
-    {"albumType": {"id": 3, "name": "Broadcast"}, "allowed": false},
-    {"albumType": {"id": 4, "name": "Other"}, "allowed": false}
-  ],
-  "secondaryAlbumTypes": [
-    {"albumType": {"id": 0, "name": "Studio"}, "allowed": false},
-    {"albumType": {"id": 1, "name": "Compilation"}, "allowed": true},
-    {"albumType": {"id": 2, "name": "Soundtrack"}, "allowed": false},
-    {"albumType": {"id": 3, "name": "Spokenword"}, "allowed": false},
-    {"albumType": {"id": 4, "name": "Interview"}, "allowed": false},
-    {"albumType": {"id": 6, "name": "Live"}, "allowed": false},
-    {"albumType": {"id": 7, "name": "Remix"}, "allowed": true},
-    {"albumType": {"id": 8, "name": "DJ-mix"}, "allowed": false},
-    {"albumType": {"id": 9, "name": "Mixtape/Street"}, "allowed": false},
-    {"albumType": {"id": 10, "name": "Demo"}, "allowed": false},
-    {"albumType": {"id": 11, "name": "Audio drama"}, "allowed": false}
-  ],
-  "releaseStatuses": [
-    {"releaseStatus": {"id": 0, "name": "Official"}, "allowed": true},
-    {"releaseStatus": {"id": 1, "name": "Promotion"}, "allowed": false},
-    {"releaseStatus": {"id": 2, "name": "Bootleg"}, "allowed": false},
-    {"releaseStatus": {"id": 3, "name": "Pseudo-Release"}, "allowed": false}
-  ]
-}
-EOF
-)
-update_profile 4 "$latino_profile"
-
-echo "*** [Arrbit] Metadata profiles updated successfully! ***"
+log "📄  ${ARRBIT_TAG} Log saved to /config/logs/${logFileName}"
+log "✅  ${ARRBIT_TAG} Done with ${rawScriptName}.bash!"
 exit 0
