@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/with-contenv bash
 #
 # Arrbit Dependencies Installer
 # Version: v1.2
