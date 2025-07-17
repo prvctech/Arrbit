@@ -1,43 +1,44 @@
 #!/usr/bin/env bash
 #
 # Arrbit Module - Import custom formats from JSON into Lidarr
-# Version: v1.5
+# Version: v1.6
 # Author: prvctech
 # ---------------------------------------------
 
 set -euo pipefail
 
-# Source shared Arrbit functions
+# Load Arrbit functions
 source /config/arrbit/process_scripts/functions.bash
 
-scriptName="custom_formats"
-scriptVersion="v1.5"
+# Format module name: "custom formats module"
+rawScriptName="$(basename "${BASH_SOURCE[0]}" .bash)"
+scriptName="${rawScriptName//_/ } module"
+scriptVersion="v1.6"
 
-# Setup golden log format
+# Log setup
 logfileSetup() {
   timestamp=$(date +"%Y_%m_%d-%H_%M")
-  logFileName="arrbit-${scriptName}-${timestamp}.log"
+  logFileName="arrbit-${rawScriptName}-${timestamp}.log"
   logFilePath="/config/logs/${logFileName}"
   mkdir -p /config/logs
-  find "/config/logs" -type f -iname "arrbit-${scriptName}-*.log" -mtime +5 -delete
+  find "/config/logs" -type f -iname "arrbit-${rawScriptName}-*.log" -mtime +5 -delete
   touch "$logFilePath"
   chmod 666 "$logFilePath"
 }
 
+# Emoji-aligned logger
 log() {
-  local m_time
-  m_time=$(date "+%F %T")
-  echo -e "${m_time} :: ${scriptName} :: ${scriptVersion} :: $1" | tee -a "$logFilePath"
+  echo -e "$1" | tee -a "$logFilePath"
 }
 
 logfileSetup
-log "🚀  ${ARRBIT_TAG} Starting ${scriptName}.bash..."
+log "🚀  ${ARRBIT_TAG} Starting \033[1;33m${scriptName}\033[0m ${scriptVersion}..."
 
-# Get Lidarr connection info
+# Connect to Lidarr
 getArrAppInfo
 verifyApiAccess
 
-# Custom formats JSON file
+# Custom formats file
 JSON_PATH="/config/arrbit/process_scripts/modules/json_values/custom_formats_master.json"
 
 if [[ ! -f "$JSON_PATH" ]]; then
@@ -47,15 +48,15 @@ fi
 
 log "📄  ${ARRBIT_TAG} Reading custom formats from: ${JSON_PATH}"
 
+# Loop through each custom format
 jq -c '.[]' "$JSON_PATH" | while IFS= read -r format; do
   format_name=$(echo "$format" | jq -r '.name')
 
-  # Check if format already exists in Lidarr
+  # Check if format exists
   existing=$(curl -s "${arrUrl}/api/${arrApiVersion}/customformat?apikey=${arrApiKey}" \
     | jq -r --arg NAME "$format_name" '.[] | select(.name == $NAME)')
 
   if [[ -z "$existing" ]]; then
-    # Add new format (POST)
     new_format=$(echo "$format" | jq 'del(.id)')
 
     {
@@ -79,13 +80,11 @@ jq -c '.[]' "$JSON_PATH" | while IFS= read -r format; do
     else
       log "⚠️  ${ARRBIT_TAG} Failed to import format: ${format_name}"
     fi
-
   else
-    # Format exists — skip re-importing
     log "⏩  ${ARRBIT_TAG} Format already exists, skipping: ${format_name}"
   fi
 done
 
 log "📄  ${ARRBIT_TAG} Log saved to /config/logs/${logFileName}"
-log "✅  ${ARRBIT_TAG} Done with ${scriptName}.bash!"
+log "✅  ${ARRBIT_TAG} Done with ${rawScriptName}.bash!"
 exit 0
