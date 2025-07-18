@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# ---------------------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------
 # Arrbit [run]
-# Version: 1.4
+# Version: 1.5
 # Purpose: Main entrypoint for Arrbit; auto-updates, installs configs, runs dependencies, and launches main Arrbit scripts.
-# ---------------------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------
 
 set +e  # Do not exit on error; allow logs to complete and sleep
 
@@ -20,9 +20,9 @@ ARRBIT_SERVICES=("autoconfig.bash" "plugins_add.bash" "tagger.bash")  # Add new 
 
 log() { echo -e "$1" | tee -a "$RAW_LOG"; }
 
-# -------------------------------------
+# -------------------------------
 # Log Rotation: purge logs after 2 days
-# --------------------------------------
+# -------------------------------
 find "$LOG_DIR" -type f -name "arrbit-*.log" -mtime +2 -delete 2>/dev/null || true
 
 # -------------------------------
@@ -31,22 +31,23 @@ find "$LOG_DIR" -type f -name "arrbit-*.log" -mtime +2 -delete 2>/dev/null || tr
 mkdir -p "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR" "$TMP_DIR"
 chmod -R 777 "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR"
 
+sleep 8  # Delay Arrbit logging to appear after container native logs
+
 log "🚀  $ARRBIT_TAG Arrbit service starting..."
 
-# -------------------------------------------------------------
+# -------------------------------
 # 1. Auto-update scripts/modules from GitHub (Golden Standard)
-# --------------------------------------------------------------
+# -------------------------------
 log "📥  $ARRBIT_TAG Syncing latest scripts/modules from GitHub..."
 curl -sfL "$GITHUB_REPO/archive/refs/heads/$GITHUB_BRANCH.zip" -o "$TMP_DIR/arrbit.zip"
 unzip -q "$TMP_DIR/arrbit.zip" -d "$TMP_DIR"
 
-# Copy all process_scripts (including modules/ and data/) into the service dir
 cp -rf "$TMP_DIR/Arrbit-main/lidarr/process_scripts/"* "$SERVICE_DIR/"
 chmod -R 777 "$SERVICE_DIR"
 
-# ------------------------------------------------------------------
+# -------------------------------
 # 2. Copy config files if missing (never overwrite existing config)
-# ------------------------------------------------------------------
+# -------------------------------
 for cfg in arrbit-config.conf beets-config.yaml; do
   if [ ! -f "$CONFIG_DIR/$cfg" ]; then
     cp "$TMP_DIR/Arrbit-main/lidarr/config/$cfg" "$CONFIG_DIR/$cfg"
