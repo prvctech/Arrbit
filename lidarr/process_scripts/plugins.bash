@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------
-# Arrbit [plugins_add]
+# Arrbit [plugins]
 # Version: 1.1
 # Purpose: Install community plugins for Lidarr (Tidal, Deezer, Tubifarry)
 # ------------------------------------------------------------
