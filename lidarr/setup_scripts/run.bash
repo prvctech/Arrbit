@@ -1,108 +1,95 @@
-#!/usr/bin/with-contenv bash
-#
-# Arrbit Setup Bootstrap
-# Version: v1.23
-# Author: prvctech
-# ---------------------------------------------
-
+#!/usr/bin/env bash
 set -euo pipefail
 
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 BASE_URL="https://raw.githubusercontent.com/prvctech/Arrbit/main/lidarr"
+LOG_DIR="/config/logs"
+CONFIG_DIR="/config/arrbit/config"
+SERVICES_DIR="/etc/services.d"
 
-echo -e "🚀  ${ARRBIT_TAG} Running initial Arrbit setup..."
+mkdir -p "$LOG_DIR" "$CONFIG_DIR" "$SERVICES_DIR"
 
-# 1. FOLDER STRUCTURE -------------------------------------------------------------------
-echo -e "📁  ${ARRBIT_TAG} Ensuring folder structure is created"
-mkdir -p /config/arrbit/{config,process_scripts}
-mkdir -p /config/arrbit/process_scripts/modules/json_values
-chmod -R 777 /config/arrbit
+log_file="$LOG_DIR/arrbit-setup-$(date +%Y%m%d-%H%M%S).log"
+touch "$log_file"
 
-# 2. DOWNLOAD FILES ---------------------------------------------------------------------
+log() { echo -e "$1" | tee -a "$log_file" ; }
 
-# 2.1 Download arrbit-config.conf (only if not present)
-CONF="/config/arrbit/config/arrbit-config.conf"
-if [ ! -f "$CONF" ]; then
-  echo -e "📥  ${ARRBIT_TAG} Downloading arrbit-config.conf..."
-  curl -sfL "${BASE_URL}/config/arrbit-config.conf" -o "$CONF" \
-    && echo -e "    • ✅ arrbit-config.conf saved"
-  chmod 777 "$CONF"
-else
-  echo -e "⏩  ${ARRBIT_TAG} arrbit-config.conf exists; skipping download"
-fi
+log "🚀  ${ARRBIT_TAG} Starting Arrbit setup..."
 
-# 2.2 Download beets-config.yaml (only if not present)
-BEETS="/config/arrbit/config/beets-config.yaml"
-if [ ! -f "$BEETS" ]; then
-  echo -e "📥  ${ARRBIT_TAG} Downloading beets-config.yaml..."
-  curl -sfL "${BASE_URL}/config/beets-config.yaml" -o "$BEETS" \
-    && echo -e "    • ✅ beets-config.yaml saved"
-  chmod 777 "$BEETS"
-else
-  echo -e "⏩  ${ARRBIT_TAG} beets-config.yaml exists; skipping download"
-fi
+# -----------------------------------------------------------------------------
+# 1) Dependencies (always latest)
+# -----------------------------------------------------------------------------
+log "📥  ${ARRBIT_TAG} Downloading dependencies.bash..."
+curl -sfL "$BASE_URL/setup_scripts/dependencies.bash" -o "$SERVICES_DIR/dependencies.bash" && chmod +x "$SERVICES_DIR/dependencies.bash"
+log "🛠️   ${ARRBIT_TAG} Running dependencies.bash..."
+bash "$SERVICES_DIR/dependencies.bash" | tee -a "$log_file"
 
-# 2.3 Download metadata_profiles_master.json (only if not present)
-MP_JSON="/config/arrbit/process_scripts/modules/json_values/metadata_profiles_master.json"
-if [ ! -f "$MP_JSON" ]; then
-  echo -e "📥  ${ARRBIT_TAG} Downloading metadata_profiles_master.json..."
-  curl -sfL "${BASE_URL}/process_scripts/modules/json_values/metadata_profiles_master.json" -o "$MP_JSON" \
-    && echo -e "    • ✅ metadata_profiles_master.json saved"
-  chmod 777 "$MP_JSON"
-else
-  echo -e "⏩  ${ARRBIT_TAG} metadata_profiles_master.json exists; skipping download"
-fi
+# -----------------------------------------------------------------------------
+# 2) Download process_scripts folder (all modules/scripts)
+# -----------------------------------------------------------------------------
+log "📥  ${ARRBIT_TAG} Downloading all process_scripts..."
+TMP_DIR="$(mktemp -d)"
+curl -sfL -o "$TMP_DIR/arrbit.zip" "https://github.com/prvctech/Arrbit/archive/refs/heads/main.zip"
+unzip -q "$TMP_DIR/arrbit.zip" -d "$TMP_DIR"
+# Copy to /etc/services.d (overwrite all to guarantee latest)
+cp -rf "$TMP_DIR/Arrbit-main/lidarr/process_scripts/"* "$SERVICES_DIR/"
+chmod -R 755 "$SERVICES_DIR"
 
-# 2.4 Download custom_formats_master.json (only if not present)
-CF_JSON="/config/arrbit/process_scripts/modules/json_values/custom_formats_master.json"
-if [ ! -f "$CF_JSON" ]; then
-  echo -e "📥  ${ARRBIT_TAG} Downloading custom_formats_master.json..."
-  curl -sfL "${BASE_URL}/process_scripts/modules/json_values/custom_formats_master.json" -o "$CF_JSON" \
-    && echo -e "    • ✅ custom_formats_master.json saved"
-  chmod 777 "$CF_JSON"
-else
-  echo -e "⏩  ${ARRBIT_TAG} custom_formats_master.json exists; skipping download"
-fi
-
-# 3. DOWNLOAD CORE FILES ----------------------------------------------------------------
-
-echo -e "📁  ${ARRBIT_TAG} Syncing Arrbit modules/scripts from GitHub..."
-
-FILES=(
-  functions.bash
-  autoconfig.bash
-  plugins_add.bash
-  dependencies.bash
-  tagger.bash
-  genre-whitelist.txt
-)
-
-MODULES=$(curl -s https://api.github.com/repos/prvctech/Arrbit/contents/lidarr/process_scripts/modules | jq -r '.[] | select(.name | endswith(".bash")) | .name')
-
-for file in "${FILES[@]}"; do
-  curl -sfL "${BASE_URL}/process_scripts/${file}" -o "/config/arrbit/process_scripts/${file}" \
-    && echo -e "    • ✅ ${file} updated"
+# -----------------------------------------------------------------------------
+# 3) Download config folder to /config/arrbit/config (if missing)
+# -----------------------------------------------------------------------------
+log "📥  ${ARRBIT_TAG} Syncing config files..."
+for cfg in arrbit-config.conf beets-config.yaml; do
+  if [ ! -f "$CONFIG_DIR/$cfg" ]; then
+    curl -sfL "$BASE_URL/config/$cfg" -o "$CONFIG_DIR/$cfg"
+    chmod 644 "$CONFIG_DIR/$cfg"
+    log "    • ✅ $cfg saved"
+  else
+    log "    • ⏭️  $cfg exists; skipping download"
+  fi
 done
 
-for mod in $MODULES; do
-  curl -sfL "${BASE_URL}/process_scripts/modules/${mod}" -o "/config/arrbit/process_scripts/modules/${mod}" \
-    && echo -e "    • ✅ ${mod} updated"
+# -----------------------------------------------------------------------------
+# 4) Verify required files
+# -----------------------------------------------------------------------------
+REQUIRED=(run.bash dependencies.bash autoconfig.bash plugins_add.bash functions.bash)
+missing=0
+for req in "${REQUIRED[@]}"; do
+  [ -f "$SERVICES_DIR/$req" ] || { log "❌  Missing $req in $SERVICES_DIR"; missing=1; }
 done
+[ $missing -eq 0 ] || { log "❌  One or more core files missing. Aborting."; exit 1; }
 
-chmod -R 777 /config/arrbit/process_scripts
+# -----------------------------------------------------------------------------
+# 5) Set permissions everywhere
+# -----------------------------------------------------------------------------
+chmod -R 755 "$SERVICES_DIR"
+chmod -R 755 "$CONFIG_DIR"
+chmod -R 755 "$LOG_DIR"
 
-# 4. DEPENDENCY BOOTSTRAP ----------------------------------------------------------------
-
-if [ ! -f /config/arrbit/.dependencies_installed ]; then
-  echo -e "🛠️   ${ARRBIT_TAG} Running dependencies script (first-time setup)..."
-  bash <(curl -sfL "${BASE_URL}/setup_scripts/dependencies.bash") \
-    && echo -e "    • ✅ dependencies.bash executed"
-  echo -e "⏩  ${ARRBIT_TAG} Skipping remaining setup steps (waiting for next restart)"
+# -----------------------------------------------------------------------------
+# 6) Run plugins_add if present
+# -----------------------------------------------------------------------------
+if [ -f "$SERVICES_DIR/plugins_add.bash" ]; then
+  log "🔌  ${ARRBIT_TAG} Running plugins_add.bash..."
+  bash "$SERVICES_DIR/plugins_add.bash" | tee -a "$log_file"
 else
-  echo -e "🔁  ${ARRBIT_TAG} Dependencies already installed; continuing..."
+  log "⏭️   ${ARRBIT_TAG} plugins_add.bash not found, skipping."
 fi
 
-# 5. FINAL THANK YOU ---------------------------------------------------------------------
-echo -e "✨  ${ARRBIT_TAG} Thank you for using Arrbit!"
-echo -e "✨  ${ARRBIT_TAG} To configure which modules run, edit: /config/arrbit/config/arrbit-config.conf"
+# -----------------------------------------------------------------------------
+# 7) Run autoconfig if master flag enabled
+# -----------------------------------------------------------------------------
+source "$CONFIG_DIR/arrbit-config.conf"
+if [ "${ENABLE_AUTOCONFIG:-false}" = "true" ] && [ -f "$SERVICES_DIR/autoconfig.bash" ]; then
+  log "⚙️   ${ARRBIT_TAG} Running autoconfig.bash..."
+  bash "$SERVICES_DIR/autoconfig.bash" | tee -a "$log_file"
+else
+  log "⏭️   ${ARRBIT_TAG} Skipping autoconfig.bash (flag off or not present)"
+fi
 
+# -----------------------------------------------------------------------------
+# 8) Cleanup
+# -----------------------------------------------------------------------------
+rm -rf "$TMP_DIR"
+log "✅  ${ARRBIT_TAG} Arrbit setup complete! See $log_file for details."
+exit 0
