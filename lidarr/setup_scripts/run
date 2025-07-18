@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------
 # Arrbit [run]
-# Version: 2.5
+# Version: 2.6
 # Purpose: Main entrypoint for Arrbit; auto-updates, installs configs, runs dependencies, shows logo, and launches main Arrbit scripts.
 # ------------------------------------------------------------
 
 set +e
 
+# ------------------------------------------------------------
+# 0. ENV and PATHS
+# ------------------------------------------------------------
 GITHUB_REPO="https://github.com/prvctech/Arrbit"
 GITHUB_BRANCH="main"
 SERVICE_DIR="/etc/services.d/arrbit"
@@ -16,13 +19,17 @@ TMP_DIR="/tmp/arrbit_update_$$"
 
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 rawScriptName="run"
-scriptVersion="v2.5"
+scriptVersion="v2.6"
 
+# ------------------------------------------------------------
+# 1. LOGGING SETUP (file & function)
+# ------------------------------------------------------------
 logfileSetup() {
   timestamp=$(date +"%Y_%m_%d-%H_%M")
   logFileName="arrbit-${rawScriptName}-${timestamp}.log"
   logFilePath="${LOG_DIR}/${logFileName}"
   mkdir -p "${LOG_DIR}"
+  # Rotate logs older than 2 days
   find "${LOG_DIR}" -type f -iname "arrbit-${rawScriptName}-*.log" -mtime +2 -delete
   touch "$logFilePath"
   chmod 666 "$logFilePath"
@@ -46,33 +53,41 @@ logRaw() {
 
 logfileSetup
 
-sleep 8  # Delay Arrbit logs until after container native logs
+# ------------------------------------------------------------
+# 2. SHOW LOGO & HEADER
+# ------------------------------------------------------------
+sleep 8  # Let container native logs print before Arrbit logs
 
-# Print Arrbit logo header FIRST, before any log or output
+# Always print Arrbit logo at very top (or fallback for alignment)
 if [ -f "$SERVICE_DIR/modules/data/arrbit_logo.bash" ]; then
     source "$SERVICE_DIR/modules/data/arrbit_logo.bash"
     arrbit_logo
 else
-    # Fallback: blank lines the same width as logo for perfect alignment
     echo -e "                                    "
     echo -e "                                    "
     echo -e "                                    "
     echo -e "                                    "
 fi
 
-# Only the service start line is plain and has NO highlight/tag!
+# Plain start line (no highlight/tag)
 echo "Starting arrbit services..."
 
-# Now, all logs with ARRBIT_TAG
+# ------------------------------------------------------------
+# 3. SYNC SCRIPTS/MODULES FROM GITHUB
+# ------------------------------------------------------------
 log "📥  $ARRBIT_TAG Syncing latest scripts/modules from GitHub..."
 mkdir -p "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR" "$TMP_DIR"
 chmod -R 777 "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR"
 
+# Download and extract the latest Arrbit from GitHub
 curl -sfL "$GITHUB_REPO/archive/refs/heads/$GITHUB_BRANCH.zip" -o "$TMP_DIR/arrbit.zip"
 unzip -q "$TMP_DIR/arrbit.zip" -d "$TMP_DIR"
 cp -rf "$TMP_DIR/Arrbit-main/lidarr/process_scripts/"* "$SERVICE_DIR/"
 chmod -R 777 "$SERVICE_DIR"
 
+# ------------------------------------------------------------
+# 4. COPY CONFIG FILES IF MISSING (never overwrite)
+# ------------------------------------------------------------
 for cfg in arrbit-config.conf beets-config.yaml; do
   if [ ! -f "$CONFIG_DIR/$cfg" ]; then
     cp "$TMP_DIR/Arrbit-main/lidarr/config/$cfg" "$CONFIG_DIR/$cfg"
@@ -89,16 +104,25 @@ log "🟢  $ARRBIT_TAG Scripts/modules updated and configs checked."
 
 chmod -R 777 "$LOG_DIR" "$CONFIG_DIR" || true
 
+# ------------------------------------------------------------
+# 5. INSTALL/UPDATE DEPENDENCIES
+# ------------------------------------------------------------
 log "🔵  $ARRBIT_TAG Running dependencies remotely from GitHub..."
 curl -sfL "$GITHUB_REPO/raw/$GITHUB_BRANCH/lidarr/setup_scripts/dependencies.bash" | bash | tee -a "$logFilePath"
 
+# ------------------------------------------------------------
+# 6. PARSE FLAGS FROM CONFIG (robust: strip quotes, spaces, newlines)
+# ------------------------------------------------------------
 ENABLE_AUTOCONFIG="true"
 ENABLE_COMMUNITY_PLUGINS="false"
 if [ -f "$CONFIG_DIR/arrbit-config.conf" ]; then
-    ENABLE_AUTOCONFIG=$(grep -E '^ENABLE_AUTOCONFIG=' "$CONFIG_DIR/arrbit-config.conf" | cut -d'=' -f2 | tr -d '\r')
-    ENABLE_COMMUNITY_PLUGINS=$(grep -E '^ENABLE_COMMUNITY_PLUGINS=' "$CONFIG_DIR/arrbit-config.conf" | cut -d'=' -f2 | tr -d '\r')
+    ENABLE_AUTOCONFIG=$(grep -E '^ENABLE_AUTOCONFIG=' "$CONFIG_DIR/arrbit-config.conf" | cut -d'=' -f2 | sed 's/[[:space:]"\r]//g')
+    ENABLE_COMMUNITY_PLUGINS=$(grep -E '^ENABLE_COMMUNITY_PLUGINS=' "$CONFIG_DIR/arrbit-config.conf" | cut -d'=' -f2 | sed 's/[[:space:]"\r]//g')
 fi
 
+# ------------------------------------------------------------
+# 7. BUILD SERVICES TO RUN BASED ON FLAGS
+# ------------------------------------------------------------
 ARRBIT_SERVICES=()
 if [[ "${ENABLE_AUTOCONFIG,,}" == "true" ]]; then
     ARRBIT_SERVICES+=("autoconfig.bash")
@@ -107,6 +131,9 @@ if [[ "${ENABLE_COMMUNITY_PLUGINS,,}" == "true" ]]; then
     ARRBIT_SERVICES+=("plugins.bash")
 fi
 
+# ------------------------------------------------------------
+# 8. EXECUTE EACH ENABLED SERVICE SCRIPT (DEFENSIVE)
+# ------------------------------------------------------------
 for script in "${ARRBIT_SERVICES[@]}"; do
     if [ -x "$SERVICE_DIR/$script" ]; then
         log "⏩  $ARRBIT_TAG Running $script..."
@@ -118,6 +145,9 @@ for script in "${ARRBIT_SERVICES[@]}"; do
     fi
 done
 
+# ------------------------------------------------------------
+# 9. FINAL LOG AND SLEEP FOREVER
+# ------------------------------------------------------------
 log "📄  $ARRBIT_TAG Log saved to $logFilePath"
 log "✅  $ARRBIT_TAG Done with run!"
 sleep infinity
