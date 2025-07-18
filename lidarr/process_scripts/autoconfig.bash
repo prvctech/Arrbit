@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------
 # Arrbit [autoconfig]
-# Version: 2.1
-# Purpose: Orchestrates Arrbit modules to configure Lidarr, only if enabled in config.
+# Version: 2.2
+# Purpose: Orchestrates Arrbit modules to configure Lidarr, per config flags.
 # ------------------------------------------------------------
 
 set +e
@@ -14,7 +14,7 @@ LOG_DIR="/config/logs"
 
 rawScriptName="autoconfig"
 scriptName="autoconfig module"
-scriptVersion="v2.1"
+scriptVersion="v2.2"
 
 # Log setup
 logfileSetup() {
@@ -46,17 +46,6 @@ logRaw() {
 logfileSetup
 log "🚀  ${ARRBIT_TAG} Starting \033[1;33m${scriptName}\033[0m ${scriptVersion}..."
 
-# Check ENABLE_AUTOCONFIG flag in config (default to 1 if missing)
-ENABLE_AUTOCONFIG=1
-if [ -f "$CONFIG_FILE" ]; then
-    ENABLE_AUTOCONFIG=$(grep -E '^ENABLE_AUTOCONFIG=' "$CONFIG_FILE" | cut -d'=' -f2 | tr -d '\r')
-fi
-
-if [ "$ENABLE_AUTOCONFIG" != "1" ] && [[ ! "${ENABLE_AUTOCONFIG,,}" =~ ^(true|yes)$ ]]; then
-    log "⏭️   $ARRBIT_TAG autoconfig is disabled by config flag. Exiting."
-    exit 0
-fi
-
 # Always source functions for utility/log helpers
 if [ -f "$MODULES_DIR/functions.bash" ]; then
     source "$MODULES_DIR/functions.bash"
@@ -65,7 +54,16 @@ else
     exit 1
 fi
 
-# List of modules to run
+# Parse all CONFIGURE_* flags from config into environment
+if [ -f "$CONFIG_FILE" ]; then
+    while IFS='=' read -r key value; do
+        if [[ $key == CONFIGURE_* ]]; then
+            export "$key"="$(echo "$value" | tr -d '\r')"
+        fi
+    done < <(grep -E '^CONFIGURE_' "$CONFIG_FILE")
+fi
+
+# List of modules to run, using CONFIGURE_ flags if present
 MODULES_TO_RUN=(
     "media_management.bash"
     "metadata_write.bash"
@@ -80,15 +78,15 @@ MODULES_TO_RUN=(
     "quality_profile.bash"
 )
 
-# Run each module, skip if disabled or missing
+# Run each module, skip if CONFIGURE_* flag is set to false
 for module in "${MODULES_TO_RUN[@]}"; do
-    module_name="${module%.bash}"  # Remove extension for nice logs
+    module_name="${module%.bash}"  # Remove extension for logs
     module_path="$MODULES_DIR/$module"
+    config_flag="CONFIGURE_${module_name^^}"
 
-    # Flag check for each module (optional, expects variables like ENABLE_MEDIA_MANAGEMENT, etc.)
-    flag_var="ENABLE_${module_name^^}"
-    if [ "${!flag_var:-1}" -eq 0 ]; then
-        log "⏭️   $ARRBIT_TAG Skipping $module_name (flag disabled)"
+    # Only run module if config flag is not set to "false"
+    if [[ "${!config_flag:-true}" =~ ^[Ff][Aa][Ll][Ss][Ee]$ ]]; then
+        log "⏭️   $ARRBIT_TAG Skipping $module_name (config flag ${config_flag}=false)"
         continue
     fi
 
