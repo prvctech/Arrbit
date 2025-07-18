@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Arrbit Service Entrypoint (run as /etc/services.d/arrbit/run)
-# Version: 1.1 (2024-07-18) - Fixes duplicate modules/ and missing config sync
+# Golden Standard & Key Ninja Principles enforced
+# Version: 1.2 (2024-07-18)
 
 GITHUB_REPO="https://github.com/prvctech/Arrbit"
 GITHUB_BRANCH="main"
@@ -13,44 +14,58 @@ TMP_DIR="/tmp/arrbit_update_$$"
 RAW_LOG="$LOG_DIR/arrbit-service-$(date +%Y%m%d-%H%M%S).log"
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 
-ARRBIT_SERVICES=("autoconfig.bash" "plugins_add.bash" "tagger.bash")  # Add more as needed
+ARRBIT_SERVICES=("autoconfig.bash" "plugins_add.bash" "tagger.bash")  # Add new main entry scripts here if needed
 
+# Logging
 log() { echo -e "$1" | tee -a "$RAW_LOG"; }
 
-# Log rotation: purge logs older than 2 days
+# -------------------------------
+# Log Rotation: purge logs after 2 days
+# -------------------------------
 find "$LOG_DIR" -type f -name "arrbit-*.log" -mtime +2 -delete 2>/dev/null || true
 
+# -------------------------------
+# Create required folders with 777 perms
+# -------------------------------
 mkdir -p "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR" "$TMP_DIR"
+chmod -R 777 "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR"
 
 log "🚀  $ARRBIT_TAG Arrbit service starting..."
 
-# Auto-update scripts/modules from GitHub
+# -------------------------------
+# 1. Auto-update scripts/modules from GitHub (Golden Standard)
+# -------------------------------
 log "📥  $ARRBIT_TAG Syncing latest scripts/modules from GitHub..."
 curl -sfL "$GITHUB_REPO/archive/refs/heads/$GITHUB_BRANCH.zip" -o "$TMP_DIR/arrbit.zip"
 unzip -q "$TMP_DIR/arrbit.zip" -d "$TMP_DIR"
 
 # Copy all process_scripts (including modules/ and data/) into the service dir
 cp -rf "$TMP_DIR/Arrbit-main/lidarr/process_scripts/"* "$SERVICE_DIR/"
-chmod -R 755 "$SERVICE_DIR"
+chmod -R 777 "$SERVICE_DIR"
 
-# Copy config files if missing
+# -------------------------------
+# 2. Copy config files if missing (Golden Standard: never overwrite existing config)
+# -------------------------------
 for cfg in arrbit-config.conf beets-config.yaml; do
   if [ ! -f "$CONFIG_DIR/$cfg" ]; then
     cp "$TMP_DIR/Arrbit-main/lidarr/config/$cfg" "$CONFIG_DIR/$cfg"
-    chmod 644 "$CONFIG_DIR/$cfg"
+    chmod 777 "$CONFIG_DIR/$cfg"
     log "    • ✅ $cfg saved to config directory."
   else
     log "    • ⏭️  $cfg exists; skipping download."
   fi
 done
 
+# Cleanup temp folder
 rm -rf "$TMP_DIR"
 
 log "🟢  $ARRBIT_TAG Scripts/modules updated and configs checked."
 
-chmod -R 755 "$LOG_DIR" "$CONFIG_DIR" || true
+chmod -R 777 "$LOG_DIR" "$CONFIG_DIR" || true
 
-# Dependencies setup (optional)
+# -------------------------------
+# 3. Run dependencies setup (if present)
+# -------------------------------
 if [ -f "$SERVICE_DIR/../setup_scripts/dependencies.bash" ]; then
     log "🔵  $ARRBIT_TAG Running dependencies setup..."
     bash "$SERVICE_DIR/../setup_scripts/dependencies.bash" | tee -a "$RAW_LOG"
@@ -58,6 +73,9 @@ else
     log "⏭️   $ARRBIT_TAG No dependencies.bash found, skipping."
 fi
 
+# -------------------------------
+# 4. Run main Arrbit service scripts, one after the other
+# -------------------------------
 for script in "${ARRBIT_SERVICES[@]}"; do
     if [ -x "$SERVICE_DIR/$script" ]; then
         log "⏩  $ARRBIT_TAG Running $script..."
