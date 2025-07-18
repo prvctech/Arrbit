@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
-#
-# Arrbit Module - Install community plugins (Tidal, Deezer, Tubifarry)
-# Version: v2.5
-# Author: prvctech
-# ---------------------------------------------
+# ------------------------------------------------------------
+# Arrbit [plugins_add]
+# Version: 1.1
+# Purpose: Install community plugins for Lidarr (Tidal, Deezer, Tubifarry)
+# ------------------------------------------------------------
 
 set -euo pipefail
 
-source /config/arrbit/process_scripts/functions.bash
+ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
+CONFIG_FILE="/config/arrbit/arrbit-config.conf"
+PLUGINS_DIR="/config/plugins"
 
-rawScriptName="$(basename "${BASH_SOURCE[0]}" .bash)"
-scriptName="${rawScriptName//_/ } module"
-scriptVersion="v2.5"
+rawScriptName="plugins_add"
+scriptName="plugins add module"
+scriptVersion="v1.1"
 
 logfileSetup() {
   timestamp=$(date +"%Y_%m_%d-%H_%M")
@@ -32,7 +34,7 @@ logRaw() {
   local stripped
   stripped=$(echo -e "$1" \
     | sed -E 's/\x1B\[[0-9;]*[a-zA-Z]//g' \
-    | sed -E 's/\\033\[[0-9;]*m//g' \
+    | sed -E 's/\033\[[0-9;]*m//g' \
     | sed -E 's/[🔵🟢⚠️📥📄⏩🚀✅❌🔧🔴🟪🟦🟩🟥📁📦]//g' \
     | sed -E 's/\\n/\n/g' \
     | sed -E 's/^[[:space:]]+\[Arrbit\]/[Arrbit]/')
@@ -42,18 +44,15 @@ logRaw() {
 print_unzip_clean() {
   while IFS= read -r line; do
     if [[ "$line" =~ ^Archive:\ (.*) ]]; then
-      echo -e "📦  \033[1;36m[Arrbit]\033[0m Archive:    ${BASH_REMATCH[1]}"
+      echo -e "📦  ${ARRBIT_TAG} Archive:    ${BASH_REMATCH[1]}"
     elif [[ "$line" =~ ^\ \ inflating:\ (.*) ]]; then
-      echo -e "📁  \033[1;36m[Arrbit]\033[0m inflating:  ${BASH_REMATCH[1]}"
+      echo -e "📁  ${ARRBIT_TAG} inflating:  ${BASH_REMATCH[1]}"
     fi
   done
 }
 
 logfileSetup
 log "🚀  ${ARRBIT_TAG} Starting \033[1;33m${scriptName}\033[0m ${scriptVersion}..."
-
-CONFIG_FILE="/config/arrbit/config/arrbit-config.conf"
-PLUGINS_DIR="/config/plugins"
 
 if [ ! -r "$CONFIG_FILE" ]; then
   log "⚠️  ${ARRBIT_TAG} Config file not found: $CONFIG_FILE. Skipping plugins."
@@ -62,7 +61,7 @@ fi
 
 source "$CONFIG_FILE"
 
-if [ "${ENABLE_COMMUNITY_PLUGINS,,}" != "true" ]; then
+if [ "${ENABLE_COMMUNITY_PLUGINS,,}" != "true" ] && [ "${ENABLE_COMMUNITY_PLUGINS}" != "1" ]; then
   log "⏩  ${ARRBIT_TAG} Community plugin install is disabled. Skipping."
   exit 0
 fi
@@ -75,7 +74,7 @@ has_dll() {
 
 # ----------------- Deezer -----------------
 DEEZER_TARGET="$PLUGINS_DIR/TrevTV/Lidarr.Plugin.Deezer"
-if [ "${INSTALL_PLUGIN_DEEZER,,}" = "true" ]; then
+if [ "${INSTALL_PLUGIN_DEEZER,,}" = "true" ] || [ "${INSTALL_PLUGIN_DEEZER}" = "1" ]; then
   if has_dll "$DEEZER_TARGET"; then
     log "⏩  ${ARRBIT_TAG} Deezer already installed; skipping"
     logRaw "[SKIP] Deezer already exists at $DEEZER_TARGET"
@@ -98,7 +97,7 @@ fi
 
 # ----------------- Tidal -----------------
 TIDAL_TARGET="$PLUGINS_DIR/TrevTV/Lidarr.Plugin.Tidal"
-if [ "${INSTALL_PLUGIN_TIDAL,,}" = "true" ]; then
+if [ "${INSTALL_PLUGIN_TIDAL,,}" = "true" ] || [ "${INSTALL_PLUGIN_TIDAL}" = "1" ]; then
   if has_dll "$TIDAL_TARGET"; then
     log "⏩  ${ARRBIT_TAG} Tidal already installed; skipping"
     logRaw "[SKIP] Tidal already exists at $TIDAL_TARGET"
@@ -121,7 +120,7 @@ fi
 
 # ----------------- Tubifarry -----------------
 TUBI_TARGET="$PLUGINS_DIR/TypNull/Tubifarry"
-if [ "${INSTALL_PLUGIN_TUBIFARRY,,}" = "true" ]; then
+if [ "${INSTALL_PLUGIN_TUBIFARRY,,}" = "true" ] || [ "${INSTALL_PLUGIN_TUBIFARRY}" = "1" ]; then
   if has_dll "$TUBI_TARGET"; then
     log "⏩  ${ARRBIT_TAG} Tubifarry already installed; skipping"
     logRaw "[SKIP] Tubifarry already exists at $TUBI_TARGET"
@@ -143,5 +142,5 @@ else
 fi
 
 log "📄  ${ARRBIT_TAG} Log saved to /config/logs/${logFileName}"
-log "✅  ${ARRBIT_TAG} Done with ${rawScriptName}.bash!"
+log "✅  ${ARRBIT_TAG} Done with ${rawScriptName}!"
 exit 0
