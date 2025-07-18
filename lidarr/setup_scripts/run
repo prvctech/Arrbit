@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------
 # Arrbit [run]
-# Version: 2.0
+# Version: 2.1
 # Purpose: Main entrypoint for Arrbit; auto-updates, installs configs, runs dependencies, and launches main Arrbit scripts.
 # ------------------------------------------------------------
 
@@ -16,7 +16,7 @@ TMP_DIR="/tmp/arrbit_update_$$"
 
 rawScriptName="run"
 scriptName="run module"
-scriptVersion="v2.0"
+scriptVersion="v2.1"
 
 logfileSetup() {
   timestamp=$(date +"%Y_%m_%d-%H_%M")
@@ -94,7 +94,7 @@ if [[ "${ENABLE_AUTOCONFIG,,}" == "true" ]]; then
     ARRBIT_SERVICES+=("autoconfig.bash")
 fi
 if [[ "${ENABLE_COMMUNITY_PLUGINS,,}" == "true" ]]; then
-    ARRBIT_SERVICES+=("plugins_add.bash")
+    ARRBIT_SERVICES+=("plugins.bash")
 fi
 
 # 5. Run main Arrbit service scripts, one after the other (defensive, won't exit service on error)
