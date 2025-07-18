@@ -1,18 +1,30 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------
 # Arrbit [autoconfig]
-# Version: 2.0
-# Purpose: Orchestrates Arrbit modules to configure Lidarr, following golden standard.
+# Version: 2.1
+# Purpose: Orchestrates Arrbit modules to configure Lidarr, only if enabled in config.
 # ------------------------------------------------------------
 
 set +e  # Allow non-fatal failures for migration
 
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 MODULES_DIR="modules"
+CONFIG_FILE="/config/arrbit/config/arrbit-config.conf"
 LOG_DIR="/config/logs"
 RAW_LOG="$LOG_DIR/arrbit-autoconfig-$(date +%Y_%m_%d-%H_%M).log"
 
 log() { echo -e "$1" | tee -a "$RAW_LOG"; }
+
+# Check ENABLE_AUTOCONFIG flag in config (default to 1 if missing)
+ENABLE_AUTOCONFIG=1
+if [ -f "$CONFIG_FILE" ]; then
+    ENABLE_AUTOCONFIG=$(grep -E '^ENABLE_AUTOCONFIG=' "$CONFIG_FILE" | cut -d'=' -f2 | tr -d '\r')
+fi
+
+if [ "$ENABLE_AUTOCONFIG" != "1" ] && [[ ! "${ENABLE_AUTOCONFIG,,}" =~ ^(true|yes)$ ]]; then
+    log "⏭️   $ARRBIT_TAG autoconfig is disabled by config flag. Exiting."
+    exit 0
+fi
 
 log "🚀  $ARRBIT_TAG Starting autoconfig..."
 
@@ -24,11 +36,13 @@ else
     exit 1
 fi
 
-# List of modules to run (in order) for migration
+# List of modules to run (now complete, including all present in your screenshot)
 MODULES_TO_RUN=(
     "media_management.bash"
     "metadata_write.bash"
     "metadata_profiles.bash"
+    "metadata_consumer.bash"
+    "metadata_plugin.bash"
     "track_naming.bash"
     "ui_settings.bash"
     "custom_scripts.bash"
