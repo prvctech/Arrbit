@@ -5,15 +5,46 @@
 # Purpose: Orchestrates Arrbit modules to configure Lidarr, only if enabled in config.
 # ------------------------------------------------------------
 
-set +e  # Allow non-fatal failures for migration
+set +e
 
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 MODULES_DIR="modules"
-CONFIG_FILE="/config/arrbit/config/arrbit-config.conf"
+CONFIG_FILE="/config/arrbit/arrbit-config.conf"
 LOG_DIR="/config/logs"
-RAW_LOG="$LOG_DIR/arrbit-autoconfig-$(date +%Y_%m_%d-%H_%M).log"
 
-log() { echo -e "$1" | tee -a "$RAW_LOG"; }
+rawScriptName="autoconfig"
+scriptName="autoconfig module"
+scriptVersion="v2.1"
+
+# Log setup
+logfileSetup() {
+  timestamp=$(date +"%Y_%m_%d-%H_%M")
+  logFileName="arrbit-${rawScriptName}-${timestamp}.log"
+  logFilePath="${LOG_DIR}/${logFileName}"
+  mkdir -p "${LOG_DIR}"
+  find "${LOG_DIR}" -type f -iname "arrbit-${rawScriptName}-*.log" -mtime +5 -delete
+  touch "$logFilePath"
+  chmod 666 "$logFilePath"
+}
+
+log() {
+  echo -e "$1"
+  logRaw "$1"
+}
+
+logRaw() {
+  local stripped
+  stripped=$(echo -e "$1" \
+    | sed -E 's/\x1B\[[0-9;]*[a-zA-Z]//g' \
+    | sed -E 's/\033\[[0-9;]*m//g' \
+    | sed -E 's/[🔵🟢⚠️📥📄⏩🚀✅❌🔧🔴🟪🟦🟩🟥📁📦]//g' \
+    | sed -E 's/\\n/\n/g' \
+    | sed -E 's/^[[:space:]]+\[Arrbit\]/[Arrbit]/')
+  echo "$stripped" >> "$logFilePath"
+}
+
+logfileSetup
+log "🚀  ${ARRBIT_TAG} Starting \033[1;33m${scriptName}\033[0m ${scriptVersion}..."
 
 # Check ENABLE_AUTOCONFIG flag in config (default to 1 if missing)
 ENABLE_AUTOCONFIG=1
@@ -26,8 +57,6 @@ if [ "$ENABLE_AUTOCONFIG" != "1" ] && [[ ! "${ENABLE_AUTOCONFIG,,}" =~ ^(true|ye
     exit 0
 fi
 
-log "🚀  $ARRBIT_TAG Starting autoconfig..."
-
 # Always source functions for utility/log helpers
 if [ -f "$MODULES_DIR/functions.bash" ]; then
     source "$MODULES_DIR/functions.bash"
@@ -36,7 +65,7 @@ else
     exit 1
 fi
 
-# List of modules to run (now complete, including all present in your screenshot)
+# List of modules to run
 MODULES_TO_RUN=(
     "media_management.bash"
     "metadata_write.bash"
@@ -56,7 +85,7 @@ for module in "${MODULES_TO_RUN[@]}"; do
     module_name="${module%.bash}"  # Remove extension for nice logs
     module_path="$MODULES_DIR/$module"
 
-    # Example flag check: add your own logic to enable/disable as needed
+    # Flag check for each module (optional, expects variables like ENABLE_MEDIA_MANAGEMENT, etc.)
     flag_var="ENABLE_${module_name^^}"
     if [ "${!flag_var:-1}" -eq 0 ]; then
         log "⏭️   $ARRBIT_TAG Skipping $module_name (flag disabled)"
@@ -64,7 +93,7 @@ for module in "${MODULES_TO_RUN[@]}"; do
     fi
 
     if [ -f "$module_path" ]; then
-        if ! bash "$module_path" | tee -a "$RAW_LOG"; then
+        if ! bash "$module_path" | tee -a "$logFilePath"; then
             log "❌  $ARRBIT_TAG $module_name failed"
         else
             log "✅  $ARRBIT_TAG $module_name complete"
@@ -74,6 +103,6 @@ for module in "${MODULES_TO_RUN[@]}"; do
     fi
 done
 
-log "📄  $ARRBIT_TAG Log saved to $RAW_LOG"
-log "✅  $ARRBIT_TAG Done with autoconfig!"
+log "📄  $ARRBIT_TAG Log saved to $logFilePath"
+log "✅  $ARRBIT_TAG Done with ${rawScriptName}!"
 exit 0
