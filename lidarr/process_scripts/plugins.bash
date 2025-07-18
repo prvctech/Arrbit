@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------
 # Arrbit [plugins]
-# Version: 1.1
+# Version: 1.2
 # Purpose: Install community plugins for Lidarr (Tidal, Deezer, Tubifarry)
 # ------------------------------------------------------------
 
@@ -11,9 +11,9 @@ ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 CONFIG_FILE="/config/arrbit/arrbit-config.conf"
 PLUGINS_DIR="/config/plugins"
 
-rawScriptName="plugins_add"
-scriptName="plugins add module"
-scriptVersion="v1.1"
+rawScriptName="plugins"
+scriptName="plugins module"
+scriptVersion="v1.2"
 
 logfileSetup() {
   timestamp=$(date +"%Y_%m_%d-%H_%M")
@@ -61,7 +61,8 @@ fi
 
 source "$CONFIG_FILE"
 
-if [ "${ENABLE_COMMUNITY_PLUGINS,,}" != "true" ] && [ "${ENABLE_COMMUNITY_PLUGINS}" != "1" ]; then
+# Only enable community plugins if ENABLE_COMMUNITY_PLUGINS is "true"
+if [ "${ENABLE_COMMUNITY_PLUGINS,,}" != "true" ]; then
   log "⏩  ${ARRBIT_TAG} Community plugin install is disabled. Skipping."
   exit 0
 fi
@@ -74,7 +75,7 @@ has_dll() {
 
 # ----------------- Deezer -----------------
 DEEZER_TARGET="$PLUGINS_DIR/TrevTV/Lidarr.Plugin.Deezer"
-if [ "${INSTALL_PLUGIN_DEEZER,,}" = "true" ] || [ "${INSTALL_PLUGIN_DEEZER}" = "1" ]; then
+if [ "${INSTALL_PLUGIN_DEEZER,,}" = "true" ]; then
   if has_dll "$DEEZER_TARGET"; then
     log "⏩  ${ARRBIT_TAG} Deezer already installed; skipping"
     logRaw "[SKIP] Deezer already exists at $DEEZER_TARGET"
@@ -97,7 +98,7 @@ fi
 
 # ----------------- Tidal -----------------
 TIDAL_TARGET="$PLUGINS_DIR/TrevTV/Lidarr.Plugin.Tidal"
-if [ "${INSTALL_PLUGIN_TIDAL,,}" = "true" ] || [ "${INSTALL_PLUGIN_TIDAL}" = "1" ]; then
+if [ "${INSTALL_PLUGIN_TIDAL,,}" = "true" ]; then
   if has_dll "$TIDAL_TARGET"; then
     log "⏩  ${ARRBIT_TAG} Tidal already installed; skipping"
     logRaw "[SKIP] Tidal already exists at $TIDAL_TARGET"
@@ -120,7 +121,7 @@ fi
 
 # ----------------- Tubifarry -----------------
 TUBI_TARGET="$PLUGINS_DIR/TypNull/Tubifarry"
-if [ "${INSTALL_PLUGIN_TUBIFARRY,,}" = "true" ] || [ "${INSTALL_PLUGIN_TUBIFARRY}" = "1" ]; then
+if [ "${INSTALL_PLUGIN_TUBIFARRY,,}" = "true" ]; then
   if has_dll "$TUBI_TARGET"; then
     log "⏩  ${ARRBIT_TAG} Tubifarry already installed; skipping"
     logRaw "[SKIP] Tubifarry already exists at $TUBI_TARGET"
