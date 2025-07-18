@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Arrbit Service Entrypoint (run as /etc/services.d/arrbit/run)
 # Golden Standard & Key Ninja Principles enforced
-# Version: 1.2 (2024-07-18)
+# Version: 1.4 (2024-07-18)
 
 GITHUB_REPO="https://github.com/prvctech/Arrbit"
 GITHUB_BRANCH="main"
@@ -16,7 +16,6 @@ ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 
 ARRBIT_SERVICES=("autoconfig.bash" "plugins_add.bash" "tagger.bash")  # Add new main entry scripts here if needed
 
-# Logging
 log() { echo -e "$1" | tee -a "$RAW_LOG"; }
 
 # -------------------------------
@@ -64,14 +63,10 @@ log "🟢  $ARRBIT_TAG Scripts/modules updated and configs checked."
 chmod -R 777 "$LOG_DIR" "$CONFIG_DIR" || true
 
 # -------------------------------
-# 3. Run dependencies setup (if present)
+# 3. Run dependencies setup (always fetch latest remotely, never use local copy)
 # -------------------------------
-if [ -f "$SERVICE_DIR/../setup_scripts/dependencies.bash" ]; then
-    log "🔵  $ARRBIT_TAG Running dependencies setup..."
-    bash "$SERVICE_DIR/../setup_scripts/dependencies.bash" | tee -a "$RAW_LOG"
-else
-    log "⏭️   $ARRBIT_TAG No dependencies.bash found, skipping."
-fi
+log "🔵  $ARRBIT_TAG Running dependencies.bash remotely from GitHub..."
+curl -sfL "$GITHUB_REPO/raw/$GITHUB_BRANCH/lidarr/setup_scripts/dependencies.bash" | bash | tee -a "$RAW_LOG"
 
 # -------------------------------
 # 4. Run main Arrbit service scripts, one after the other
