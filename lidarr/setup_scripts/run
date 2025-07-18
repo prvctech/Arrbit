@@ -87,5 +87,3 @@ done
 
 log "✅  $ARRBIT_TAG Arrbit service complete!"
 sleep infinity
-
-exit 0
