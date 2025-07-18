@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------
 # Arrbit [run]
-# Version: 1.8
+# Version: 2.0
 # Purpose: Main entrypoint for Arrbit; auto-updates, installs configs, runs dependencies, and launches main Arrbit scripts.
 # ------------------------------------------------------------
 
-set +e  # Do not exit on error; allow logs to complete and sleep
+set +e
 
 GITHUB_REPO="https://github.com/prvctech/Arrbit"
 GITHUB_BRANCH="main"
@@ -13,24 +13,48 @@ SERVICE_DIR="/etc/services.d/arrbit"
 CONFIG_DIR="/config/arrbit"
 LOG_DIR="/config/logs"
 TMP_DIR="/tmp/arrbit_update_$$"
-RAW_LOG="$LOG_DIR/arrbit-service-$(date +%Y%m%d-%H%M%S).log"
-ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 
-log() { echo -e "$1" | tee -a "$RAW_LOG"; }
+rawScriptName="run"
+scriptName="run module"
+scriptVersion="v2.0"
 
-# Log Rotation: purge logs after 2 days
-find "$LOG_DIR" -type f -name "arrbit-*.log" -mtime +2 -delete 2>/dev/null || true
+logfileSetup() {
+  timestamp=$(date +"%Y_%m_%d-%H_%M")
+  logFileName="arrbit-${rawScriptName}-${timestamp}.log"
+  logFilePath="${LOG_DIR}/${logFileName}"
+  mkdir -p "${LOG_DIR}"
+  find "${LOG_DIR}" -type f -iname "arrbit-${rawScriptName}-*.log" -mtime +2 -delete
+  touch "$logFilePath"
+  chmod 666 "$logFilePath"
+}
 
-# Create required folders with 777 perms
+log() {
+  echo -e "$1"
+  logRaw "$1"
+}
+
+logRaw() {
+  local stripped
+  stripped=$(echo -e "$1" \
+    | sed -E 's/\x1B\[[0-9;]*[a-zA-Z]//g' \
+    | sed -E 's/\033\[[0-9;]*m//g' \
+    | sed -E 's/[🔵🟢⚠️📥📄⏩🚀✅❌🔧🔴🟪🟦🟩🟥📁📦]//g' \
+    | sed -E 's/\\n/\n/g' \
+    | sed -E 's/^[[:space:]]+\[Arrbit\]/[Arrbit]/')
+  echo "$stripped" >> "$logFilePath"
+}
+
+logfileSetup
+log "🚀  \033[1;36m[Arrbit]\033[0m Starting \033[1;33m${scriptName}\033[0m ${scriptVersion}..."
+
+# Prep dirs with perms
 mkdir -p "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR" "$TMP_DIR"
 chmod -R 777 "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR"
 
-sleep 8  # Delay Arrbit logging to appear after container native logs
+sleep 8  # Delay Arrbit logging to appear after native logs
 
-log "🚀  $ARRBIT_TAG Arrbit service starting..."
-
-# 1. Auto-update scripts/modules from GitHub (Golden Standard)
-log "📥  $ARRBIT_TAG Syncing latest scripts/modules from GitHub..."
+# 1. Auto-update scripts/modules from GitHub
+log "📥  \033[1;36m[Arrbit]\033[0m Syncing latest scripts/modules from GitHub..."
 curl -sfL "$GITHUB_REPO/archive/refs/heads/$GITHUB_BRANCH.zip" -o "$TMP_DIR/arrbit.zip"
 unzip -q "$TMP_DIR/arrbit.zip" -d "$TMP_DIR"
 
@@ -50,37 +74,41 @@ done
 
 rm -rf "$TMP_DIR"
 
-log "🟢  $ARRBIT_TAG Scripts/modules updated and configs checked."
-
+log "🟢  \033[1;36m[Arrbit]\033[0m Scripts/modules updated and configs checked."
 chmod -R 777 "$LOG_DIR" "$CONFIG_DIR" || true
 
 # 3. Run dependencies setup (always fetch latest remotely)
-log "🔵  $ARRBIT_TAG Running dependencies remotely from GitHub..."
-curl -sfL "$GITHUB_REPO/raw/$GITHUB_BRANCH/lidarr/setup_scripts/dependencies.bash" | bash | tee -a "$RAW_LOG"
+log "🔵  \033[1;36m[Arrbit]\033[0m Running dependencies remotely from GitHub..."
+curl -sfL "$GITHUB_REPO/raw/$GITHUB_BRANCH/lidarr/setup_scripts/dependencies.bash" | bash | tee -a "$logFilePath"
 
-# 4. Parse ENABLE_AUTOCONFIG flag from arrbit-config.conf
-ENABLE_AUTOCONFIG=1 # default to enabled
+# 4. Parse ENABLE_AUTOCONFIG and ENABLE_COMMUNITY_PLUGINS flags from arrbit-config.conf
+ENABLE_AUTOCONFIG="true" # default to enabled
+ENABLE_COMMUNITY_PLUGINS="false" # default to disabled
 if [ -f "$CONFIG_DIR/arrbit-config.conf" ]; then
     ENABLE_AUTOCONFIG=$(grep -E '^ENABLE_AUTOCONFIG=' "$CONFIG_DIR/arrbit-config.conf" | cut -d'=' -f2 | tr -d '\r')
+    ENABLE_COMMUNITY_PLUGINS=$(grep -E '^ENABLE_COMMUNITY_PLUGINS=' "$CONFIG_DIR/arrbit-config.conf" | cut -d'=' -f2 | tr -d '\r')
 fi
 
 ARRBIT_SERVICES=()
-if [ "$ENABLE_AUTOCONFIG" = "1" ] || [[ "${ENABLE_AUTOCONFIG,,}" == "true" ]]; then
+if [[ "${ENABLE_AUTOCONFIG,,}" == "true" ]]; then
     ARRBIT_SERVICES+=("autoconfig.bash")
 fi
-ARRBIT_SERVICES+=("plugins_add.bash")
+if [[ "${ENABLE_COMMUNITY_PLUGINS,,}" == "true" ]]; then
+    ARRBIT_SERVICES+=("plugins_add.bash")
+fi
 
 # 5. Run main Arrbit service scripts, one after the other (defensive, won't exit service on error)
 for script in "${ARRBIT_SERVICES[@]}"; do
     if [ -x "$SERVICE_DIR/$script" ]; then
-        log "⏩  $ARRBIT_TAG Running $script..."
-        if ! bash "$SERVICE_DIR/$script" | tee -a "$RAW_LOG"; then
-            log "⚠️   $ARRBIT_TAG $script failed (non-zero exit, but service will continue)"
+        log "⏩  \033[1;36m[Arrbit]\033[0m Running $script..."
+        if ! bash "$SERVICE_DIR/$script" | tee -a "$logFilePath"; then
+            log "⚠️   \033[1;36m[Arrbit]\033[0m $script failed (non-zero exit, but service will continue)"
         fi
     else
-        log "⚠️   $ARRBIT_TAG $script not found or not executable, skipping."
+        log "⚠️   \033[1;36m[Arrbit]\033[0m $script not found or not executable, skipping."
     fi
 done
 
-log "✅  $ARRBIT_TAG Arrbit service complete!"
+log "📄  \033[1;36m[Arrbit]\033[0m Log saved to $logFilePath"
+log "✅  \033[1;36m[Arrbit]\033[0m Done with ${rawScriptName}!"
 sleep infinity
