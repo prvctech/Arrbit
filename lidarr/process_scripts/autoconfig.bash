@@ -16,7 +16,7 @@ MODULES_DIR="/etc/services.d/arrbit/modules"
 DATA_DIR="$MODULES_DIR/data"
 LOG_DIR="/config/logs"
 CONFIG_DIR="/config/arrbit"
-JSON_PATH="$DATA_DIR/custom_formats_master.json"
+JSON_PATH="$MODULES_DIR/custom_formats_master.json"
 FUNCTIONS_PATH="$MODULES_DIR/functions.bash"
 
 # ------------------------------------------------------------
