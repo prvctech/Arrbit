@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------
 # Arrbit [dependencies]
-# Version: 1.2-gs1
+# Version: 1.3-gs1
 # Purpose: Installs all required dependencies for Arrbit modules.
 # ------------------------------------------------------------
 
@@ -10,7 +10,15 @@ set -euo pipefail
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 LOG_DIR="/config/logs"
 SCRIPT_NAME="dependencies"
+scriptVersion="v1.3-gs1"
 logFilePath="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+
+logfileSetup() {
+  mkdir -p "$LOG_DIR"
+  find "$LOG_DIR" -type f -iname "arrbit-${SCRIPT_NAME}-*.log" -mtime +5 -delete
+  touch "$logFilePath"
+  chmod 777 "$logFilePath"
+}
 
 logRaw() {
   local stripped
@@ -24,7 +32,8 @@ log() {
   logRaw "$msg"
 }
 
-log "🔵  $ARRBIT_TAG Starting dependencies..."
+logfileSetup
+log "🚀  $ARRBIT_TAG Starting \033[1;33m${SCRIPT_NAME}\033[0m ${scriptVersion}..."
 
 if command -v apk &>/dev/null; then
     PKG_INSTALL="apk add --no-cache"
