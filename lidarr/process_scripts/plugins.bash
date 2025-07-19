@@ -13,7 +13,7 @@ PLUGINS_DIR="/config/plugins"
 
 rawScriptName="plugins"
 scriptName="plugins module"
-scriptVersion="v1.2"
+scriptVersion="v1.3"
 
 logfileSetup() {
   timestamp=$(date +"%Y_%m_%d-%H_%M")
