@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------
 # Arrbit [run]
-# Version: 3.0
+# Version: 3.3
 # Purpose: Main Arrbit entrypoint; syncs, sets up, and launches modules.
 # ------------------------------------------------------------
 
@@ -18,52 +18,40 @@ LOG_DIR="/config/logs"
 TMP_DIR="/tmp/arrbit_update_$$"
 
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
-rawScriptName="run"
-scriptVersion="v3.0"
-
-# ------------------------------------------------------------
-# 1. LOGGING SETUP (file & function)
-# ------------------------------------------------------------
-logfileSetup() {
-  timestamp=$(date +"%Y_%m_%d-%H_%M")
-  logFileName="arrbit-${rawScriptName}-${timestamp}.log"
-  logFilePath="${LOG_DIR}/${logFileName}"
-  mkdir -p "${LOG_DIR}"
-  # Rotate logs older than 2 days
-  find "${LOG_DIR}" -type f -iname "arrbit-${rawScriptName}-*.log" -mtime +2 -delete
-  touch "$logFilePath"
-  chmod 666 "$logFilePath"
-}
+SCRIPT_NAME="run"
+logFilePath="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 .logRaw() {
   local stripped
-  stripped=$(echo -e "$1" | sed -E $'s/(\\x1B|\\033)\\[[0-9;]*[a-zA-Z]//g; s/[🔵🟢⚠️📥📄⏩🚀✅❌🔧🔴🟪🟦🟩🟥📁📦]//g; s/\\\\n/\\\n/g; s/^[[:space:]]+\\[Arrbit\\]/[Arrbit]/')
+  stripped=$(echo -e "$1" | sed -E $'s/(\\x1B|\\033)\\[[0-9;]*[a-zA-Z]//g; s/[🔵🟢⚠️📥📄⏩⏭🚀✅❌🔧🔴🟪🟦🟩🟥📁📦]//g; s/\\\\n/\\\n/g; s/^[[:space:]]+\\[Arrbit\\]/[Arrbit]/')
   echo "$stripped" >> "$logFilePath"
 }
 
 log() {
-  echo -e "$1"
-  .logRaw "$1"
+  local msg="$1"
+  echo -e "$msg"
+  .logRaw "$msg"
 }
 
-logfileSetup
+timestamp=$(date +"%Y_%m_%d-%H_%M")
+mkdir -p "$LOG_DIR"
+find "$LOG_DIR" -type f -iname "arrbit-${SCRIPT_NAME}-*.log" -mtime +2 -delete
+touch "$logFilePath"
+chmod 666 "$logFilePath"
 
 # ------------------------------------------------------------
-# 2. SHOW LOGO & HEADER
+# 2. SHOW LOGO & HEADER (logo ONLY prints to terminal, never log file)
 # ------------------------------------------------------------
 sleep 8  # Let container native logs print before Arrbit logs
 
 if [ -f "$SERVICE_DIR/modules/data/arrbit_logo.bash" ]; then
     source "$SERVICE_DIR/modules/data/arrbit_logo.bash"
     arrbit_logo
-else
-    echo -e "                                    "
-    echo -e "                                    "
-    echo -e "                                    "
-    echo -e "                                    "
 fi
 
-echo "Starting arrbit services..."
+echo ""  # Spacing for terminal
+
+log "🚀  $ARRBIT_TAG Starting arrbit services..."
 
 # ------------------------------------------------------------
 # 3. SYNC SCRIPTS/MODULES FROM GITHUB
@@ -100,10 +88,10 @@ chmod -R 777 "$LOG_DIR" "$CONFIG_DIR" || true
 # 5. INSTALL/UPDATE DEPENDENCIES
 # ------------------------------------------------------------
 log "🔵  $ARRBIT_TAG Running dependencies remotely from GitHub..."
-curl -sfL "$GITHUB_REPO/raw/$GITHUB_BRANCH/lidarr/setup_scripts/dependencies.bash" | bash | tee -a "$logFilePath"
+curl -sfL "$GITHUB_REPO/raw/$GITHUB_BRANCH/lidarr/setup_scripts/dependencies.bash" | bash
 
 # ------------------------------------------------------------
-# 6. PARSE FLAGS FROM CONFIG
+# 6. PARSE FLAGS FROM CONFIG (robust: strip quotes, spaces, newlines)
 # ------------------------------------------------------------
 ENABLE_AUTOCONFIG="true"
 ENABLE_COMMUNITY_PLUGINS="false"
@@ -129,9 +117,7 @@ fi
 for script in "${ARRBIT_SERVICES[@]}"; do
     if [ -x "$SERVICE_DIR/$script" ]; then
         log "⏩  $ARRBIT_TAG Running $script..."
-        if ! bash "$SERVICE_DIR/$script" | tee -a "$logFilePath"; then
-            log "⚠️   $ARRBIT_TAG $script failed (non-zero exit, but service will continue)"
-        fi
+        bash "$SERVICE_DIR/$script"
     else
         log "⚠️   $ARRBIT_TAG $script not found or not executable, skipping."
     fi
