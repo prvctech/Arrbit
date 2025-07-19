@@ -14,16 +14,16 @@ RAW_LOG="$LOG_DIR/arrbit-dependencies-$(date +%Y%m%d-%H%M%S).log"
 
 # Utility to strip ANSI color codes and emojis for file logging
 strip_colors_and_emojis() {
-    # Removes ANSI colors and most emoji (handles common ones used)
-    sed -E 's/\\033\[[0-9;]*m//g; s/🔵|🟢|⚠️|📥|📄|⏩|🚀|✅|❌|🔧|🔴|📁|📦//g'
+    # Removes ANSI escape sequences and all defined emoji
+    sed -E 's/\x1b\[[0-9;]*[a-zA-Z]//g; s/🔵|🟢|⚠️|📥|📄|⏩|🚀|✅|❌|🔧|🔴|📁|📦//g'
 }
 
 # Improved logging: Color/emoji to console, plain to file log
 log() {
     local msg="$1"
-    # Print to console
+    # Print to console (with colors/emojis)
     echo -e "$msg"
-    # Print to raw log (stripped of color/emoji)
+    # Print to debug log (plain text, no emoji/color)
     echo -e "$msg" | strip_colors_and_emojis >> "$RAW_LOG"
 }
 
