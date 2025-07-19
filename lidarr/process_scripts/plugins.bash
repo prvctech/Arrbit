@@ -22,7 +22,7 @@ logfileSetup() {
   mkdir -p /config/logs
   find "/config/logs" -type f -iname "arrbit-${rawScriptName}-*.log" -mtime +5 -delete
   touch "$logFilePath"
-  chmod 666 "$logFilePath"
+  chmod 777 "$logFilePath"
 }
 
 log() {
@@ -32,12 +32,7 @@ log() {
 
 logRaw() {
   local stripped
-  stripped=$(echo -e "$1" \
-    | sed -E 's/\x1B\[[0-9;]*[a-zA-Z]//g' \
-    | sed -E 's/\033\[[0-9;]*m//g' \
-    | sed -E 's/[🔵🟢⚠️📥📄⏩🚀✅❌🔧🔴🟪🟦🟩🟥📁📦]//g' \
-    | sed -E 's/\\n/\n/g' \
-    | sed -E 's/^[[:space:]]+\[Arrbit\]/[Arrbit]/')
+  stripped=$(echo -e "$1" | sed -E $'s/(\\x1B|\\033)\\[[0-9;]*[a-zA-Z]//g; s/[🔵🟢⚠️📥🌐🛠️📦📁🔄📋⏩🚀✅❌🔧🔴🟪🟦🟩🟥]//g; s/\\\\n/\\\n/g; s/^[[:space:]]+\\[Arrbit\\]/[Arrbit]/')
   echo "$stripped" >> "$logFilePath"
 }
 
@@ -142,6 +137,6 @@ else
   log "⏩  ${ARRBIT_TAG} Tubifarry plugin disabled; skipping"
 fi
 
-log "📄  ${ARRBIT_TAG} Log saved to /config/logs/${logFileName}"
+log "🔵  ${ARRBIT_TAG} Log saved to /config/logs/${logFileName}"
 log "✅  ${ARRBIT_TAG} Done with ${rawScriptName}!"
 exit 0
