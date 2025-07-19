@@ -61,5 +61,5 @@ fi
 chmod -R 777 "$LOG_DIR" 2>/dev/null || true
 
 log "✅  $ARRBIT_TAG dependencies complete!"
-log "[Arrbit] Log saved to $logFilePath"
+log "📄  $ARRBIT_TAG Log saved to $logFilePath"
 exit 0
