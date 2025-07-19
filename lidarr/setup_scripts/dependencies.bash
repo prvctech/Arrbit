@@ -33,7 +33,7 @@ log() {
 }
 
 logfileSetup
-log "🚀  $ARRBIT_TAG Starting \033[1;33m${SCRIPT_NAME}\033[0m ${scriptVersion}..."
+log "🚀  $ARRBIT_TAG Starting \033[1;33m${SCRIPT_NAME} module\033[0m ${scriptVersion}..."
 
 if command -v apk &>/dev/null; then
     PKG_INSTALL="apk add --no-cache"
