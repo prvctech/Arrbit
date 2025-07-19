@@ -1,28 +1,33 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------
-# Arrbit [autoconfig]
-# Version: 2.2
-# Purpose: Orchestrates Arrbit modules to configure Lidarr, per config flags.
+# Arrbit [custom_formats]
+# Version: 2.3
+# Purpose: Import custom formats from JSON into Lidarr via API (idempotent).
 # ------------------------------------------------------------
 
-set +e
+set -euo pipefail
 
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
-MODULES_DIR="modules"
-CONFIG_FILE="/config/arrbit/arrbit-config.conf"
+rawScriptName="custom_formats"
+scriptName="custom formats module"
+scriptVersion="v2.3"
+
+MODULES_DIR="/etc/services.d/arrbit/modules"
+DATA_DIR="$MODULES_DIR/data"
 LOG_DIR="/config/logs"
+CONFIG_DIR="/config/arrbit"
+JSON_PATH="$DATA_DIR/custom_formats_master.json"
+FUNCTIONS_PATH="$MODULES_DIR/functions.bash"
 
-rawScriptName="autoconfig"
-scriptName="autoconfig module"
-scriptVersion="v2.2"
-
-# Log setup
+# ------------------------------------------------------------
+# 1. Logging Setup
+# ------------------------------------------------------------
 logfileSetup() {
   timestamp=$(date +"%Y_%m_%d-%H_%M")
   logFileName="arrbit-${rawScriptName}-${timestamp}.log"
   logFilePath="${LOG_DIR}/${logFileName}"
   mkdir -p "${LOG_DIR}"
-  find "${LOG_DIR}" -type f -iname "arrbit-${rawScriptName}-*.log" -mtime +5 -delete
+  find "${LOG_DIR}" -type f -iname "arrbit-${rawScriptName}-*.log" -mtime +2 -delete
   touch "$logFilePath"
   chmod 666 "$logFilePath"
 }
@@ -44,63 +49,86 @@ logRaw() {
 }
 
 logfileSetup
-log "🚀  ${ARRBIT_TAG} Starting \033[1;33m${scriptName}\033[0m ${scriptVersion}..."
 
-# Always source functions for utility/log helpers
-if [ -f "$MODULES_DIR/functions.bash" ]; then
-    source "$MODULES_DIR/functions.bash"
+# ------------------------------------------------------------
+# 2. Source Functions, Show Header
+# ------------------------------------------------------------
+if [ -f "$FUNCTIONS_PATH" ]; then
+    source "$FUNCTIONS_PATH"
 else
-    log "❌  $ARRBIT_TAG functions.bash missing! Aborting autoconfig."
+    log "❌  $ARRBIT_TAG functions.bash missing! Aborting custom_formats."
     exit 1
 fi
 
-# Parse all CONFIGURE_* flags from config into environment
-if [ -f "$CONFIG_FILE" ]; then
-    while IFS='=' read -r key value; do
-        if [[ $key == CONFIGURE_* ]]; then
-            export "$key"="$(echo "$value" | tr -d '\r')"
-        fi
-    done < <(grep -E '^CONFIGURE_' "$CONFIG_FILE")
+log "🚀  $ARRBIT_TAG Starting \033[1;33m${scriptName}\033[0m ${scriptVersion}..."
+
+# ------------------------------------------------------------
+# 3. Arrbit API/Config Setup
+# ------------------------------------------------------------
+getArrAppInfo
+verifyApiAccess
+
+# ------------------------------------------------------------
+# 4. Locate Custom Formats JSON
+# ------------------------------------------------------------
+if [[ ! -f "$JSON_PATH" ]]; then
+  log "⚠️  $ARRBIT_TAG File not found: $JSON_PATH"
+  logRaw "[ERROR] custom_formats_master.json not found at $JSON_PATH"
+  exit 1
 fi
 
-# List of modules to run, using CONFIGURE_ flags if present
-MODULES_TO_RUN=(
-    "media_management.bash"
-    "metadata_write.bash"
-    "metadata_profiles.bash"
-    "metadata_consumer.bash"
-    "metadata_plugin.bash"
-    "track_naming.bash"
-    "ui_settings.bash"
-    "custom_scripts.bash"
-    "custom_formats.bash"
-    "delay_profiles.bash"
-    "quality_profile.bash"
-)
+log "📄  $ARRBIT_TAG Reading custom formats from: $JSON_PATH"
+logRaw "[INFO] Reading JSON from: $JSON_PATH"
 
-# Run each module, skip if CONFIGURE_* flag is set to false
-for module in "${MODULES_TO_RUN[@]}"; do
-    module_name="${module%.bash}"  # Remove extension for logs
-    module_path="$MODULES_DIR/$module"
-    config_flag="CONFIGURE_${module_name^^}"
+# ------------------------------------------------------------
+# 5. Get existing Custom Formats (by name)
+# ------------------------------------------------------------
+existing_names=$(curl -s "${arrUrl}/api/${arrApiVersion}/customformat?apikey=${arrApiKey}" \
+  | jq -r '.[].name' | tr '[:upper:]' '[:lower:]')
 
-    # Only run module if config flag is not set to "false"
-    if [[ "${!config_flag:-true}" =~ ^[Ff][Aa][Ll][Ss][Ee]$ ]]; then
-        log "⏭️   $ARRBIT_TAG Skipping $module_name (config flag ${config_flag}=false)"
-        continue
-    fi
+# ------------------------------------------------------------
+# 6. Import Each Custom Format (skip if exists)
+# ------------------------------------------------------------
+jq -c '.[]' "$JSON_PATH" | while IFS= read -r format; do
+  format_name=$(echo "$format" | jq -r '.name')
+  format_id=$(echo "$format" | jq -r '.id')
+  lowercase_name=$(echo "$format_name" | tr '[:upper:]' '[:lower:]')
+  payload=$(echo "$format" | jq 'del(.id)')
 
-    if [ -f "$module_path" ]; then
-        if ! bash "$module_path" | tee -a "$logFilePath"; then
-            log "❌  $ARRBIT_TAG $module_name failed"
-        else
-            log "✅  $ARRBIT_TAG $module_name complete"
-        fi
-    else
-        log "⚠️   $ARRBIT_TAG $module_name missing, skipping"
-    fi
+  logRaw "\n[START] Format: $format_name (ID: $format_id)"
+  logRaw "[ACTION] Checking if format name already exists in Lidarr"
+
+  if echo "$existing_names" | grep -Fxq "$lowercase_name"; then
+    log "⏭️  $ARRBIT_TAG Format already exists, skipping: $format_name"
+    logRaw "[SKIP] Custom format already exists in Lidarr: $format_name"
+    continue
+  fi
+
+  log "📥  $ARRBIT_TAG Importing custom format: $format_name"
+  logRaw "[Arrbit] Importing custom format: $format_name"
+  logRaw "[CREATE] Sending POST to: ${arrUrl}/api/${arrApiVersion}/customformat"
+
+  logRaw "[Payload] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+  echo "$payload" >> "$logFilePath"
+  logRaw "[/Payload] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+
+  response=$(curl -s -X POST "${arrUrl}/api/${arrApiVersion}/customformat?apikey=${arrApiKey}" \
+    -H "Content-Type: application/json" \
+    -d "$payload")
+
+  logRaw "[Response] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+  echo "$response" >> "$logFilePath"
+  logRaw "[/Response] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+
+  if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
+    logRaw "[SUCCESS] Custom format created: $format_name"
+  else
+    log "⚠️  $ARRBIT_TAG Failed to import format: $format_name"
+    logRaw "[ERROR] Failed to create custom format: $format_name"
+  fi
 done
 
 log "📄  $ARRBIT_TAG Log saved to $logFilePath"
-log "✅  $ARRBIT_TAG Done with ${rawScriptName}!"
+log "✅  $ARRBIT_TAG All custom formats have been imported successfully"
+log "✅  $ARRBIT_TAG Done with $rawScriptName!"
 exit 0
