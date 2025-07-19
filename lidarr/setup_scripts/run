@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------
 # Arrbit [run]
-# Version: 2.6
-# Purpose: Main entrypoint for Arrbit; auto-updates, installs configs, runs dependencies, shows logo, and launches main Arrbit scripts.
+# Version: 3.0
+# Purpose: Main Arrbit entrypoint; syncs, sets up, and launches modules.
 # ------------------------------------------------------------
 
 set +e
@@ -19,7 +19,7 @@ TMP_DIR="/tmp/arrbit_update_$$"
 
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 rawScriptName="run"
-scriptVersion="v2.6"
+scriptVersion="v3.0"
 
 # ------------------------------------------------------------
 # 1. LOGGING SETUP (file & function)
@@ -35,20 +35,15 @@ logfileSetup() {
   chmod 666 "$logFilePath"
 }
 
-log() {
-  echo -e "$1"
-  logRaw "$1"
+.logRaw() {
+  local stripped
+  stripped=$(echo -e "$1" | sed -E $'s/(\\x1B|\\033)\\[[0-9;]*[a-zA-Z]//g; s/[🔵🟢⚠️📥📄⏩🚀✅❌🔧🔴🟪🟦🟩🟥📁📦]//g; s/\\\\n/\\\n/g; s/^[[:space:]]+\\[Arrbit\\]/[Arrbit]/')
+  echo "$stripped" >> "$logFilePath"
 }
 
-logRaw() {
-  local stripped
-  stripped=$(echo -e "$1" \
-    | sed -E 's/\x1B\[[0-9;]*[a-zA-Z]//g' \
-    | sed -E 's/\033\[[0-9;]*m//g' \
-    | sed -E 's/[🔵🟢⚠️📥📄⏩🚀✅❌🔧🔴🟪🟦🟩🟥📁📦]//g' \
-    | sed -E 's/\\n/\n/g' \
-    | sed -E 's/^[[:space:]]+\[Arrbit\]/[Arrbit]/')
-  echo "$stripped" >> "$logFilePath"
+log() {
+  echo -e "$1"
+  .logRaw "$1"
 }
 
 logfileSetup
@@ -58,7 +53,6 @@ logfileSetup
 # ------------------------------------------------------------
 sleep 8  # Let container native logs print before Arrbit logs
 
-# Always print Arrbit logo at very top (or fallback for alignment)
 if [ -f "$SERVICE_DIR/modules/data/arrbit_logo.bash" ]; then
     source "$SERVICE_DIR/modules/data/arrbit_logo.bash"
     arrbit_logo
@@ -69,7 +63,6 @@ else
     echo -e "                                    "
 fi
 
-# Plain start line (no highlight/tag)
 echo "Starting arrbit services..."
 
 # ------------------------------------------------------------
@@ -79,7 +72,6 @@ log "📥  $ARRBIT_TAG Syncing latest scripts/modules from GitHub..."
 mkdir -p "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR" "$TMP_DIR"
 chmod -R 777 "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR"
 
-# Download and extract the latest Arrbit from GitHub
 curl -sfL "$GITHUB_REPO/archive/refs/heads/$GITHUB_BRANCH.zip" -o "$TMP_DIR/arrbit.zip"
 unzip -q "$TMP_DIR/arrbit.zip" -d "$TMP_DIR"
 cp -rf "$TMP_DIR/Arrbit-main/lidarr/process_scripts/"* "$SERVICE_DIR/"
@@ -111,7 +103,7 @@ log "🔵  $ARRBIT_TAG Running dependencies remotely from GitHub..."
 curl -sfL "$GITHUB_REPO/raw/$GITHUB_BRANCH/lidarr/setup_scripts/dependencies.bash" | bash | tee -a "$logFilePath"
 
 # ------------------------------------------------------------
-# 6. PARSE FLAGS FROM CONFIG (robust: strip quotes, spaces, newlines)
+# 6. PARSE FLAGS FROM CONFIG
 # ------------------------------------------------------------
 ENABLE_AUTOCONFIG="true"
 ENABLE_COMMUNITY_PLUGINS="false"
