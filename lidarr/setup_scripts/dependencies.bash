@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------
 # Arrbit [dependencies]
-# Version: 1.1-gs1
+# Version: 1.2-gs1
 # Purpose: Installs all required dependencies for Arrbit modules.
 # ------------------------------------------------------------
 
@@ -12,16 +12,16 @@ LOG_DIR="/config/logs"
 SCRIPT_NAME="dependencies"
 logFilePath="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
-.logRaw() {
+logRaw() {
   local stripped
-  stripped=$(echo -e "$1" | sed -E $'s/(\\x1B|\\033)\\[[0-9;]*[a-zA-Z]//g; s/[🔵🟢⚠️📥📄⏩🚀✅❌🔧🔴🟪🟦🟩🟥📁📦]//g; s/\\\\n/\\\n/g; s/^[[:space:]]+\\[Arrbit\\]/[Arrbit]/')
+  stripped=$(echo -e "$1" | sed -E $'s/(\\x1B|\\033)\\[[0-9;]*[a-zA-Z]//g; s/[🚀⏩📥🌐🛠️📦📁🔄📋📄✅❌⚠️🔵🟢🔴]//g; s/\\\\n/\\\n/g; s/^[[:space:]]+\\[Arrbit\\]/[Arrbit]/')
   echo "$stripped" >> "$logFilePath"
 }
 
 log() {
   local msg="$1"
   echo -e "$msg"
-  .logRaw "$msg"
+  logRaw "$msg"
 }
 
 log "🔵  $ARRBIT_TAG Starting dependencies..."
