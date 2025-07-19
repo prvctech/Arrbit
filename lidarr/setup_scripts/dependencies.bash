@@ -9,7 +9,8 @@ set -euo pipefail
 
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 LOG_DIR="/config/logs"
-logFilePath="$LOG_DIR/arrbit-dependencies-$(date +%Y%m%d-%H%M%S).log"
+SCRIPT_NAME="dependencies"
+logFilePath="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 .logRaw() {
   local stripped
