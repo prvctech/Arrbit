@@ -24,7 +24,7 @@ logFilePath="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 logRaw() {
   local stripped
-  stripped=$(echo -e "$1" | sed -E $'s/(\\x1B|\\033)\\[[0-9;]*[a-zA-Z]//g; s/[🔵🟢⚠️🌐📥📋🛠️📄⏩⏭🚀✅❌🔧🔴🟪🟦🟩🟥📁📦]//g; s/\\\\n/\\\n/g; s/^[[:space:]]+\\[Arrbit\\]/[Arrbit]/')
+  stripped=$(echo -e "$1" | sed -E $'s/(\\x1B|\\033)\\[[0-9;]*[a-zA-Z]//g; s/[🔵🟢⚠️🌐📥📋🔄🛠️📄⏩⏭🚀✅❌🔧🔴🟪🟦🟩🟥📁📦]//g; s/\\\\n/\\\n/g; s/^[[:space:]]+\\[Arrbit\\]/[Arrbit]/')
   echo "$stripped" >> "$logFilePath"
 }
 
@@ -167,10 +167,3 @@ done
 log "🔵  $ARRBIT_TAG Log saved to $logFilePath"
 log "✅  $ARRBIT_TAG Done with run!"
 sleep infinity
-
-# -------------------------------------------------------------------------------------------------------------
-# Golden Standard Changelog:
-# - v1.5: Emoji policy (visual only, stripped in debug), 777 permissions, POSIX function names,
-#         explicit error handling/logging for remote/copy ops, 5-line header, sleep rationale in header.
-#         NEVER use ⏩ for running a script/module—use 🚀 only. Centralized constants planned (future).
-# -------------------------------------------------------------------------------------------------------------
