@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# ------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------------------
 # Arrbit [run]
-# Version: 3.3
+# Version: 3.4
 # Purpose: Main Arrbit entrypoint; syncs, sets up, and launches modules.
-# ------------------------------------------------------------
+# Note: This script ends with 'sleep infinity' to ensure container stays alive for services.
+# -------------------------------------------------------------------------------------------------------------
 
 set +e
 
 # ------------------------------------------------------------
-# 0. ENV and PATHS
+# 0. ENV and PATHS (future: move to shared constants)
 # ------------------------------------------------------------
 GITHUB_REPO="https://github.com/prvctech/Arrbit"
 GITHUB_BRANCH="main"
@@ -21,23 +22,23 @@ ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 SCRIPT_NAME="run"
 logFilePath="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
-.logRaw() {
+logRaw() {
   local stripped
-  stripped=$(echo -e "$1" | sed -E $'s/(\\x1B|\\033)\\[[0-9;]*[a-zA-Z]//g; s/[🔵🟢⚠️📥📄⏩⏭🚀✅❌🔧🔴🟪🟦🟩🟥📁📦]//g; s/\\\\n/\\\n/g; s/^[[:space:]]+\\[Arrbit\\]/[Arrbit]/')
+  stripped=$(echo -e "$1" | sed -E $'s/(\\x1B|\\033)\\[[0-9;]*[a-zA-Z]//g; s/[🔵🟢⚠️🌐📥📋🛠️📄⏩⏭🚀✅❌🔧🔴🟪🟦🟩🟥📁📦]//g; s/\\\\n/\\\n/g; s/^[[:space:]]+\\[Arrbit\\]/[Arrbit]/')
   echo "$stripped" >> "$logFilePath"
 }
 
 log() {
   local msg="$1"
   echo -e "$msg"
-  .logRaw "$msg"
+  logRaw "$msg"
 }
 
 timestamp=$(date +"%Y_%m_%d-%H_%M")
 mkdir -p "$LOG_DIR"
 find "$LOG_DIR" -type f -iname "arrbit-${SCRIPT_NAME}-*.log" -mtime +2 -delete
 touch "$logFilePath"
-chmod 666 "$logFilePath"
+chmod 777 "$logFilePath"
 
 # ------------------------------------------------------------
 # 2. SHOW LOGO & HEADER (logo ONLY prints to terminal, never log file)
@@ -56,14 +57,34 @@ log "🚀  $ARRBIT_TAG Starting arrbit services..."
 # ------------------------------------------------------------
 # 3. SYNC SCRIPTS/MODULES FROM GITHUB
 # ------------------------------------------------------------
-log "📥  $ARRBIT_TAG Syncing latest scripts/modules from GitHub..."
+log "🔄  $ARRBIT_TAG Syncing latest scripts/modules from GitHub..."
 mkdir -p "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR" "$TMP_DIR"
 chmod -R 777 "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR"
 
 curl -sfL "$GITHUB_REPO/archive/refs/heads/$GITHUB_BRANCH.zip" -o "$TMP_DIR/arrbit.zip"
+if [ $? -ne 0 ]; then
+  log "❌  $ARRBIT_TAG Failed to download scripts/modules from GitHub! Exiting."
+  rm -rf "$TMP_DIR"
+  exit 1
+fi
+log "🌐  $ARRBIT_TAG Downloaded archive: $TMP_DIR/arrbit.zip"
+
 unzip -q "$TMP_DIR/arrbit.zip" -d "$TMP_DIR"
+if [ $? -ne 0 ]; then
+  log "❌  $ARRBIT_TAG Failed to unzip modules! Exiting."
+  rm -rf "$TMP_DIR"
+  exit 1
+fi
+log "📁  $ARRBIT_TAG Modules unzipped to $TMP_DIR."
+
 cp -rf "$TMP_DIR/Arrbit-main/lidarr/process_scripts/"* "$SERVICE_DIR/"
+if [ $? -ne 0 ]; then
+  log "❌  $ARRBIT_TAG Failed to copy modules to $SERVICE_DIR! Exiting."
+  rm -rf "$TMP_DIR"
+  exit 1
+fi
 chmod -R 777 "$SERVICE_DIR"
+log "📋  $ARRBIT_TAG Modules copied to $SERVICE_DIR."
 
 # ------------------------------------------------------------
 # 4. COPY CONFIG FILES IF MISSING (never overwrite)
@@ -71,16 +92,19 @@ chmod -R 777 "$SERVICE_DIR"
 for cfg in arrbit-config.conf beets-config.yaml; do
   if [ ! -f "$CONFIG_DIR/$cfg" ]; then
     cp "$TMP_DIR/Arrbit-main/lidarr/config/$cfg" "$CONFIG_DIR/$cfg"
-    chmod 777 "$CONFIG_DIR/$cfg"
-    log "✅   $ARRBIT_TAG $cfg saved to config directory."
+    if [ $? -eq 0 ]; then
+      chmod 777 "$CONFIG_DIR/$cfg"
+      log "✅  $ARRBIT_TAG $cfg saved to config directory."
+    else
+      log "❌  $ARRBIT_TAG Failed to copy $cfg to config directory!"
+    fi
   else
-    log "⏭️   $ARRBIT_TAG $cfg exists; skipping download."
+    log "⏩  $ARRBIT_TAG $cfg exists; skipping download."
   fi
 done
 
 rm -rf "$TMP_DIR"
-
-log "🟢  $ARRBIT_TAG Scripts/modules updated and configs checked."
+log "✅  $ARRBIT_TAG Scripts/modules updated and configs checked."
 
 chmod -R 777 "$LOG_DIR" "$CONFIG_DIR" || true
 
@@ -88,7 +112,18 @@ chmod -R 777 "$LOG_DIR" "$CONFIG_DIR" || true
 # 5. INSTALL/UPDATE DEPENDENCIES
 # ------------------------------------------------------------
 log "🔵  $ARRBIT_TAG Running dependencies remotely from GitHub..."
-curl -sfL "$GITHUB_REPO/raw/$GITHUB_BRANCH/lidarr/setup_scripts/dependencies.bash" | bash
+curl -sfL "$GITHUB_REPO/raw/$GITHUB_BRANCH/lidarr/setup_scripts/dependencies.bash" -o /tmp/dependencies.bash
+if [ $? -ne 0 ]; then
+  log "❌  $ARRBIT_TAG Failed to download dependencies script! Exiting."
+  exit 1
+fi
+chmod 777 /tmp/dependencies.bash
+bash /tmp/dependencies.bash
+if [ $? -ne 0 ]; then
+  log "❌  $ARRBIT_TAG Dependencies script failed! Exiting."
+  exit 1
+fi
+rm -f /tmp/dependencies.bash
 
 # ------------------------------------------------------------
 # 6. PARSE FLAGS FROM CONFIG (robust: strip quotes, spaces, newlines)
@@ -116,8 +151,11 @@ fi
 # ------------------------------------------------------------
 for script in "${ARRBIT_SERVICES[@]}"; do
     if [ -x "$SERVICE_DIR/$script" ]; then
-        log "⏩  $ARRBIT_TAG Running $script..."
+        log "🚀  $ARRBIT_TAG Running $script..."
         bash "$SERVICE_DIR/$script"
+        if [ $? -ne 0 ]; then
+          log "❌  $ARRBIT_TAG $script exited with errors!"
+        fi
     else
         log "⚠️   $ARRBIT_TAG $script not found or not executable, skipping."
     fi
@@ -126,6 +164,13 @@ done
 # ------------------------------------------------------------
 # 9. FINAL LOG AND SLEEP FOREVER
 # ------------------------------------------------------------
-log "📄  $ARRBIT_TAG Log saved to $logFilePath"
+log "🔵  $ARRBIT_TAG Log saved to $logFilePath"
 log "✅  $ARRBIT_TAG Done with run!"
 sleep infinity
+
+# -------------------------------------------------------------------------------------------------------------
+# Golden Standard Changelog:
+# - v1.5: Emoji policy (visual only, stripped in debug), 777 permissions, POSIX function names,
+#         explicit error handling/logging for remote/copy ops, 5-line header, sleep rationale in header.
+#         NEVER use ⏩ for running a script/module—use 🚀 only. Centralized constants planned (future).
+# -------------------------------------------------------------------------------------------------------------
