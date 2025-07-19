@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------
 # Arrbit [custom_formats]
-# Version: 2.3
+# Version: 2.4
 # Purpose: Import custom formats from JSON into Lidarr via API (idempotent).
 # ------------------------------------------------------------
 
@@ -10,7 +10,7 @@ set -euo pipefail
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 rawScriptName="custom_formats"
 scriptName="custom formats module"
-scriptVersion="v2.3"
+scriptVersion="v2.4"
 
 MODULES_DIR="/etc/services.d/arrbit/modules"
 DATA_DIR="$MODULES_DIR/data"
@@ -32,20 +32,15 @@ logfileSetup() {
   chmod 666 "$logFilePath"
 }
 
-log() {
-  echo -e "$1"
-  logRaw "$1"
+.logRaw() {
+  local stripped
+  stripped=$(echo -e "$1" | sed -E $'s/(\\x1B|\\033)\\[[0-9;]*[a-zA-Z]//g; s/[🔵🟢⚠️📥📄⏩⏭🚀✅❌🔧🔴🟪🟦🟩🟥📁📦]//g; s/\\\\n/\\\n/g; s/^[[:space:]]+\\[Arrbit\\]/[Arrbit]/')
+  echo "$stripped" >> "$logFilePath"
 }
 
-logRaw() {
-  local stripped
-  stripped=$(echo -e "$1" \
-    | sed -E 's/\x1B\[[0-9;]*[a-zA-Z]//g' \
-    | sed -E 's/\033\[[0-9;]*m//g' \
-    | sed -E 's/[🔵🟢⚠️📥📄⏩🚀✅❌🔧🔴🟪🟦🟩🟥📁📦]//g' \
-    | sed -E 's/\\n/\n/g' \
-    | sed -E 's/^[[:space:]]+\[Arrbit\]/[Arrbit]/')
-  echo "$stripped" >> "$logFilePath"
+log() {
+  echo -e "$1"
+  .logRaw "$1"
 }
 
 logfileSetup
@@ -73,12 +68,12 @@ verifyApiAccess
 # ------------------------------------------------------------
 if [[ ! -f "$JSON_PATH" ]]; then
   log "⚠️  $ARRBIT_TAG File not found: $JSON_PATH"
-  logRaw "[ERROR] custom_formats_master.json not found at $JSON_PATH"
+  .logRaw "[ERROR] custom_formats_master.json not found at $JSON_PATH"
   exit 1
 fi
 
 log "📄  $ARRBIT_TAG Reading custom formats from: $JSON_PATH"
-logRaw "[INFO] Reading JSON from: $JSON_PATH"
+.logRaw "[INFO] Reading JSON from: $JSON_PATH"
 
 # ------------------------------------------------------------
 # 5. Get existing Custom Formats (by name)
@@ -95,36 +90,36 @@ jq -c '.[]' "$JSON_PATH" | while IFS= read -r format; do
   lowercase_name=$(echo "$format_name" | tr '[:upper:]' '[:lower:]')
   payload=$(echo "$format" | jq 'del(.id)')
 
-  logRaw "\n[START] Format: $format_name (ID: $format_id)"
-  logRaw "[ACTION] Checking if format name already exists in Lidarr"
+  .logRaw "\n[START] Format: $format_name (ID: $format_id)"
+  .logRaw "[ACTION] Checking if format name already exists in Lidarr"
 
   if echo "$existing_names" | grep -Fxq "$lowercase_name"; then
     log "⏭️  $ARRBIT_TAG Format already exists, skipping: $format_name"
-    logRaw "[SKIP] Custom format already exists in Lidarr: $format_name"
+    .logRaw "[SKIP] Custom format already exists in Lidarr: $format_name"
     continue
   fi
 
   log "📥  $ARRBIT_TAG Importing custom format: $format_name"
-  logRaw "[Arrbit] Importing custom format: $format_name"
-  logRaw "[CREATE] Sending POST to: ${arrUrl}/api/${arrApiVersion}/customformat"
+  .logRaw "[Arrbit] Importing custom format: $format_name"
+  .logRaw "[CREATE] Sending POST to: ${arrUrl}/api/${arrApiVersion}/customformat"
 
-  logRaw "[Payload] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+  .logRaw "[Payload] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
   echo "$payload" >> "$logFilePath"
-  logRaw "[/Payload] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+  .logRaw "[/Payload] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
 
   response=$(curl -s -X POST "${arrUrl}/api/${arrApiVersion}/customformat?apikey=${arrApiKey}" \
     -H "Content-Type: application/json" \
     -d "$payload")
 
-  logRaw "[Response] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+  .logRaw "[Response] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
   echo "$response" >> "$logFilePath"
-  logRaw "[/Response] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+  .logRaw "[/Response] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
 
   if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
-    logRaw "[SUCCESS] Custom format created: $format_name"
+    .logRaw "[SUCCESS] Custom format created: $format_name"
   else
     log "⚠️  $ARRBIT_TAG Failed to import format: $format_name"
-    logRaw "[ERROR] Failed to create custom format: $format_name"
+    .logRaw "[ERROR] Failed to create custom format: $format_name"
   fi
 done
 
