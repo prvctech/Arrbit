@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit [setup]
-# Version: 1.3
+# Version: 1.4
 # Purpose: Main setup and update script; prepares folder structure, downloads/updates scripts, and manages config files.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -23,15 +23,17 @@ SCRIPT_NAME="setup"
 logFilePath="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%d-%m-%Y-%H:%M).log"
 
 # ------------------------------------------------------------
-# LOGGING FUNCTIONS
+# LOGGING FUNCTIONS: emoji and color on STDOUT, plain in log file
 # ------------------------------------------------------------
 logRaw() {
-  local stripped
-  stripped=$(echo -e "$1" |
-    sed -E $'s/(\\x1B|\\033)\\[[0-9;]*[a-zA-Z]//g; \
-              s/[🚀⏩📥🌐🔧📦📁🔄📋📄✅❌⚠️🔵🟢🔴💾]//g; \
-              s/^[[:space:]]+\\[Arrbit\\]/[Arrbit]/')
-  echo "$stripped" >> "$logFilePath"
+  local msg="$1"
+  # Remove all allowed Arrbit emojis first
+  msg=$(echo -e "$msg" | tr -d "🚀⏩📥🌐🔧📦📁🔄📋📄✅❌⚠️🔵🟢🔴💾")
+  # Remove ANSI color codes
+  msg=$(echo -e "$msg" | sed -E "s/(\x1B|\033)\[[0-9;]*[a-zA-Z]//g")
+  # Normalize Arrbit tag at the beginning of the line
+  msg=$(echo -e "$msg" | sed -E "s/^[[:space:]]+\[Arrbit\]/[Arrbit]/")
+  echo "$msg" >> "$logFilePath"
 }
 
 log() {
@@ -48,13 +50,13 @@ chmod 777 "$logFilePath"
 # ------------------------------------------------------------
 # 1. SHOW LOGO & HEADER
 # ------------------------------------------------------------
-sleep 8
+sleep 8  # Let container logs settle before Arrbit logo
 
 if [ -f "$SERVICE_DIR/modules/data/arrbit_logo.bash" ]; then
   source "$SERVICE_DIR/modules/data/arrbit_logo.bash"
   arrbit_logo
 fi
-echo ""
+echo ""  # Terminal spacing
 
 # ------------------------------------------------------------
 # 2. CREATE FOLDER STRUCTURE
@@ -123,17 +125,16 @@ for cfg in arrbit-config.conf beets-config.yaml; do
 done
 
 # ------------------------------------------------------------
-# 6. FINAL PERMISSIONS
-# ------------------------------------------------------------
-chmod -R 777 "$LOG_DIR" "$CONFIG_DIR" "$SERVICE_DIR" "$SETUP_DIR" || true
-log "📄  ${ARRBIT_TAG} Log saved to $logFilePath"
-
-# ------------------------------------------------------------
-# 7. CLEANUP TEMP FOLDER
+# 6. CLEANUP TEMP FOLDER
 # ------------------------------------------------------------
 rm -rf "$TMP_DIR"
 log "✅  ${ARRBIT_TAG} Setup complete. All scripts and config checked."
 
+# ------------------------------------------------------------
+# 7. FINAL PERMISSIONS
+# ------------------------------------------------------------
+chmod -R 777 "$LOG_DIR" "$CONFIG_DIR" "$SERVICE_DIR" "$SETUP_DIR" || true
+log "📄  ${ARRBIT_TAG} Log saved to $logFilePath"
 
 # ------------------------------------------------------------
 # 8. AUTO-TRIGGER START
