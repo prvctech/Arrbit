@@ -1,22 +1,21 @@
 #!/usr/bin/env bash
-# ------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------------------
 # Arrbit [dependencies]
-# Version: 1.3-gs1
-# Purpose: Installs all required dependencies for Arrbit modules.
-# ------------------------------------------------------------
+# Version: v1.0
+# Purpose: Installs all required dependencies for Arrbit scripts and services.
+# -------------------------------------------------------------------------------------------------------------
 
 set -euo pipefail
 
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 LOG_DIR="/config/logs"
-rawScriptName="dependencies module"
 SCRIPT_NAME="dependencies"
-scriptVersion="v1.3-gs1"
+scriptVersion="v1.0"
 logFilePath="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 logfileSetup() {
   mkdir -p "$LOG_DIR"
-  find "$LOG_DIR" -type f -iname "arrbit-${rawScriptName}-*.log" -mtime +5 -delete
+  find "$LOG_DIR" -type f -iname "arrbit-${SCRIPT_NAME}-*.log" -mtime +5 -delete
   touch "$logFilePath"
   chmod 777 "$logFilePath"
 }
@@ -34,7 +33,7 @@ log() {
 }
 
 logfileSetup
-log "🚀  $ARRBIT_TAG Starting \033[1;33m${SCRIPT_NAME} module\033[0m ${scriptVersion}..."
+log "🚀  $ARRBIT_TAG Starting dependencies script ${scriptVersion}..."
 
 if command -v apk &>/dev/null; then
     PKG_INSTALL="apk add --no-cache"
@@ -71,6 +70,6 @@ fi
 
 chmod -R 777 "$LOG_DIR" 2>/dev/null || true
 
-log "✅  $ARRBIT_TAG dependencies complete!"
+log "✅  $ARRBIT_TAG Dependencies install complete!"
 log "📄  $ARRBIT_TAG Log saved to $logFilePath"
 exit 0
