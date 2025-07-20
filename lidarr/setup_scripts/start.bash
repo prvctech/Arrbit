@@ -111,4 +111,4 @@ done
 log "📄  $ARRBIT_TAG Log saved to $logFilePath"
 log "✅  $ARRBIT_TAG All enabled services processed."
 
-exit 0
+sleep infinity
