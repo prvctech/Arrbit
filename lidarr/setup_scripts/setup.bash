@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit [setup]
-# Version: 1.0
+# Version: 1.1
 # Purpose: Main setup and update script; prepares folder structure, downloads/updates scripts, and manages config files.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -16,6 +16,7 @@ SERVICE_DIR="/etc/services.d/arrbit"
 CONFIG_DIR="/config/arrbit"
 LOG_DIR="/config/logs"
 TMP_DIR="/tmp/arrbit_update_$$"
+SETUP_DIR="$SERVICE_DIR/setup"
 
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 SCRIPT_NAME="setup"
@@ -43,14 +44,26 @@ touch "$logFilePath"
 chmod 777 "$logFilePath"
 
 # ------------------------------------------------------------
-# 1. CREATE FOLDER STRUCTURE
+# 1. SHOW LOGO & HEADER (logo ONLY prints to terminal, never log file)
 # ------------------------------------------------------------
-log "🛠️  $ARRBIT_TAG Ensuring folder structure..."
-mkdir -p "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR" "$TMP_DIR"
-chmod -R 777 "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR"
+sleep 1  # Let container logs settle before Arrbit logo
+
+if [ -f "$SERVICE_DIR/modules/data/arrbit_logo.bash" ]; then
+    source "$SERVICE_DIR/modules/data/arrbit_logo.bash"
+    arrbit_logo
+fi
+
+echo ""  # Terminal spacing
 
 # ------------------------------------------------------------
-# 2. SYNC SCRIPTS/MODULES FROM GITHUB (NO CONNECTORS, NO FULL CONFIG FOLDER)
+# 2. CREATE FOLDER STRUCTURE
+# ------------------------------------------------------------
+log "🛠️  $ARRBIT_TAG Ensuring folder structure..."
+mkdir -p "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR" "$TMP_DIR" "$SETUP_DIR"
+chmod -R 777 "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR" "$SETUP_DIR"
+
+# ------------------------------------------------------------
+# 3. SYNC SCRIPTS/MODULES FROM GITHUB (NO CONNECTORS, NO FULL CONFIG FOLDER)
 # ------------------------------------------------------------
 log "🌐  $ARRBIT_TAG Downloading latest modules/scripts from GitHub..."
 curl -sfL "$GITHUB_REPO/archive/refs/heads/$GITHUB_BRANCH.zip" -o "$TMP_DIR/arrbit.zip"
@@ -80,7 +93,20 @@ chmod -R 777 "$SERVICE_DIR"
 log "📋  $ARRBIT_TAG Modules copied to $SERVICE_DIR."
 
 # ------------------------------------------------------------
-# 3. COPY INDIVIDUAL CONFIG FILES IF MISSING (NEVER OVERWRITE)
+# 4. COPY SETUP SCRIPTS: start.bash & dependencies.bash into setup/
+# ------------------------------------------------------------
+for setup_script in start.bash dependencies.bash; do
+  if [ -f "$TMP_DIR/Arrbit-main/lidarr/setup_scripts/$setup_script" ]; then
+    cp -f "$TMP_DIR/Arrbit-main/lidarr/setup_scripts/$setup_script" "$SETUP_DIR/$setup_script"
+    chmod 777 "$SETUP_DIR/$setup_script"
+    log "✅  $ARRBIT_TAG $setup_script saved to $SETUP_DIR."
+  else
+    log "⚠️  $ARRBIT_TAG $setup_script not found in repo! Skipping."
+  fi
+done
+
+# ------------------------------------------------------------
+# 5. COPY INDIVIDUAL CONFIG FILES IF MISSING (NEVER OVERWRITE)
 # ------------------------------------------------------------
 for cfg in arrbit-config.conf beets-config.yaml; do
   if [ -f "$TMP_DIR/Arrbit-main/lidarr/config/$cfg" ] && [ ! -f "$CONFIG_DIR/$cfg" ]; then
@@ -97,27 +123,26 @@ for cfg in arrbit-config.conf beets-config.yaml; do
 done
 
 # ------------------------------------------------------------
-# 4. CLEANUP TEMP FOLDER
+# 6. CLEANUP TEMP FOLDER
 # ------------------------------------------------------------
 rm -rf "$TMP_DIR"
 log "✅  $ARRBIT_TAG Setup complete. Modules and config checked."
 
 # ------------------------------------------------------------
-# 5. FINAL PERMISSIONS
+# 7. FINAL PERMISSIONS
 # ------------------------------------------------------------
-chmod -R 777 "$LOG_DIR" "$CONFIG_DIR" "$SERVICE_DIR" || true
+chmod -R 777 "$LOG_DIR" "$CONFIG_DIR" "$SERVICE_DIR" "$SETUP_DIR" || true
 log "📄  $ARRBIT_TAG Log saved to $logFilePath"
 log "✅  $ARRBIT_TAG Exiting setup. Ready for start.bash."
 
 # ------------------------------------------------------------
-# 6. AUTO-TRIGGER start.bash IF PRESENT
+# 8. AUTO-TRIGGER start.bash IF PRESENT IN setup/
 # ------------------------------------------------------------
-if [ -x "$SERVICE_DIR/start.bash" ]; then
-  log "🚀  $ARRBIT_TAG Launching start.bash..."
-  bash "$SERVICE_DIR/start.bash"
+if [ -x "$SETUP_DIR/start.bash" ]; then
+  log "🚀  $ARRBIT_TAG Launching start script from $SETUP_DIR..."
+  bash "$SETUP_DIR/start.bash"
   exit $?
 else
-  log "⚠️  $ARRBIT_TAG start.bash not found or not executable. Setup finished; manual start required."
+  log "⚠️  $ARRBIT_TAG start.bash not found or not executable in $SETUP_DIR. Setup finished; manual start required."
   exit 0
 fi
-
