@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit [start]
-# Version: 1.0
+# Version: 1.1
 # Purpose: Launches Arrbit services based on config flags. Installs dependencies from local copy. Supervises service modules.
-# Note: Does not handle folder setup or script downloads/updates.
 # -------------------------------------------------------------------------------------------------------------
 
 set +e
@@ -40,7 +39,20 @@ touch "$logFilePath"
 chmod 777 "$logFilePath"
 
 # ------------------------------------------------------------
-# 1. INSTALL/UPDATE DEPENDENCIES (LOCAL ONLY)
+# 1. CHECK MASTER ARRBIT ENABLE FLAG
+# ------------------------------------------------------------
+ENABLE_ARRBIT="true"
+if [ -f "$CONFIG_DIR/arrbit-config.conf" ]; then
+    ENABLE_ARRBIT=$(grep -E '^ENABLE_ARRBIT=' "$CONFIG_DIR/arrbit-config.conf" | cut -d'=' -f2 | sed 's/[[:space:]"\r]//g')
+fi
+
+if [[ "${ENABLE_ARRBIT,,}" != "true" ]]; then
+    log "⚠️  $ARRBIT_TAG Arrbit is OFF.\nBefore starting, enable Arrbit by setting ENABLE_ARRBIT=\"true\" in /config/arrbit/arrbit-config.conf.\nAll services are off by default—customize as needed."
+    exit 0
+fi
+
+# ------------------------------------------------------------
+# 2. INSTALL/UPDATE DEPENDENCIES (LOCAL ONLY)
 # ------------------------------------------------------------
 if [ -f "$SERVICE_DIR/setup_scripts/dependencies.bash" ]; then
   log "🛠️  $ARRBIT_TAG Running local dependencies script..."
@@ -55,7 +67,7 @@ else
 fi
 
 # ------------------------------------------------------------
-# 2. PARSE FLAGS FROM CONFIG (robust: strip quotes, spaces, newlines)
+# 3. PARSE FLAGS FROM CONFIG (robust: strip quotes, spaces, newlines)
 # ------------------------------------------------------------
 ENABLE_AUTOCONFIG="true"
 ENABLE_PLUGINS="false"
@@ -65,7 +77,7 @@ if [ -f "$CONFIG_DIR/arrbit-config.conf" ]; then
 fi
 
 # ------------------------------------------------------------
-# 3. BUILD SERVICES TO RUN BASED ON FLAGS
+# 4. BUILD SERVICES TO RUN BASED ON FLAGS
 # ------------------------------------------------------------
 ARRBIT_SERVICES=()
 if [[ "${ENABLE_AUTOCONFIG,,}" == "true" ]]; then
@@ -76,7 +88,7 @@ if [[ "${ENABLE_PLUGINS,,}" == "true" ]]; then
 fi
 
 # ------------------------------------------------------------
-# 4. EXECUTE EACH ENABLED SERVICE SCRIPT (DEFENSIVE)
+# 5. EXECUTE EACH ENABLED SERVICE SCRIPT (DEFENSIVE)
 # ------------------------------------------------------------
 for script in "${ARRBIT_SERVICES[@]}"; do
     if [ -x "$SERVICE_DIR/$script" ]; then
@@ -91,7 +103,7 @@ for script in "${ARRBIT_SERVICES[@]}"; do
 done
 
 # ------------------------------------------------------------
-# 5. FINAL LOG AND SLEEP FOREVER (containerized best practice)
+# 6. FINAL LOG AND SLEEP FOREVER (containerized best practice)
 # ------------------------------------------------------------
 log "📄  $ARRBIT_TAG Log saved to $logFilePath"
 log "✅  $ARRBIT_TAG All enabled services processed. Sleeping for container persistence."
