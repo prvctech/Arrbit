@@ -3,7 +3,6 @@
 # Arrbit [setup]
 # Version: 1.0
 # Purpose: Main setup and update script; prepares folder structure, downloads/updates scripts, and manages config files.
-# Note: This script does NOT run services itself, but will launch start.bash automatically if present.
 # -------------------------------------------------------------------------------------------------------------
 
 set +e
