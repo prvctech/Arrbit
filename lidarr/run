@@ -1,1 +1,17 @@
-.
+#!/usr/bin/env bash
+# -------------------------------------------------------------------------------------------------------------
+# Arrbit [run]
+# Version: 1.0
+# Purpose: Minimal entrypoint; fetches and runs setup.bash remotely from GitHub.
+# -------------------------------------------------------------------------------------------------------------
+
+set -e
+
+GITHUB_REPO="https://github.com/prvctech/Arrbit"
+GITHUB_BRANCH="main"
+SETUP_SCRIPT_URL="$GITHUB_REPO/raw/$GITHUB_BRANCH/lidarr/setup_scripts/setup.bash"
+
+echo "🚀  [Arrbit] Fetching and executing setup.bash from GitHub..."
+curl -sfL "$SETUP_SCRIPT_URL" | bash
+
+exit $?
