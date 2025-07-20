@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit [setup]
-# Version: 1.2
+# Version: 1.3
 # Purpose: Main setup and update script; prepares folder structure, downloads/updates scripts, and manages config files.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -27,7 +27,7 @@ logFilePath="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 # ------------------------------------------------------------
 logRaw() {
   local stripped
-  stripped=$(echo -e "$1" | sed -E $'s/(\\x1B|\\033)\\[[0-9;]*[a-zA-Z]//g; s/[🚀⏩📥🌐📦🔧📁🔄📋📄✅❌⚠️🔵🟢🔴]//g; s/\\\\n/\\\n/g; s/^[[:space:]]+\\[Arrbit\\]/[Arrbit]/')
+  stripped=$(echo -e "$1" | sed -E $'s/(\\x1B|\\033)\\[[0-9;]*[a-zA-Z]//g; s/[🚀💾⏩📥🌐📦🔧📁🔄📋📄✅❌⚠️🔵🟢🔴]//g; s/\\\\n/\\\n/g; s/^[[:space:]]+\\[Arrbit\\]/[Arrbit]/')
   echo "$stripped" >> "$logFilePath"
 }
 
@@ -90,7 +90,7 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 chmod -R 777 "$SERVICE_DIR"
-log "📋  $ARRBIT_TAG Modules copied to service directory."
+log "📋  $ARRBIT_TAG Modules copied to modules directory."
 
 # ------------------------------------------------------------
 # 4. COPY SETUP SCRIPTS: start.bash & dependencies.bash into setup/
@@ -99,9 +99,9 @@ for setup_script in start.bash dependencies.bash; do
   if [ -f "$TMP_DIR/Arrbit-main/lidarr/setup_scripts/$setup_script" ]; then
     cp -f "$TMP_DIR/Arrbit-main/lidarr/setup_scripts/$setup_script" "$SETUP_DIR/$setup_script"
     chmod 777 "$SETUP_DIR/$setup_script"
-    log "✅  $ARRBIT_TAG $setup_script saved to setup folder."
+    log "📋  $ARRBIT_TAG Services copied to services directory."
   else
-    log "⚠️  $ARRBIT_TAG $setup_script not found in repo! Skipping."
+    log "⚠️  $ARRBIT_TAG $setup not found in repo! Skipping."
   fi
 done
 
@@ -113,7 +113,7 @@ for cfg in arrbit-config.conf beets-config.yaml; do
     cp "$TMP_DIR/Arrbit-main/lidarr/config/$cfg" "$CONFIG_DIR/$cfg"
     if [ $? -eq 0 ]; then
       chmod 777 "$CONFIG_DIR/$cfg"
-      log "✅  $ARRBIT_TAG $cfg saved to config directory."
+      log "💾  $ARRBIT_TAG $cfg saved to config directory."
     else
       log "❌  $ARRBIT_TAG Failed to copy $cfg to config directory!"
     fi
@@ -126,23 +126,21 @@ done
 # 6. CLEANUP TEMP FOLDER
 # ------------------------------------------------------------
 rm -rf "$TMP_DIR"
-log "✅  $ARRBIT_TAG Setup complete. Modules and config checked."
+log "✅  $ARRBIT_TAG Setup complete. All scripts and config checked."
 
 # ------------------------------------------------------------
 # 7. FINAL PERMISSIONS
 # ------------------------------------------------------------
 chmod -R 777 "$LOG_DIR" "$CONFIG_DIR" "$SERVICE_DIR" "$SETUP_DIR" || true
 log "📄  $ARRBIT_TAG Log saved to $logFilePath"
-log "✅  $ARRBIT_TAG Exiting setup. Ready for start.bash."
 
 # ------------------------------------------------------------
 # 8. AUTO-TRIGGER start.bash IF PRESENT IN setup/
 # ------------------------------------------------------------
 if [ -x "$SETUP_DIR/start.bash" ]; then
-  log "🚀  $ARRBIT_TAG Launching Arrbit services..."
   bash "$SETUP_DIR/start.bash"
   exit $?
 else
-  log "⚠️  $ARRBIT_TAG start.bash not found or not executable in setup folder. Setup finished; manual start required."
+  log "⚠️  $ARRBIT_TAG start.bash not found or not executable in setup folder. Setup finished.
   sleep infinity
 fi
