@@ -87,12 +87,12 @@ log "📁  ${ARRBIT_TAG} Modules unzipped to temp directory."
 
 cp -rf "$TMP_DIR/Arrbit-main/lidarr/process_scripts/"* "$SERVICE_DIR/"
 if [ $? -ne 0 ]; then
-  log "❌  ${ARRBIT_TAG} Failed to copy modules to service directory! Exiting."
+  log "❌  ${ARRBIT_TAG} Failed to copy modules to modules directory! Exiting."
   rm -rf "$TMP_DIR"
   exit 1
 fi
 chmod -R 777 "$SERVICE_DIR"
-log "📋  ${ARRBIT_TAG} Modules copied to service directory."
+log "📋  ${ARRBIT_TAG} Modules copied to modules directory."
 
 # ------------------------------------------------------------
 # 4. COPY SETUP SCRIPTS
