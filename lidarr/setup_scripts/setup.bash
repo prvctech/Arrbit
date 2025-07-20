@@ -58,7 +58,7 @@ echo ""  # Terminal spacing
 # ------------------------------------------------------------
 # 2. CREATE FOLDER STRUCTURE
 # ------------------------------------------------------------
-log "🛠️   $ARRBIT_TAG Building folder structure..."
+log "🛠️  $ARRBIT_TAG Building folder structure..."
 mkdir -p "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR" "$TMP_DIR" "$SETUP_DIR"
 chmod -R 777 "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR" "$SETUP_DIR"
 
