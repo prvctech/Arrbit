@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit [setup]
-# Version: 1.2
+# Version: 1.5
 # Purpose: Main setup and update script; prepares folder structure, downloads/updates scripts, and manages config files.
 # -------------------------------------------------------------------------------------------------------------
 
