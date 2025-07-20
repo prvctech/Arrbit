@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit [start]
-# Version: 1.3
+# Version: 1.4
 # Purpose: Launches Arrbit services based on config flags. Installs dependencies from local copy. Supervises service modules.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -48,17 +48,17 @@ if [ -f "$CONFIG_DIR/arrbit-config.conf" ]; then
 fi
 
 if [[ "${ENABLE_ARRBIT,,}" != "true" ]]; then
-    log "⚠️  \033[1;33m$ARRBIT_TAG Arrbit is OFF.\033[0m
+    log "⚠️   \033[1;33m$ARRBIT_TAG Arrbit is OFF.\033[0m
 \033[1;33mBefore starting, enable Arrbit by setting ENABLE_ARRBIT=\"true\" in /config/arrbit/arrbit-config.conf.\033[0m
 \033[1;33mAll services are off by default—customize as needed.\033[0m"
-    sleep infinity
+
+    exit 1
 fi
 
 # ------------------------------------------------------------
 # 2. INSTALL/UPDATE DEPENDENCIES (LOCAL ONLY, from setup/)
 # ------------------------------------------------------------
 if [ -f "$SETUP_DIR/dependencies.bash" ]; then
-  log "📦  $ARRBIT_TAG Running dependencies script..."
   chmod 777 "$SETUP_DIR/dependencies.bash"
   bash "$SETUP_DIR/dependencies.bash"
   if [ $? -ne 0 ]; then
@@ -109,5 +109,6 @@ done
 # 6. FINAL LOG AND SLEEP FOREVER (containerized best practice)
 # ------------------------------------------------------------
 log "📄  $ARRBIT_TAG Log saved to $logFilePath"
-log "✅  $ARRBIT_TAG All enabled services processed. Sleeping for container persistence."
-sleep infinity
+log "✅  $ARRBIT_TAG All enabled services processed."
+
+exit 0
