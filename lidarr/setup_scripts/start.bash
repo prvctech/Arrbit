@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit [start]
-# Version: 1.2
+# Version: 1.3
 # Purpose: Launches Arrbit services based on config flags. Installs dependencies from local copy. Supervises service modules.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -13,6 +13,7 @@ set +e
 SERVICE_DIR="/etc/services.d/arrbit"
 CONFIG_DIR="/config/arrbit"
 LOG_DIR="/config/logs"
+SETUP_DIR="$SERVICE_DIR/setup"
 SCRIPT_NAME="start"
 logFilePath="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
@@ -22,7 +23,7 @@ ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 # ------------------------------------------------------------
 logRaw() {
   local stripped
-  stripped=$(echo -e "$1" | sed -E $'s/(\\x1B|\\033)\\[[0-9;]*[a-zA-Z]//g; s/[🚀⏩📥🌐🛠️📦📁🔄📋📄✅❌⚠️🔵🟢🔴]//g; s/\\\\n/\\\n/g; s/^[[:space:]]+\\[Arrbit\\]/[Arrbit]/')
+  stripped=$(echo -e "$1" | sed -E $'s/(\\x1B|\\033)\\[[0-9;]*[a-zA-Z]//g; s/[🚀⏩📥🌐🔧📦📁🔄📋📄✅❌⚠️🔵🟢🔴]//g; s/\\\\n/\\\n/g; s/^[[:space:]]+\\[Arrbit\\]/[Arrbit]/')
   echo "$stripped" >> "$logFilePath"
 }
 
@@ -47,23 +48,25 @@ if [ -f "$CONFIG_DIR/arrbit-config.conf" ]; then
 fi
 
 if [[ "${ENABLE_ARRBIT,,}" != "true" ]]; then
-    log "⚠️  \033[1;33m[Arrbit]\033[0m Arrbit is OFF.\n\033[1;33mBefore starting, enable Arrbit by setting ENABLE_ARRBIT=\"true\" in /config/arrbit/arrbit-config.conf.\033[0m\n\033[1;33mAll services are off by default—customize as needed.\033[0m"
+    log "⚠️  \033[1;33m$ARRBIT_TAG Arrbit is OFF.\033[0m
+\033[1;33mBefore starting, enable Arrbit by setting ENABLE_ARRBIT=\"true\" in /config/arrbit/arrbit-config.conf.\033[0m
+\033[1;33mAll services are off by default—customize as needed.\033[0m"
     sleep infinity
 fi
 
 # ------------------------------------------------------------
-# 2. INSTALL/UPDATE DEPENDENCIES (LOCAL ONLY)
+# 2. INSTALL/UPDATE DEPENDENCIES (LOCAL ONLY, from setup/)
 # ------------------------------------------------------------
-if [ -f "$SERVICE_DIR/setup_scripts/dependencies.bash" ]; then
-  log "🛠️  $ARRBIT_TAG Running local dependencies script..."
-  chmod 777 "$SERVICE_DIR/setup_scripts/dependencies.bash"
-  bash "$SERVICE_DIR/setup_scripts/dependencies.bash"
+if [ -f "$SETUP_DIR/dependencies.bash" ]; then
+  log "📦  $ARRBIT_TAG Running dependencies script..."
+  chmod 777 "$SETUP_DIR/dependencies.bash"
+  bash "$SETUP_DIR/dependencies.bash"
   if [ $? -ne 0 ]; then
     log "❌  $ARRBIT_TAG Dependencies script failed! Exiting."
     exit 1
   fi
 else
-  log "⚠️  $ARRBIT_TAG dependencies.bash not found locally. Skipping dependency install."
+  log "⚠️  $ARRBIT_TAG dependencies.bash not found locally in setup/. Skipping dependency install."
 fi
 
 # ------------------------------------------------------------
