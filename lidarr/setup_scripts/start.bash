@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit [start]
-# Version: 1.4
+# Version: 1.5
 # Purpose: Launches Arrbit services based on config flags. Installs dependencies from local copy. Supervises service modules.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -15,16 +15,21 @@ CONFIG_DIR="/config/arrbit"
 LOG_DIR="/config/logs"
 SETUP_DIR="$SERVICE_DIR/setup"
 SCRIPT_NAME="start"
-logFilePath="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+logFilePath="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%d-%m-%Y-%H:%M).log"
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 
 # ------------------------------------------------------------
-# LOGGING FUNCTIONS (Golden Standard)
+# LOGGING FUNCTIONS (Golden Standard, robust emoji stripping)
 # ------------------------------------------------------------
 logRaw() {
-  local stripped
-  stripped=$(echo -e "$1" | sed -E $'s/(\\x1B|\\033)\\[[0-9;]*[a-zA-Z]//g; s/[🚀⏩📥🌐🔧📦📁🔄📋📄✅❌⚠️🔵🟢🔴]//g; s/\\\\n/\\\n/g; s/^[[:space:]]+\\[Arrbit\\]/[Arrbit]/')
-  echo "$stripped" >> "$logFilePath"
+  local msg="$1"
+  # Remove all allowed Arrbit emojis first
+  msg=$(echo -e "$msg" | tr -d "🚀⏩📥🌐🔧📦📁🔄📋📄✅❌⚠️🔵🟢🔴💾")
+  # Remove ANSI color codes
+  msg=$(echo -e "$msg" | sed -E "s/(\x1B|\033)\[[0-9;]*[a-zA-Z]//g")
+  # Normalize Arrbit tag at start of line
+  msg=$(echo -e "$msg" | sed -E "s/^[[:space:]]+\[Arrbit\]/[Arrbit]/")
+  echo "$msg" >> "$logFilePath"
 }
 
 log() {
@@ -33,7 +38,6 @@ log() {
   logRaw "$msg"
 }
 
-timestamp=$(date +"%Y_%m_%d-%H_%M")
 mkdir -p "$LOG_DIR"
 find "$LOG_DIR" -type f -iname "arrbit-${SCRIPT_NAME}-*.log" -mtime +2 -delete
 touch "$logFilePath"
@@ -48,11 +52,8 @@ if [ -f "$CONFIG_DIR/arrbit-config.conf" ]; then
 fi
 
 if [[ "${ENABLE_ARRBIT,,}" != "true" ]]; then
-    log "⚠️   \033[1;33m$ARRBIT_TAG Arrbit is OFF.\033[0m
-\033[1;33mBefore starting, enable Arrbit by setting ENABLE_ARRBIT=\"true\" in /config/arrbit/arrbit-config.conf.\033[0m
-\033[1;33mAll services are off by default—customize as needed.\033[0m"
-
-sleep infinity
+    log "⚠️  ${ARRBIT_TAG} Arrbit is OFF.\n\033[1;33mBefore starting, enable Arrbit by setting ENABLE_ARRBIT=\"true\" in /config/arrbit/arrbit-config.conf.\nAll services are off by default—customize as needed.\033[0m"
+    sleep infinity
 fi
 
 # ------------------------------------------------------------
@@ -62,11 +63,11 @@ if [ -f "$SETUP_DIR/dependencies.bash" ]; then
   chmod 777 "$SETUP_DIR/dependencies.bash"
   bash "$SETUP_DIR/dependencies.bash"
   if [ $? -ne 0 ]; then
-    log "❌  $ARRBIT_TAG Dependencies script failed! Exiting."
+    log "❌  ${ARRBIT_TAG} dependencies.bash script failed! Exiting."
     exit 1
   fi
 else
-  log "⚠️  $ARRBIT_TAG dependencies.bash not found locally in setup/. Skipping dependency install."
+  log "⚠️  ${ARRBIT_TAG} dependencies.bash not found locally in setup/. Skipping dependency install."
 fi
 
 # ------------------------------------------------------------
@@ -95,20 +96,20 @@ fi
 # ------------------------------------------------------------
 for script in "${ARRBIT_SERVICES[@]}"; do
     if [ -x "$SERVICE_DIR/$script" ]; then
-        log "🚀  $ARRBIT_TAG Running $script..."
+        log "🚀  ${ARRBIT_TAG} Running $script..."
         bash "$SERVICE_DIR/$script"
         if [ $? -ne 0 ]; then
-          log "❌  $ARRBIT_TAG $script exited with errors!"
+          log "❌  ${ARRBIT_TAG} $script exited with errors!"
         fi
     else
-        log "⏩  $ARRBIT_TAG $script not found or not executable, skipping."
+        log "⏩  ${ARRBIT_TAG} $script not found or not executable, skipping."
     fi
 done
 
 # ------------------------------------------------------------
 # 6. FINAL LOG AND SLEEP FOREVER (containerized best practice)
 # ------------------------------------------------------------
-log "📄  $ARRBIT_TAG Log saved to $logFilePath"
-log "✅  $ARRBIT_TAG All enabled services processed."
+log "📄  ${ARRBIT_TAG} Log saved to $logFilePath"
+log "✅  ${ARRBIT_TAG} All enabled services processed."
 
 sleep infinity
