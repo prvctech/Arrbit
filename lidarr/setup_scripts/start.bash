@@ -52,7 +52,7 @@ if [[ "${ENABLE_ARRBIT,,}" != "true" ]]; then
 \033[1;33mBefore starting, enable Arrbit by setting ENABLE_ARRBIT=\"true\" in /config/arrbit/arrbit-config.conf.\033[0m
 \033[1;33mAll services are off by default—customize as needed.\033[0m"
 
-    exit 0
+sleep infinity
 fi
 
 # ------------------------------------------------------------
