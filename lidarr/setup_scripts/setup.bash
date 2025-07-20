@@ -46,7 +46,7 @@ chmod 777 "$logFilePath"
 # ------------------------------------------------------------
 # 1. SHOW LOGO & HEADER (logo ONLY prints to terminal, never log file)
 # ------------------------------------------------------------
-sleep 12  # Let container logs settle before Arrbit logo
+sleep 8  # Let container logs settle before Arrbit logo
 
 if [ -f "$SERVICE_DIR/modules/data/arrbit_logo.bash" ]; then
     source "$SERVICE_DIR/modules/data/arrbit_logo.bash"
@@ -58,7 +58,7 @@ echo ""  # Terminal spacing
 # ------------------------------------------------------------
 # 2. CREATE FOLDER STRUCTURE
 # ------------------------------------------------------------
-log "🛠️  $ARRBIT_TAG Building folder structure..."
+log "🛠️   $ARRBIT_TAG Building folder structure..."
 mkdir -p "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR" "$TMP_DIR" "$SETUP_DIR"
 chmod -R 777 "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR" "$SETUP_DIR"
 
