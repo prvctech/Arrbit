@@ -27,7 +27,7 @@ logFilePath="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 # ------------------------------------------------------------
 logRaw() {
   local stripped
-  stripped=$(echo -e "$1" | sed -E $'s/(\\x1B|\\033)\\[[0-9;]*[a-zA-Z]//g; s/[🚀⏩📥🌐📦🏗️📁🔄📋📄✅❌⚠️🔵🟢🔴]//g; s/\\\\n/\\\n/g; s/^[[:space:]]+\\[Arrbit\\]/[Arrbit]/')
+  stripped=$(echo -e "$1" | sed -E $'s/(\\x1B|\\033)\\[[0-9;]*[a-zA-Z]//g; s/[🚀⏩📥🌐📦🔧📁🔄📋📄✅❌⚠️🔵🟢🔴]//g; s/\\\\n/\\\n/g; s/^[[:space:]]+\\[Arrbit\\]/[Arrbit]/')
   echo "$stripped" >> "$logFilePath"
 }
 
@@ -58,7 +58,7 @@ echo ""  # Terminal spacing
 # ------------------------------------------------------------
 # 2. CREATE FOLDER STRUCTURE
 # ------------------------------------------------------------
-log "🏗️  $ARRBIT_TAG Building folder structure..."
+log "🔧  $ARRBIT_TAG Building folder structure..."
 mkdir -p "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR" "$TMP_DIR" "$SETUP_DIR"
 chmod -R 777 "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR" "$SETUP_DIR"
 
