@@ -124,8 +124,6 @@ for name in "${MODULES[@]}"; do
         "${SCRIPT_NAME}:${LINENO}" \
         "exit non-zero" \
         "Check module script"
-    else
-      arrbitLog "✅   ${ARRBIT_TAG} ${name} module complete"
     fi
   else
     arrbitLog "⚠️   ${CYAN}[Arrbit]${RESET} ${MODULE_YELLOW}${name}module${RESET}  missing; skipping"
