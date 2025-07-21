@@ -37,8 +37,6 @@ touch "$log_file_path"
 chmod 777 "$log_file_path"
 chmod -R 777 "$SERVICE_DIR"
 
-arrbitLog "🚀  ${ARRBIT_TAG} Starting ${SERVICE_YELLOW}${SCRIPT_NAME}\033[0m ${SCRIPT_VERSION}..."
-
 # ----------------------------------------------------------------------------
 # 2. LOGO & HEADER
 # ----------------------------------------------------------------------------
