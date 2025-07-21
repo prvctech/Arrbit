@@ -58,7 +58,6 @@ arrApiVersion=$(getFlag "API_VERSION")
 # -------------------------------------------------------
 arrbitLog "🔵  ${ARRBIT_TAG} Found Lidarr instance at $arrUrl"
 arrbitLog "🟢  ${ARRBIT_TAG} Using API version: $arrApiVersion"
-arrbitLog "🟢  ${ARRBIT_TAG} Using API key: ${arrApiKey:0:4}...REDACTED"
 
 # -------------------------------------------------------
 # Golden Standard Wait for API Function (inline for all modules)
