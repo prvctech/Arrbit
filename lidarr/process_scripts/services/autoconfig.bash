@@ -133,7 +133,7 @@ done
 # ----------------------------------------------------------------------------
 # 6. WRAP UP
 # ----------------------------------------------------------------------------
-arrbitLog "📄   ${ARRBIT_TAG} Log saved to $log_file_path"
-arrbitLog "✅   ${ARRBIT_TAG} Done with ${SCRIPT_NAME} service"
+arrbitLog "📄  ${ARRBIT_TAG} Log saved to $log_file_path"
+arrbitLog "✅  ${ARRBIT_TAG} Done with ${SCRIPT_NAME} service"
 
 exit 0
