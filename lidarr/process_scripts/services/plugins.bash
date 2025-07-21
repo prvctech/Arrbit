@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit [plugins]
-# Version: v2.5
+# Version: v2.6
 # Purpose: Install community plugins for Lidarr (Tidal, Deezer, Tubifarry)
 # -------------------------------------------------------------------------------------------------------------
 
@@ -11,7 +11,7 @@ source /etc/services.d/arrbit/helpers/logging_utils.bash
 source /etc/services.d/arrbit/helpers/error_utils.bash
 
 SCRIPT_NAME="plugins"
-SCRIPT_VERSION="v2.5"
+SCRIPT_VERSION="v2.6"
 SERVICE_DIR="/etc/services.d/arrbit"
 CONFIG_DIR="/config/arrbit"
 LOG_DIR="/config/logs"
