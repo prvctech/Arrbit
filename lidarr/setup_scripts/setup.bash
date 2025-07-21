@@ -18,8 +18,20 @@ HELPERS_DIR="$SERVICE_DIR/helpers"
 SETUP_DIR="$SERVICE_DIR/setup_scripts"
 SCRIPT_NAME="setup"
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
+ARRBIT_LOGO_URL="https://raw.githubusercontent.com/prvctech/Arrbit/main/lidarr/process_scripts/modules/data/arrbit_logo.bash"
 
+# Delay to allow Hotio and other service logs to finish first
 sleep 8
+
+# ------------------ LOGO & HEADER ------------------
+# Print Arrbit logo remotely (always latest version)
+if curl -sfL "$ARRBIT_LOGO_URL" -o /tmp/arrbit_logo.bash; then
+    source /tmp/arrbit_logo.bash
+    arrbit_logo
+    rm -f /tmp/arrbit_logo.bash
+else
+    echo -e "$ARRBIT_TAG Starting setup..." >&2
+fi
 
 # ------------------ 1. PREPARE DIRECTORIES ------------------
 mkdir -p "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR" "$TMP_DIR" "$HELPERS_DIR" "$SETUP_DIR"
@@ -52,34 +64,25 @@ if [ "$log_count" -gt 3 ]; then
   ls -1t "$LOG_DIR"/arrbit-"$SCRIPT_NAME"-*.log | tail -n +4 | xargs rm -f
 fi
 
-# ------------------ 7. CHECK FLAGS ------------------
-LOG_LEVEL=$(getFlag "LOG_LEVEL"); [ -z "$LOG_LEVEL" ] && LOG_LEVEL=0
-ENABLE_ARRBIT=$(getFlag "ENABLE_ARRBIT")
-if [ "$ENABLE_ARRBIT" != "true" ]; then
-  [ "$LOG_LEVEL" -gt 0 ] && log "⏩  Arrbit disabled (ENABLE_ARRBIT=false); sleeping indefinitely."
-  sleep infinity
+# ------------------ 7. INSTALL SETUP SCRIPTS (DYNAMIC) ------------------
+if [ -d "$REPO_ROOT/lidarr/setup_scripts" ]; then
+  cp -rf "$REPO_ROOT/lidarr/setup_scripts/"* "$SETUP_DIR/" 2>/dev/null || true
+  log "📋  All setup scripts copied to $SETUP_DIR."
+else
+  log "⚠️   No setup scripts found in repo; skipping."
 fi
+chmod -R 777 "$SETUP_DIR"
 
-# ------------------ 8. INSTALL PROCESS SCRIPTS ------------------
-log "📦  Copying process scripts to $SERVICE_DIR..."
-cp -rf "$REPO_ROOT/lidarr/process_scripts/"* "$SERVICE_DIR/"
-if [ $? -ne 0 ]; then
-  log "❌  Failed to copy process scripts; sleeping indefinitely."
-  sleep infinity
+# ------------------ 8. INSTALL PROCESS SCRIPTS (DYNAMIC) ------------------
+if [ -d "$REPO_ROOT/lidarr/process_scripts" ]; then
+  cp -rf "$REPO_ROOT/lidarr/process_scripts/"* "$SERVICE_DIR/" 2>/dev/null || true
+  log "📦  All process scripts copied to $SERVICE_DIR."
+else
+  log "⚠️   No process scripts found in repo; skipping."
 fi
 chmod -R 777 "$SERVICE_DIR"
 
-# ------------------ 9. INSTALL SETUP SCRIPTS ------------------
-for script in start.bash dependencies.bash; do
-  if [ -f "$REPO_ROOT/lidarr/setup_scripts/$script" ]; then
-    install -m 777 "$REPO_ROOT/lidarr/setup_scripts/$script" "$SETUP_DIR/$script"
-    log "📋  $script installed to $SETUP_DIR."
-  else
-    log "⚠️   $script not found; skipping."
-  fi
-done
-
-# ------------------ 10. INSTALL CONFIG FILES ------------------
+# ------------------ 9. INSTALL CONFIG FILES (SAFE) ------------------
 for cfg in arrbit-config.conf beets-config.yaml; do
   if [ -f "$REPO_ROOT/lidarr/config/$cfg" ] && [ ! -f "$CONFIG_DIR/$cfg" ]; then
     install -m 666 "$REPO_ROOT/lidarr/config/$cfg" "$CONFIG_DIR/$cfg"
@@ -89,15 +92,15 @@ for cfg in arrbit-config.conf beets-config.yaml; do
   fi
 done
 
-# ------------------ 11. CLEANUP ------------------
+# ------------------ 10. CLEANUP TEMP ------------------
 rm -rf "$TMP_DIR"
 log "✅  Setup complete."
 
-# ------------------ 12. FINAL PERMISSIONS ------------------
+# ------------------ 11. FINAL PERMISSIONS ------------------
 chmod -R 777 "$LOG_DIR" "$CONFIG_DIR" "$SERVICE_DIR" "$SETUP_DIR" "$HELPERS_DIR" || true
 log "📄  Log saved to $LOG_FILE_PATH"
 
-# ------------------ 13. AUTO-TRIGGER start.bash ------------------
+# ------------------ 12. AUTO-TRIGGER start.bash ------------------
 if [ -x "$SETUP_DIR/start.bash" ]; then
   log "🚀  Launching start.bash..."
   exec "$SETUP_DIR/start.bash"
