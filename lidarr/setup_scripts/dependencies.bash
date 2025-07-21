@@ -25,7 +25,7 @@ find "$LOG_DIR" -type f -iname "arrbit-${SCRIPT_NAME}-*.log" -mtime +5 -delete
 touch "$log_file_path"
 chmod 777 "$log_file_path" && chmod -R 777 "$LOG_DIR"
 
-arrbitLog "🚀  ${ARRBIT_TAG} Starting ${MODULE_YELLOW}${SCRIPT_NAME} script\033[0m ${SCRIPT_VERSION}..."
+arrbitLog "🚀  ${ARRBIT_TAG} Starting ${MODULE_YELLOW}${SCRIPT_NAME} setup\033[0m ${SCRIPT_VERSION}..."
 
 # ----------------------------------------------------------------------------
 # 2. DETECT PACKAGE MANAGER
