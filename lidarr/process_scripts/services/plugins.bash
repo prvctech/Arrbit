@@ -44,7 +44,7 @@ chmod 777 "$logFilePath"
 # ------------------------------------------------------------
 # SERVICE STARTUP
 # ------------------------------------------------------------
-log "🚀  ${ARRBIT_TAG} Starting ${MODULE_YELLOW}plugins\033[0m service $scriptVersion..."
+log "🚀  ${ARRBIT_TAG} Starting ${MODULE_YELLOW}plugins service\033[0m $scriptVersion..."
 
 # ------------------------------------------------------------
 # CONFIG FILE CHECK AND LOAD
@@ -159,6 +159,6 @@ fi
 # SERVICE END LOGS
 # ------------------------------------------------------------
 log "📄  ${ARRBIT_TAG} Log saved to $logFilePath"
-log "✅  ${ARRBIT_TAG} Done with ${MODULE_YELLOW}plugins\033[0m service!"
+log "✅  ${ARRBIT_TAG} Done with plugins service!"
 
 exit 0
