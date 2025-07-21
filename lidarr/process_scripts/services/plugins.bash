@@ -35,19 +35,6 @@ chmod -R 777 "$PLUGINS_DIR"
 # Trap any uncaught error
 trap 'arrbitErrorLog "❌" "[Arrbit] Unexpected error in plugins" "uncaught error" "plugins.bash" "${SCRIPT_NAME}:${LINENO}" "check script" "Review log file"; exit 1' ERR
 
-sleep 8  # Let container logs settle before Arrbit logo
-
-# ------------------------------------------------------------
-# 1. LOGO & HEADER
-# ------------------------------------------------------------
-echo
-if [ -f "$SERVICE_DIR/modules/data/arrbit_logo.bash" ]; then
-  source "$SERVICE_DIR/modules/data/arrbit_logo.bash"
-  arrbit_logo
-  echo
-fi
-arrbitLog "🚀  [Arrbit] Starting plugins service\033[0m v${SCRIPT_VERSION}"
-
 # ------------------------------------------------------------
 # 2. MASTER FLAG CHECK
 # ------------------------------------------------------------
