@@ -129,7 +129,7 @@ for name in "${MODULES[@]}"; do
       arrbitLog "✅   ${ARRBIT_TAG} ${name} module complete"
     fi
   else
-    arrbitLog "⚠️   ${CYAN}[Arrbit]${RESET} ${MODULE_YELLOW}${name}${RESET} module missing; skipping"
+    arrbitLog "⚠️   ${CYAN}[Arrbit]${RESET} ${MODULE_YELLOW}${name}module${RESET}  missing; skipping"
   fi
 done
 
