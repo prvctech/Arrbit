@@ -21,7 +21,7 @@ ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 SERVICE_YELLOW="\033[1;33m"
 
 # ------------------------------------------------------------
-# 1. INIT LOG FILE, TRACE, CLEAN OLD LOGS, PERMISSIONS
+# 1. INIT LOG FILE, CLEAN OLD LOGS, PERMISSIONS
 # ------------------------------------------------------------
 mkdir -p "$LOG_DIR"
 
@@ -35,12 +35,11 @@ touch "$log_file_path"
 chmod 777 "$log_file_path"
 chmod -R 777 "$SERVICE_DIR"
 
-# Enable trace to file only
+# Redirect trace output to log only
 exec 3>&1 4>&2
 exec 1>>"$log_file_path" 2>&1
 PS4='+ ${BASH_SOURCE}:${LINENO}: '
 set -x
-exec 1>&3 2>&4
 
 # ------------------------------------------------------------
 # LOGGING HELPERS
@@ -48,9 +47,7 @@ exec 1>&3 2>&4
 logRaw() {
   local stripped
   stripped=$(echo -e "$1" |
-    sed -E $'s/(\\x1B|\\033)\\[[0-9;]*[a-zA-Z]//g; \
-              s/[🚀⏩📥🌐🔧📦📁🔄📋📄✅❌⚠️🔵🟢🔴]//g; \
-              s/^[[:space:]]+\\[Arrbit\\]/[Arrbit]/')
+    sed -E 's/(\x1B|\033)\[[0-9;]*[a-zA-Z]//g; s/[🚀⏩📥🌐🔧📦📁🔄📋📄✅❌⚠️🔵🟢🔴]//g; s/^[[:space:]]+\[Arrbit\]/[Arrbit]/')
   echo "$stripped" >> "$log_file_path"
 }
 
