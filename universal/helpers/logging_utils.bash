@@ -1,21 +1,42 @@
-# logging_utils.bash
+# -------------------------------------------------------------------------------------------------------------
+# Arrbit logging_utils.bash
+# Version: v2.0
+# Purpose: Unified logging utilities with dynamic LOG_LEVEL sourcing from config file every call.
+# -------------------------------------------------------------------------------------------------------------
 
 if [[ -z "${ARRBIT_LOGGING_INCLUDED}" ]]; then
   ARRBIT_LOGGING_INCLUDED=1
 
+  # Always source helpers for getFlag
+  if ! declare -f getFlag &>/dev/null; then
+    # fallback location (most setups will have this sourced already)
+    CONFIG_DIR="/config/arrbit"
+    source "/etc/services.d/arrbit/helpers/helpers.bash"
+  fi
+
+  # Internal: Dynamically get LOG_LEVEL from config file (0,1,2,3 only)
+  getLogLevel() {
+    local lvl
+    lvl=$(getFlag "LOG_LEVEL")
+    [[ "$lvl" =~ ^[0-3]$ ]] || lvl=0
+    echo "$lvl"
+  }
+
   # Pretty output: always to terminal, always with color/emoji
   logStdout() {
-    if (( LOG_LEVEL > 0 )); then
+    local lvl; lvl=$(getLogLevel)
+    if (( lvl > 0 )); then
       echo -e "$1"
     fi
   }
 
   # Raw output: only to .log, stripped depending on LOG_LEVEL
   logRaw() {
-    if (( LOG_LEVEL == 3 )); then
+    local lvl; lvl=$(getLogLevel)
+    if (( lvl == 3 )); then
       # Level 3: write raw (trace/verbose/unfiltered)
       echo -e "$1" >> "$log_file_path"
-    elif (( LOG_LEVEL > 0 )); then
+    elif (( lvl > 0 )); then
       # Level 1/2: strip emoji and color
       local stripped
       stripped=$(echo -e "$1" | \
@@ -31,13 +52,15 @@ if [[ -z "${ARRBIT_LOGGING_INCLUDED}" ]]; then
   }
 
   logDebug() {
-    if (( LOG_LEVEL > 0 )); then
+    local lvl; lvl=$(getLogLevel)
+    if (( lvl > 0 )); then
       log "$1"
     fi
   }
 
   logVerbose() {
-    if (( LOG_LEVEL > 1 )); then
+    local lvl; lvl=$(getLogLevel)
+    if (( lvl > 1 )); then
       log "$1"
     fi
   }
