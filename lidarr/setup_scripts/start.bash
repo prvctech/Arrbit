@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit start.bash
-# Version: v3.1
+# Version: v3.2
 # Purpose: Launch dependencies and run enabled services (autoconfig & plugins).
 # -------------------------------------------------------------------------------------------------------------
 
@@ -17,9 +17,11 @@ SETUP_DIR="$SERVICE_DIR/setup"
 SERVICES_DIR="$SERVICE_DIR/services"
 
 # ----------------------------------------------------------------------------
-# 1. INIT: Ensure logs directory
+# 1. INIT: Ensure logs directory and executable permissions
 # ----------------------------------------------------------------------------
 mkdir -p "$LOG_DIR"
+# Make sure all bash scripts in setup and services are executable
+find "$SETUP_DIR" "$SERVICES_DIR" -type f -name "*.bash" -exec chmod +x {} \;
 
 # ----------------------------------------------------------------------------
 # 2. LOGO & HEADER
@@ -50,7 +52,7 @@ if [[ "$(getFlag ENABLE_AUTOCONFIG)" != "false" ]]; then
     arrbitLog "🚀  [Arrbit] Running autoconfig service..."
     bash "$SERVICES_DIR/autoconfig.bash"
   else
-    arrbitLog "⚠️   [Arrbit] autoconfig.bash not found; skipping."
+    arrbitLog "⚠️   [Arrbit] autoconfig.bash not found or not executable; skipping."
   fi
 fi
 
@@ -62,7 +64,7 @@ if [[ "$(getFlag ENABLE_PLUGINS)" != "false" ]]; then
     arrbitLog "🚀  [Arrbit] Running plugins service..."
     bash "$SERVICES_DIR/plugins.bash"
   else
-    arrbitLog "⚠️   [Arrbit] plugins.bash not found; skipping."
+    arrbitLog "⚠️   [Arrbit] plugins.bash not found or not executable; skipping."
   fi
 fi
 
