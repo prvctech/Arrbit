@@ -1,6 +1,6 @@
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit logging_utils.bash
-# Version: v2.0
+# Version: v2.1
 # Purpose: Minimal logging utility with Golden Standard error logic. Script supplies full log line for arrbitLog.
 #          arrbitErrorLog outputs short summary to terminal, structured detail to log file.
 # -------------------------------------------------------------------------------------------------------------
@@ -22,6 +22,12 @@ if [[ -z "${ARRBIT_LOGGING_INCLUDED}" ]]; then
     echo "$lvl"
   }
 
+  # DRY: Strip ANSI color codes and GS4 emojis for log file output at levels 1/2
+  arrbitLogStrip() {
+    local msg="$1"
+    echo -e "$msg" | sed -E 's/(\x1B|\033)\[[0-9;]*[a-zA-Z]//g; s/[📄🔄📦📥🔧🚀⏩🌐📁📋📄✅❌⚠️🔵🟢🔴]//g'
+  }
+
   # The only log function: script is responsible for formatting!
   arrbitLog() {
     local msg="$1"
@@ -31,10 +37,7 @@ if [[ -z "${ARRBIT_LOGGING_INCLUDED}" ]]; then
       if (( lvl == 3 )); then
         echo -e "$msg" >> "$log_file_path"
       else
-        # Remove ANSI color codes and GS4 emojis for log file output at levels 1/2
-        local stripped
-        stripped=$(echo -e "$msg" | sed -E 's/(\x1B|\033)\[[0-9;]*[a-zA-Z]//g; s/[📄🔄📦📥🔧🚀⏩🌐📁📋📄✅❌⚠️🔵🟢🔴]//g')
-        echo "$stripped" >> "$log_file_path"
+        arrbitLogStrip "$msg" >> "$log_file_path"
       fi
     fi
   }
@@ -63,9 +66,7 @@ if [[ -z "${ARRBIT_LOGGING_INCLUDED}" ]]; then
       if (( lvl == 3 )); then
         echo -e "$full_detail" >> "$log_file_path"
       else
-        local stripped
-        stripped=$(echo -e "$full_detail" | sed -E 's/(\x1B|\033)\[[0-9;]*[a-zA-Z]//g; s/[📄🔄📦📥🔧🚀⏩🌐📁📋📄✅❌⚠️🔵🟢🔴]//g')
-        echo "$stripped" >> "$log_file_path"
+        arrbitLogStrip "$full_detail" >> "$log_file_path"
       fi
     fi
   }
