@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit start.bash
-# Version: v3.2
-# Purpose: Launch dependencies and run enabled services (autoconfig & plugins).
+# Version: v3.3
+# Purpose: Launch dependencies, plugins, and autoconfig services.
 # -------------------------------------------------------------------------------------------------------------
 
 # === ARRBIT "TRINITY" HELPERS ===
@@ -16,55 +16,29 @@ LOG_DIR="/config/logs"
 SETUP_DIR="$SERVICE_DIR/setup"
 SERVICES_DIR="$SERVICE_DIR/services"
 
+SERVICE_YELLOW="\033[1;33m"
+
 # ----------------------------------------------------------------------------
-# 1. INIT: Ensure logs directory and executables
+# 1. INIT: Ensure logs dir and executables
 # ----------------------------------------------------------------------------
 mkdir -p "$LOG_DIR"
-# Make all scripts executable
 find "$SETUP_DIR" "$SERVICES_DIR" -type f -name "*.bash" -exec chmod +x {} \;
 
 # ----------------------------------------------------------------------------
-# 2. LOGO & HEADER
+# 2. RUN DEPENDENCIES
 # ----------------------------------------------------------------------------
-sleep 8  # Let container logs settle before Arrbit logo
-if [ -f "$SERVICE_DIR/modules/data/arrbit_logo.bash" ]; then
-  source "$SERVICE_DIR/modules/data/arrbit_logo.bash"
-  arrbit_logo
-  echo
-fi
-
-# ----------------------------------------------------------------------------
-# 3. RUN DEPENDENCIES
-# ----------------------------------------------------------------------------
-if [ -x "$SETUP_DIR/dependencies.bash" ]; then  
-  bash "$SETUP_DIR/dependencies.bash" || \
-    arrbitErrorLog "❌" \
-      "[Arrbit] dependencies failed" \
-      "dependencies.bash" \
-      "$SETUP_DIR/dependencies.bash" \
-      "start:${LINENO}" \
-      "exit non-zero" \
-      "Check setup script"
+if [ -x "$SETUP_DIR/dependencies.bash" ]; then
+  bash "$SETUP_DIR/dependencies.bash" || arrbitErrorLog "❌" \
+    "[Arrbit] dependencies failed" "dependencies.bash" "$SETUP_DIR/dependencies.bash" "start:${LINENO}" "exit non-zero" "Check setup script"
 else
-  arrbitLog "⚠️   [Arrbit] No dependencies script found; skipping."
+  arrbitLog "⚠️   [Arrbit] dependencies.bash not found; skipping."
 fi
 
 # ----------------------------------------------------------------------------
-# 4. AUTOCONFIG SERVICE
-# ----------------------------------------------------------------------------
-if [[ "$(getFlag ENABLE_AUTOCONFIG || echo true)" == "true" ]]; then
-  if [ -x "$SERVICES_DIR/autoconfig.bash" ]; then    
-    bash "$SERVICES_DIR/autoconfig.bash"
-  else
-    arrbitLog "⚠️   [Arrbit] autoconfig.bash not found or not executable; skipping."
-  fi
-fi
-
-# ----------------------------------------------------------------------------
-# 5. PLUGINS SERVICE
+# 3. PLUGINS SERVICE
 # ----------------------------------------------------------------------------
 if [[ "$(getFlag ENABLE_PLUGINS || echo true)" == "true" ]]; then
-  if [ -x "$SERVICES_DIR/plugins.bash" ]; then    
+  if [ -x "$SERVICES_DIR/plugins.bash" ]; then
     bash "$SERVICES_DIR/plugins.bash"
   else
     arrbitLog "⚠️   [Arrbit] plugins.bash not found or not executable; skipping."
@@ -72,8 +46,19 @@ if [[ "$(getFlag ENABLE_PLUGINS || echo true)" == "true" ]]; then
 fi
 
 # ----------------------------------------------------------------------------
-# 6. WRAP UP
+# 4. AUTOCONFIG SERVICE
+# ----------------------------------------------------------------------------
+if [[ "$(getFlag ENABLE_AUTOCONFIG || echo true)" == "true" ]]; then
+  if [ -x "$SERVICES_DIR/autoconfig.bash" ]; then
+    bash "$SERVICES_DIR/autoconfig.bash"
+  else
+    arrbitLog "⚠️   [Arrbit] autoconfig.bash not found or not executable; skipping."
+  fi
+fi
+
+# ----------------------------------------------------------------------------
+# 5. WRAP UP
 # ----------------------------------------------------------------------------
 arrbitLog "✅  [Arrbit] All services processed."
 
-exit 0
+sleep infinity
