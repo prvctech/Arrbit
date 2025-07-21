@@ -1,7 +1,7 @@
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit logging_utils.bash
-# Version: v2.0
-# Purpose: Unified logging utilities with dynamic LOG_LEVEL sourcing from config file every call.
+# Version: v2.2
+# Purpose: Unified logging utilities with enforced error hygiene, dynamic LOG_LEVEL sourcing, and clear output.
 # -------------------------------------------------------------------------------------------------------------
 
 if [[ -z "${ARRBIT_LOGGING_INCLUDED}" ]]; then
@@ -9,59 +9,62 @@ if [[ -z "${ARRBIT_LOGGING_INCLUDED}" ]]; then
 
   # Always source helpers for getFlag
   if ! declare -f getFlag &>/dev/null; then
-    # fallback location (most setups will have this sourced already)
     CONFIG_DIR="/config/arrbit"
     source "/etc/services.d/arrbit/helpers/helpers.bash"
   fi
 
-  # Internal: Dynamically get LOG_LEVEL from config file (0,1,2,3 only)
+  # Internal: Dynamically get LOG_LEVEL from config file (1,2,3 only)
   getLogLevel() {
     local lvl
     lvl=$(getFlag "LOG_LEVEL")
-    [[ "$lvl" =~ ^[0-3]$ ]] || lvl=0
+    [[ "$lvl" =~ ^[1-3]$ ]] || lvl=1
     echo "$lvl"
   }
 
-  # Pretty output: always to terminal, always with color/emoji
-  logStdout() {
-    local lvl; lvl=$(getLogLevel)
-    if (( lvl > 0 )); then
-      echo -e "$1"
-    fi
-  }
-
-  # Raw output: only to .log, stripped depending on LOG_LEVEL
-  logRaw() {
+  # Main log output logic, always logs (no level 0, never silenced)
+  logCore() {
+    local prefix="$1"
+    local msg="$2"
+    local emoji="$3"
+    local color="$4"
+    # Always print to terminal with color/emoji
+    echo -e "${color}${emoji} [Arrbit]${prefix:+ $prefix}${color:+\033[0m} $msg"
+    # Log file output: color/emoji only at level 3
     local lvl; lvl=$(getLogLevel)
     if (( lvl == 3 )); then
-      # Level 3: write raw (trace/verbose/unfiltered)
-      echo -e "$1" >> "$log_file_path"
-    elif (( lvl > 0 )); then
-      # Level 1/2: strip emoji and color
+      echo -e "${emoji} [Arrbit]${prefix:+ $prefix} $msg" >> "$log_file_path"
+    else
       local stripped
-      stripped=$(echo -e "$1" | \
-        sed -E 's/(\x1B|\033)\[[0-9;]*[a-zA-Z]//g; s/[🚀⏩📥🌐🔧📦📁🔄📋📄✅❌⚠️🔵🟢🔴💾]//g; s/^[[:space:]]+\[Arrbit\]/[Arrbit]/')
+      stripped=$(echo -e "${emoji} [Arrbit]${prefix:+ $prefix} $msg" | sed -E 's/(\x1B|\033)\[[0-9;]*[a-zA-Z]//g; s/[🚀⏩📥🌐🔧📦📁🔄📋📄✅❌⚠️🔵🟢🔴💾]//g')
       echo "$stripped" >> "$log_file_path"
     fi
-    # Level 0: nothing
   }
 
-  log() {
-    logStdout "$1"
-    logRaw "$1"
+  # Info log (main status)
+  logInfo()    { logCore ""       "$1" "🟢" "\033[1;32m"; }
+  # Warn log (unexpected but not fatal)
+  logWarn()    { logCore "WARN"   "$1" "⚠️" "\033[1;33m"; }
+  # Error log (failures)
+  logError()   { logCore "ERROR"  "$1" "❌" "\033[1;31m"; }
+  # Debug log (for troubleshooting)
+  logDebug()   { local lvl; lvl=$(getLogLevel); (( lvl >= 1 )) && logCore "DEBUG" "$1" "🔵" "\033[1;36m"; }
+  # Verbose log (very detailed info)
+  logVerbose() { local lvl; lvl=$(getLogLevel); (( lvl >= 2 )) && logCore "VERBOSE" "$1" "📄" "\033[0;37m"; }
+
+  # Enforced error hygiene: logs action, resource, cause, hint, function/line number
+  logErrorEx() {
+    local action="$1"
+    local resource="$2"
+    local cause="$3"
+    local hint="$4"
+    local func="${FUNCNAME[1]:-main}"
+    local line="${BASH_LINENO[0]:-?}"
+    logError "[$func:$line] $action: $resource (cause: $cause)${hint:+. $hint}"
   }
 
-  logDebug() {
+  # Optionally: enable full Bash trace at LOG_LEVEL 3
+  enableTraceIfNeeded() {
     local lvl; lvl=$(getLogLevel)
-    if (( lvl > 0 )); then
-      log "$1"
-    fi
-  }
-
-  logVerbose() {
-    local lvl; lvl=$(getLogLevel)
-    if (( lvl > 1 )); then
-      log "$1"
-    fi
+    (( lvl == 3 )) && set -x
   }
 fi
