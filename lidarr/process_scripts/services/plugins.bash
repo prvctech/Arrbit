@@ -35,7 +35,7 @@ chmod 777 "$log_file_path"
 # ----------------------------------------------------------------------------
 # 2. STARTUP & MASTER FLAG
 # ----------------------------------------------------------------------------
-arrbitLog "🚀  ${ARRBIT_TAG} Starting ${SERVICE_YELLOW} service\033[0m ${SCRIPT_VERSION}"
+arrbitLog "🚀  ${ARRBIT_TAG} Starting ${SERVICE_YELLOW}${SCRIPT_NAME} service\033[0m ${SCRIPT_VERSION}"
 if [ ! -r "$CONFIG_DIR/arrbit-config.conf" ]; then
   arrbitLog "⚠️   ${ARRBIT_TAG} Config file missing; skipping ${SERVICE_YELLOW}${SCRIPT_NAME}\033[0m."
   exit 0
