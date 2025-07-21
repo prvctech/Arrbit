@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit autoconfig.bash
-# Version: v3.8
+# Version: v3.9
 # Purpose: Orchestrates Arrbit modules to configure Lidarr, Readarr, etc., based on config flags.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -11,7 +11,7 @@ source /etc/services.d/arrbit/helpers/logging_utils.bash
 source /etc/services.d/arrbit/helpers/error_utils.bash
 
 SCRIPT_NAME="autoconfig"
-SCRIPT_VERSION="v3.8"
+SCRIPT_VERSION="v3.9"
 SERVICE_DIR="/etc/services.d/arrbit"
 LOG_DIR="/config/logs"
 CONFIG_FILE="/config/arrbit/arrbit-config.conf"
@@ -29,14 +29,16 @@ find "$LOG_DIR" -type f -iname "arrbit-${SCRIPT_NAME}-*.log" -mtime +5 -delete
 touch "$log_file_path"
 chmod 777 "$log_file_path" && chmod -R 777 "$SERVICE_DIR"
 
-arrbitLog "🚀  ${ARRBIT_TAG} Starting ${SERVICE_YELLOW}${SCRIPT_NAME} service\033[0m ${SCRIPT_VERSION}..."
+arrbitLog "🚀  ${ARRBIT_TAG} Starting ${SERVICE_YELLOW}${SCRIPT_NAME}\033[0m service ${SCRIPT_VERSION}..."
 
 # ----------------------------------------------------------------------------
 # 2. Master Flag Check: ENABLE_AUTOCONFIG
 # ----------------------------------------------------------------------------
 ENABLE_AUTOCONFIG=$(getFlag "ENABLE_AUTOCONFIG")
 : "${ENABLE_AUTOCONFIG:=true}"
-if [[ "${ENABLE_AUTOCONFIG,,}" != "true" ]]; then
+# normalize
+ENABLE_AUTOCONFIG_LC=$(echo "$ENABLE_AUTOCONFIG" | tr '[:upper:]' '[:lower:]')
+if [[ "$ENABLE_AUTOCONFIG_LC" != "true" ]]; then
   arrbitLog "⏩  ${ARRBIT_TAG} ${SERVICE_YELLOW}${SCRIPT_NAME}\033[0m disabled by flag. Skipping."
   sleep infinity
 fi
@@ -76,10 +78,13 @@ MODULES_TO_RUN=(
 enabledCount=0
 for module in "${MODULES_TO_RUN[@]}"; do
   name="${module%.bash}"
-  flag="CONFIGURE_${name^^}"
+  flag="CONFIGURE_$(echo "$name" | tr '[:lower:]' '[:upper:]')"
   val=$(getFlag "$flag")
   : "${val:=true}"
-  if [[ "${val,,}" == "true" ]]; then ((enabledCount++)); fi
+  val_lc=$(echo "$val" | tr '[:upper:]' '[:lower:]')
+  if [[ "$val_lc" == "true" ]]; then
+    ((enabledCount++))
+  fi
 done
 if (( enabledCount == 0 )); then
   arrbitLog "⏩  ${ARRBIT_TAG} All modules disabled. Skipping service."
@@ -91,10 +96,11 @@ fi
 # ----------------------------------------------------------------------------
 for module in "${MODULES_TO_RUN[@]}"; do
   name="${module%.bash}"
-  flag="CONFIGURE_${name^^}"
+  flag="CONFIGURE_$(echo "$name" | tr '[:lower:]' '[:upper:]')"
   val=$(getFlag "$flag")
   : "${val:=true}"
-  if [[ "${val,,}" != "true" ]]; then
+  val_lc=$(echo "$val" | tr '[:upper:]' '[:lower:]')
+  if [[ "$val_lc" != "true" ]]; then
     arrbitLog "⏩  ${ARRBIT_TAG} Skipping ${MODULE_YELLOW}${name}\033[0m (flag disabled)"
     continue
   fi
@@ -104,13 +110,14 @@ for module in "${MODULES_TO_RUN[@]}"; do
     arrbitLog "🔄  ${ARRBIT_TAG} Running ${MODULE_YELLOW}${name}\033[0m..."
     output=$(bash "$path" 2>&1)
     arrbitLog "$output"
-    if [[ $? -ne 0 ]]; then
+    exit_code=$?
+    if [[ $exit_code -ne 0 ]]; then
       arrbitErrorLog "❌" \
         "[Arrbit] ${name} failed" \
         "${name} module failed" \
         "$module" \
         "${SCRIPT_NAME}:${LINENO}" \
-        "${name} exited nonzero" \
+        "exited code $exit_code" \
         "Check $path for errors"
     else
       arrbitLog "✅  ${ARRBIT_TAG} ${MODULE_YELLOW}${name}\033[0m complete"
@@ -124,6 +131,6 @@ done
 # 6. Wrap Up
 # ----------------------------------------------------------------------------
 arrbitLog "📄  ${ARRBIT_TAG} Log saved to $log_file_path"
-arrbitLog "✅  ${ARRBIT_TAG} Done with ${SCRIPT_NAME} service!"
+arrbitLog "✅  ${ARRBIT_TAG} Done with ${SERVICE_YELLOW}${SCRIPT_NAME}\033[0m service!"
 
 sleep infinity
