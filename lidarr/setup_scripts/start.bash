@@ -85,11 +85,11 @@ fi
 # 5. BUILD SERVICE EXECUTION LIST
 # ------------------------------------------------------------
 ARRBIT_SERVICES=()
-if [[ "${ENABLE_AUTOCONFIG,,}" == "true" ]]; then
-  ARRBIT_SERVICES+=("autoconfig.bash")
-fi
 if [[ "${ENABLE_PLUGINS,,}" == "true" ]]; then
   ARRBIT_SERVICES+=("plugins.bash")
+fi
+if [[ "${ENABLE_AUTOCONFIG,,}" == "true" ]]; then
+  ARRBIT_SERVICES+=("autoconfig.bash")
 fi
 
 # ------------------------------------------------------------
