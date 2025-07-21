@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit [arr_bridge]
-# Version: v2.0
-# Purpose: Connects Arrbit modules to Lidarr/Sonarr/etc. via HTTP. Handles API key, base URL, and API version.
+# Version: v2.1
+# Purpose: Connects Arrbit modules to Lidarr/Sonarr/etc. via HTTP. Handles API key, base URL, app name, version.
 # -------------------------------------------------------------------------------------------------------------
 
 set -euo pipefail
@@ -15,7 +15,7 @@ MODULE_YELLOW="\033[1;33m"
 LOG_DIR="/config/logs"
 CONFIG_FILE="/config/arrbit/arrbit-config.conf"
 scriptName="arr_bridge"
-scriptVersion="v2.0"
+scriptVersion="v2.1"
 logFilePath="$LOG_DIR/arrbit-${scriptName}-$(date +%d-%m-%Y-%H:%M).log"
 
 # ------------------------------------------------------------
@@ -39,10 +39,8 @@ find "$LOG_DIR" -type f -iname "arrbit-${scriptName}-*.log" -mtime +5 -delete
 touch "$logFilePath"
 chmod 666 "$logFilePath"
 
-log "🚀  ${ARRBIT_TAG} Starting ${MODULE_YELLOW}${scriptName}\033[0m service ${scriptVersion}..."
-
 # ------------------------------------------------------------
-# LOAD CONFIG (API Key, Base URL)
+# LOAD CONFIG (App name, API Key, Base URL)
 # ------------------------------------------------------------
 if [ ! -f "$CONFIG_FILE" ]; then
   log "❌  ${ARRBIT_TAG} Config file missing at $CONFIG_FILE"
@@ -51,6 +49,8 @@ fi
 
 arrUrl=$(awk -F= '$1=="ARR_URL"{print $2}' "$CONFIG_FILE" | tr -d '\r"')
 arrApiKey=$(awk -F= '$1=="ARR_API_KEY"{print $2}' "$CONFIG_FILE" | tr -d '\r"')
+arrAppName=$(awk -F= '$1=="ARR_APP_NAME"{print $2}' "$CONFIG_FILE" | tr -d '\r"')
+arrAppName=${arrAppName:-"ARR"}
 
 if [ -z "$arrUrl" ] || [ -z "$arrApiKey" ]; then
   log "❌  ${ARRBIT_TAG} ARR_URL or ARR_API_KEY is missing in config"
@@ -59,8 +59,10 @@ fi
 
 export arrUrl
 export arrApiKey
+export arrAppName
 
-log "🔧  ${ARRBIT_TAG} ARR_URL and API key loaded (key redacted)"
+log "🔧  ${ARRBIT_TAG} Loaded $arrAppName URL and API key (key redacted)"
+log "🔵  ${ARRBIT_TAG} Found ${arrAppName} instance at $arrUrl"
 
 # ------------------------------------------------------------
 # Determine API Version (prefer v3, fallback to v1)
@@ -76,12 +78,4 @@ else
 fi
 export arrApiVersion
 
-log "🔵  ${ARRBIT_TAG} Detected API version: $arrApiVersion"
-
-# ------------------------------------------------------------
-# Usage helper (optional)
-# ------------------------------------------------------------
-exportArrInfo() {
-  echo "ARR URL: $arrUrl"
-  echo "API Version: $arrApiVersion"
-}
+log "🟢  ${ARRBIT_TAG} Connected to ${arrAppName} instance using API $arrApiVersion"
