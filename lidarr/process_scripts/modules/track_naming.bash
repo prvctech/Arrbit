@@ -30,7 +30,7 @@ arrbitLog "🚀  ${ARRBIT_TAG} Starting ${MODULE_YELLOW}track_naming module${RES
 # Connect to arr_bridge.bash (includes wait for API)
 # ------------------------------------------------------------------------
 if ! source /etc/services.d/arrbit/connectors/arr_bridge.bash; then
-  arrbitErrorLog "❌   " \
+  arrbitErrorLog "❌  " \
     "${CYAN}[Arrbit]${RESET} Could not source arr_bridge.bash" \
     "arr_bridge.bash missing" \
     "track_naming.bash" \
@@ -74,9 +74,7 @@ if [[ "${CFG_FLAG,,}" == "true" ]]; then
   echo "[Arrbit] API Response:" >> "$log_file_path"
   echo "$response" >> "$log_file_path"
 
-  if echo "$response" | jq -e '.renameTracks' >/dev/null 2>&1; then
-    arrbitLog "✅  ${ARRBIT_TAG} Track Naming has been configured successfully"
-  else
+  if ! echo "$response" | jq -e '.renameTracks' >/dev/null 2>&1; then
     arrbitErrorLog "⚠️  " \
       "${CYAN}[Arrbit]${RESET} Track Naming API call failed" \
       "Track Naming API failure" \
@@ -88,7 +86,5 @@ if [[ "${CFG_FLAG,,}" == "true" ]]; then
 else
   arrbitLog "⏩  ${ARRBIT_TAG} Skipping Track Naming module (flag disabled)"
 fi
-
-arrbitLog "✅  ${ARRBIT_TAG} Done with track_naming module!"
 
 exit 0
