@@ -1,89 +1,100 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
-# Arrbit [arr_bridge]
-# Version: v2.5
-# Purpose: Connects Arrbit modules to Lidarr/Sonarr/etc. via HTTP. Discovers API key, URL, and version.
+# Arrbit arr_bridge.bash
+# Version: v2.0
+# Purpose: Sets up API variables for Arrbit modules and ensures API is reachable before proceeding.
 # -------------------------------------------------------------------------------------------------------------
 
-set -euo pipefail
+# === ARRBIT "TRINITY" HELPERS ===
+source /etc/services.d/arrbit/helpers/helpers.bash
+source /etc/services.d/arrbit/helpers/logging_utils.bash
+source /etc/services.d/arrbit/helpers/error_utils.bash
 
-# ------------------------------------------------------------
-# ENV / PATHS
-# ------------------------------------------------------------
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
-MODULE_YELLOW="\033[1;33m"
-LOG_DIR="/config/logs"
-APP_XML="/config/config.xml"
-scriptName="arr_bridge"
-scriptVersion="v2.5"
-logFilePath="$LOG_DIR/arrbit-${scriptName}-$(date +%d-%m-%Y-%H:%M).log"
 
-# ------------------------------------------------------------
-# LOGGING
-# ------------------------------------------------------------
-logRaw() {
-  local msg="$1"
-  msg=$(echo -e "$msg" | tr -d "🚀⏩📥🌐🔧📦📁🔄📋📄✅❌⚠️🔵🟢🔴💾")
-  msg=$(echo -e "$msg" | sed -E "s/(\x1B|\033)\[[0-9;]*[a-zA-Z]//g")
-  msg=$(echo -e "$msg" | sed -E "s/^[[:space:]]+\[Arrbit\]/[Arrbit]/")
-  echo "$msg" >> "$logFilePath"
-}
+CONFIG_FILE="/config/arrbit/arrbit-config.conf"
+CONFIG_XML="/config/config.xml"
 
-log() {
-  echo -e "$1"
-  logRaw "$1"
-}
+# -------------------------------------------------------
+# Extract arrApiKey and arrApiVersion from config file or env
+# -------------------------------------------------------
+if [[ -f "$CONFIG_XML" ]]; then
+  # Try to use xmlstarlet for XML parsing if available, else fallback to grep/sed
+  if command -v xmlstarlet &>/dev/null; then
+    arrApiKey=$(xmlstarlet sel -t -v "//ApiKey" "$CONFIG_XML" 2>/dev/null)
+    arrPort=$(xmlstarlet sel -t -v "//Port" "$CONFIG_XML" 2>/dev/null)
+    arrSsl=$(xmlstarlet sel -t -v "//SslPort" "$CONFIG_XML" 2>/dev/null)
+    arrUseSsl=$(xmlstarlet sel -t -v "//EnableSsl" "$CONFIG_XML" 2>/dev/null)
+  else
+    arrApiKey=$(grep -oPm1 "(?<=<ApiKey>)[^<]+" "$CONFIG_XML" 2>/dev/null)
+    arrPort=$(grep -oPm1 "(?<=<Port>)[^<]+" "$CONFIG_XML" 2>/dev/null)
+    arrSsl=$(grep -oPm1 "(?<=<SslPort>)[^<]+" "$CONFIG_XML" 2>/dev/null)
+    arrUseSsl=$(grep -oPm1 "(?<=<EnableSsl>)[^<]+" "$CONFIG_XML" 2>/dev/null)
+  fi
 
-mkdir -p "$LOG_DIR"
-find "$LOG_DIR" -type f -iname "arrbit-${scriptName}-*.log" -mtime +5 -delete
-touch "$logFilePath"
-chmod 666 "$logFilePath"
-
-# ------------------------------------------------------------
-# 1. PARSE config.xml for URL, KEY, PORT
-# ------------------------------------------------------------
-if [ ! -f "$APP_XML" ]; then
-  log "❌  ${ARRBIT_TAG} $APP_XML not found!"
-  exit 1
-fi
-
-port=$(grep -m1 '<Port>' "$APP_XML" | sed -E 's/.*<Port>([^<]+)<\/Port>.*/\1/')
-key=$(grep -m1 '<ApiKey>' "$APP_XML" | sed -E 's/.*<ApiKey>([^<]+)<\/ApiKey>.*/\1/')
-base=$(grep -m1 '<UrlBase>' "$APP_XML" | sed -E 's/.*<UrlBase>([^<]*)<\/UrlBase>.*/\1/')
-appName=$(grep -m1 '<InstanceName>' "$APP_XML" | sed -E 's/.*<InstanceName>([^<]+)<\/InstanceName>.*/\1/')
-
-if [ -z "$port" ] || [ -z "$key" ]; then
-  log "❌  ${ARRBIT_TAG} Could not extract Port or ApiKey from config.xml"
-  exit 1
-fi
-
-basePath=""
-if [ -n "$base" ]; then
-  basePath="/${base#/}"
-fi
-
-arrUrl="http://127.0.0.1:${port}${basePath}"
-arrApiKey="$key"
-arrAppName="${appName:-ARR}"
-
-export arrUrl
-export arrApiKey
-export arrAppName
-
-log "🔵  ${ARRBIT_TAG} Found ${arrAppName} instance at $arrUrl"
-
-# ------------------------------------------------------------
-# 2. DETECT API VERSION
-# ------------------------------------------------------------
-statusV3=$(curl -s -o /dev/null -w "%{http_code}" \
-  -H "X-Api-Key: $arrApiKey" \
-  "$arrUrl/api/v3/system/status")
-
-if [[ "$statusV3" == "200" ]]; then
-  arrApiVersion="v3"
+  # Build arrUrl
+  if [[ "$arrUseSsl" == "true" ]]; then
+    arrUrl="https://127.0.0.1:${arrSsl:-8686}"
+  else
+    arrUrl="http://127.0.0.1:${arrPort:-8686}"
+  fi
 else
-  arrApiVersion="v1"
+  arrbitErrorLog "❌" \
+    "[Arrbit] $CONFIG_XML missing! Can't set API URL or key." \
+    "config.xml missing" \
+    "arr_bridge.bash" \
+    "arr_bridge.bash:$LINENO" \
+    "Required config missing" \
+    "Check your container or bind mount."
+  exit 1
 fi
-export arrApiVersion
 
-log "🟢  ${ARRBIT_TAG} Connected to ${arrAppName} instance using API $arrApiVersion"
+# Set API version (always v1 for Lidarr, override via config if needed)
+arrApiVersion=$(getFlag "API_VERSION")
+: "${arrApiVersion:=v1}"
+
+# -------------------------------------------------------
+# Log found values (redacted API key)
+# -------------------------------------------------------
+arrbitLog "🔵  ${ARRBIT_TAG} Found Lidarr instance at $arrUrl"
+arrbitLog "🟢  ${ARRBIT_TAG} Using API version: $arrApiVersion"
+arrbitLog "🟢  ${ARRBIT_TAG} Using API key: ${arrApiKey:0:4}...REDACTED"
+
+# -------------------------------------------------------
+# Golden Standard Wait for API Function (inline for all modules)
+# -------------------------------------------------------
+waitForArrApi() {
+  local url="$1"
+  local key="$2"
+  local version="$3"
+  local tries=0
+  local endpoint="system/status"
+  local statusName
+
+  arrbitLog "🔄  ${ARRBIT_TAG} Waiting for API at $url (API $version)..."
+  while true; do
+    statusName=$(curl -s --max-time 3 "$url/api/$version/$endpoint?apikey=$key" | jq -r .instanceName 2>/dev/null)
+    if [ -n "$statusName" ] && [ "$statusName" != "null" ]; then
+      arrbitLog "🟢  ${ARRBIT_TAG} Connected to $statusName at $url (API $version)"
+      break
+    fi
+    tries=$((tries+1))
+    if (( tries >= 20 )); then
+      arrbitErrorLog "❌" \
+        "[Arrbit] API at $url not available after 20 tries" \
+        "API wait failed" \
+        "waitForArrApi" \
+        "arr_bridge.bash:$LINENO" \
+        "No response from API" \
+        "Check if server is up and config is correct"
+      exit 1
+    fi
+    arrbitLog "⏳  ${ARRBIT_TAG} API not ready, retrying... ($tries/20)"
+    sleep 2
+  done
+}
+
+# -------------------------------------------------------
+# Call waitForArrApi to block until API is available
+# -------------------------------------------------------
+waitForArrApi "$arrUrl" "$arrApiKey" "$arrApiVersion"
