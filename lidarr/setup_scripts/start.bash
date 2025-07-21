@@ -1,32 +1,57 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
-# Arrbit [start]
-# Version: v1.7
+# Arrbit start.bash
+# Version: v1.9
 # Purpose: Launches Arrbit services based on config flags. Installs dependencies from local copy. Supervises service modules.
 # -------------------------------------------------------------------------------------------------------------
 
-set +e
+scriptVersion="v1.9"
 
 # ------------------------------------------------------------
 # 0. ENV and PATHS (constants)
 # ------------------------------------------------------------
+SCRIPT_NAME="start"
 SERVICE_DIR="/etc/services.d/arrbit"
 CONFIG_DIR="/config/arrbit"
 LOG_DIR="/config/logs"
 SETUP_DIR="$SERVICE_DIR/setup"
-SCRIPT_NAME="start"
-logFilePath="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%d-%m-%Y-%H:%M).log"
+log_file_path="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
+SERVICE_YELLOW="\033[1;33m"
 
 # ------------------------------------------------------------
-# LOGGING FUNCTIONS: emoji/color on STDOUT, plain in log file
+# 1. INIT LOG FILE, TRACE, CLEAN OLD LOGS, PERMISSIONS
+# ------------------------------------------------------------
+mkdir -p "$LOG_DIR"
+
+# Clean old logs if > 3 exist
+log_count=$(ls -1 "$LOG_DIR"/arrbit-${SCRIPT_NAME}-*.log 2>/dev/null | wc -l)
+if [ "$log_count" -gt 3 ]; then
+  ls -1tr "$LOG_DIR"/arrbit-${SCRIPT_NAME}-*.log | head -n -3 | xargs rm -f
+fi
+
+touch "$log_file_path"
+chmod 777 "$log_file_path"
+chmod -R 777 "$SERVICE_DIR"
+
+# Enable trace to file only
+exec 3>&1 4>&2
+exec 1>>"$log_file_path" 2>&1
+PS4='+ ${BASH_SOURCE}:${LINENO}: '
+set -x
+exec 1>&3 2>&4
+
+# ------------------------------------------------------------
+# LOGGING HELPERS
 # ------------------------------------------------------------
 logRaw() {
-  local msg="$1"
-  msg=$(echo -e "$msg" | tr -d "🚀⏩📥🌐🔧📦📁🔄📋📄✅❌⚠️🔵🟢🔴💾")
-  msg=$(echo -e "$msg" | sed -E "s/(\x1B|\033)\[[0-9;]*[a-zA-Z]//g")
-  msg=$(echo -e "$msg" | sed -E "s/^[[:space:]]+\[Arrbit\]/[Arrbit]/")
-  echo "$msg" >> "$logFilePath"
+  local stripped
+  stripped=$(echo -e "$1" |
+    sed -E $'s/(\\x1B|\\033)\\[[0-9;]*[a-zA-Z]//g; \
+              s/[🚀⏩📥🌐🔧📦📁🔄📋📄✅❌⚠️🔵🟢🔴]//g; \
+              s/^[[:space:]]+\\[Arrbit\\]/[Arrbit]/')
+  echo "$stripped" >> "$log_file_path"
 }
 
 log() {
@@ -34,20 +59,31 @@ log() {
   logRaw "$1"
 }
 
-# ------------------------------------------------------------
-# 1. INIT LOG FILE
-# ------------------------------------------------------------
-mkdir -p "$LOG_DIR"
-find "$LOG_DIR" -type f -iname "arrbit-${SCRIPT_NAME}-*.log" -mtime +2 -delete
-touch "$logFilePath"
-chmod 777 "$logFilePath"
+errorTrap() {
+  log "❌  ${ARRBIT_TAG} Error at line $1"
+}
+trap 'errorTrap $LINENO' ERR
+
+_cleanup() {
+  rm -rf /tmp/arrbit-* 2>/dev/null || true
+}
+trap _cleanup EXIT
+
+getFlag() {
+  grep -E "^$1=" "$CONFIG_DIR/arrbit-config.conf" | cut -d'=' -f2 | sed 's/[[:space:]"\r]//g'
+}
 
 # ------------------------------------------------------------
-# 2. CHECK MASTER ARRBIT ENABLE FLAG
+# 2. SCRIPT START LOG
+# ------------------------------------------------------------
+log "🚀  ${ARRBIT_TAG} Starting ${SERVICE_YELLOW}${SCRIPT_NAME}\033[0m ${scriptVersion}..."
+
+# ------------------------------------------------------------
+# 3. CHECK MASTER ARRBIT ENABLE FLAG
 # ------------------------------------------------------------
 ENABLE_ARRBIT="true"
 if [ -f "$CONFIG_DIR/arrbit-config.conf" ]; then
-  ENABLE_ARRBIT=$(grep -E '^ENABLE_ARRBIT=' "$CONFIG_DIR/arrbit-config.conf" | cut -d'=' -f2 | sed 's/[[:space:]"\r]//g')
+  ENABLE_ARRBIT=$(getFlag "ENABLE_ARRBIT")
 fi
 
 if [[ "${ENABLE_ARRBIT,,}" != "true" ]]; then
@@ -58,31 +94,32 @@ if [[ "${ENABLE_ARRBIT,,}" != "true" ]]; then
 fi
 
 # ------------------------------------------------------------
-# 3. INSTALL DEPENDENCIES IF PRESENT
+# 4. INSTALL DEPENDENCIES IF PRESENT
 # ------------------------------------------------------------
 if [ -f "$SETUP_DIR/dependencies.bash" ]; then
   chmod 777 "$SETUP_DIR/dependencies.bash"
+  log "📥  ${ARRBIT_TAG} Installing dependencies..."
   bash "$SETUP_DIR/dependencies.bash"
   if [ $? -ne 0 ]; then
     log "❌  ${ARRBIT_TAG} dependencies.bash script failed! Exiting."
-    exit 1
+    sleep infinity
   fi
 else
   log "⚠️   ${ARRBIT_TAG} dependencies.bash not found in setup/. Skipping dependency install."
 fi
 
 # ------------------------------------------------------------
-# 4. PARSE ENABLE FLAGS FROM CONFIG
+# 5. PARSE FLAGS FOR SERVICES
 # ------------------------------------------------------------
 ENABLE_AUTOCONFIG="true"
 ENABLE_PLUGINS="false"
 if [ -f "$CONFIG_DIR/arrbit-config.conf" ]; then
-  ENABLE_AUTOCONFIG=$(grep -E '^ENABLE_AUTOCONFIG=' "$CONFIG_DIR/arrbit-config.conf" | cut -d'=' -f2 | sed 's/[[:space:]"\r]//g')
-  ENABLE_PLUGINS=$(grep -E '^ENABLE_PLUGINS=' "$CONFIG_DIR/arrbit-config.conf" | cut -d'=' -f2 | sed 's/[[:space:]"\r]//g')
+  ENABLE_AUTOCONFIG=$(getFlag "ENABLE_AUTOCONFIG")
+  ENABLE_PLUGINS=$(getFlag "ENABLE_PLUGINS")
 fi
 
 # ------------------------------------------------------------
-# 5. BUILD SERVICE EXECUTION LIST
+# 6. BUILD SERVICE LIST
 # ------------------------------------------------------------
 ARRBIT_SERVICES=()
 if [[ "${ENABLE_PLUGINS,,}" == "true" ]]; then
@@ -93,13 +130,18 @@ if [[ "${ENABLE_AUTOCONFIG,,}" == "true" ]]; then
 fi
 
 # ------------------------------------------------------------
-# 6. EXECUTE ENABLED SERVICES (from /services/)
+# 7. EXECUTE SERVICES
 # ------------------------------------------------------------
 for script in "${ARRBIT_SERVICES[@]}"; do
-  if [ -x "$SERVICE_DIR/services/$script" ]; then  
-    bash "$SERVICE_DIR/services/$script"
-    if [ $? -ne 0 ]; then
+  service_path="$SERVICE_DIR/services/$script"
+  if [ -x "$service_path" ]; then
+    log "🚀  ${ARRBIT_TAG} Running $script..."
+    bash "$service_path"
+    ret=$?
+    if [ $ret -ne 0 ]; then
       log "❌  ${ARRBIT_TAG} $script exited with errors!"
+    else
+      log "✅  ${ARRBIT_TAG} $script completed successfully."
     fi
   else
     log "⏩  ${ARRBIT_TAG} $script not found or not executable; skipping."
@@ -107,9 +149,9 @@ for script in "${ARRBIT_SERVICES[@]}"; do
 done
 
 # ------------------------------------------------------------
-# 7. FINAL LOGS & SLEEP FOREVER
+# 8. DONE — SLEEP FOREVER
 # ------------------------------------------------------------
-log "📄  ${ARRBIT_TAG} Log saved to $logFilePath"
+log "📄  ${ARRBIT_TAG} Log saved to $log_file_path"
 log "✅  ${ARRBIT_TAG} All enabled services processed."
 
 sleep infinity
