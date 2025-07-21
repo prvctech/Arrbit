@@ -120,4 +120,4 @@ chmod -R 777 "$LOG_DIR" 2>/dev/null || true
 arrbitLog "✅  $ARRBIT_TAG Dependencies install complete!"
 arrbitLog "📄  $ARRBIT_TAG Log saved to $log_file_path"
 
-sleep infinity
+exit 0
