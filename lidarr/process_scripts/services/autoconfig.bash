@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit [autoconfig]
-# Version: v2.7
+# Version: v3.3
 # Purpose: Orchestrates Arrbit modules to configure Lidarr, Readarr, etc., based on config flags.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -15,14 +15,14 @@ SERVICE_DIR="/etc/services.d/arrbit"
 MODULES_DIR="$SERVICE_DIR/modules"
 
 scriptName="autoconfig"
-scriptVersion="v2.7"
+scriptVersion="v3.3"
 rawScriptName="autoconfig"
 
 # ------------------------------------------------------------
 # 1. Logging Setup
 # ------------------------------------------------------------
 logfileSetup() {
-  timestamp=$(date +%d-%m-%Y-%H:%M)
+  timestamp=$(date +%Y_%m_%d-%H_%M)
   logFileName="arrbit-${rawScriptName}-${timestamp}.log"
   logFilePath="${LOG_DIR}/${logFileName}"
   mkdir -p "${LOG_DIR}"
@@ -45,10 +45,10 @@ log() {
 }
 
 logfileSetup
-log "🚀  ${ARRBIT_TAG} Starting ${MODULE_YELLOW}${scriptName} service \033[0m $scriptVersion..."
+log "🚀  ${ARRBIT_TAG} Starting ${MODULE_YELLOW}${scriptName}\033[0m service $scriptVersion..."
 
 # ------------------------------------------------------------
-# 2. Config Flag Check (ENABLE_AUTOCONFIG must be "true")
+# 2. Master Flag Check: ENABLE_AUTOCONFIG must be "true"
 # ------------------------------------------------------------
 ENABLE_AUTOCONFIG="true"
 if [ -f "$CONFIG_FILE" ]; then
@@ -56,7 +56,7 @@ if [ -f "$CONFIG_FILE" ]; then
 fi
 
 if [[ "${ENABLE_AUTOCONFIG,,}" != "true" ]]; then
-  log "⏩  ${ARRBIT_TAG} autoconfig is disabled. Skipping."
+  log "⏩  ${ARRBIT_TAG} autoconfig is disabled by flag. Skipping service."
   exit 0
 fi
 
@@ -70,14 +70,14 @@ if [ $? -ne 0 ]; then
 fi
 
 # ------------------------------------------------------------
-# 4. Load All ENABLE_* Flags
+# 4. Load CONFIGURE_* flags
 # ------------------------------------------------------------
 if [ -f "$CONFIG_FILE" ]; then
   source "$CONFIG_FILE"
 fi
 
 # ------------------------------------------------------------
-# 5. Run Enabled Modules
+# 5. Check if all modules are disabled
 # ------------------------------------------------------------
 MODULES_TO_RUN=(
   "custom_formats.bash"
@@ -93,12 +93,28 @@ MODULES_TO_RUN=(
   "ui_settings.bash"
 )
 
-EXIT_CODE=0
+enabledCount=0
+for module in "${MODULES_TO_RUN[@]}"; do
+  module_name="${module%.bash}"
+  flag_var="CONFIGURE_${module_name^^}"
+  if [ "${!flag_var:-true}" == "true" ]; then
+    ((enabledCount++))
+  fi
+done
 
+if [ "$enabledCount" -eq 0 ]; then
+  log "⏩  ${ARRBIT_TAG} All modules are disabled. Skipping service (even though ENABLE_AUTOCONFIG is true)."
+  exit 0
+fi
+
+# ------------------------------------------------------------
+# 6. Run Each Enabled Module
+# ------------------------------------------------------------
+EXIT_CODE=0
 for module in "${MODULES_TO_RUN[@]}"; do
   module_name="${module%.bash}"
   module_path="$MODULES_DIR/$module"
-  flag_var="ENABLE_${module_name^^}"
+  flag_var="CONFIGURE_${module_name^^}"
 
   if [ "${!flag_var:-true}" != "true" ]; then
     log "⏩  ${ARRBIT_TAG} Skipping $module_name (flag disabled)"
@@ -121,9 +137,9 @@ for module in "${MODULES_TO_RUN[@]}"; do
 done
 
 # ------------------------------------------------------------
-# 6. Wrap Up
+# 7. Wrap Up
 # ------------------------------------------------------------
 log "📄  ${ARRBIT_TAG} Log saved to $logFilePath"
-log "✅  ${ARRBIT_TAG} Done with ${scriptName} service!"
+log "✅  ${ARRBIT_TAG} Done with ${MODULE_YELLOW}${scriptName}\033[0m service!"
 
 exit $EXIT_CODE
