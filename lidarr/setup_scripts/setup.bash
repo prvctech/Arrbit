@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
-# Arrbit [setup]
-# Version: v3.0
+# Arrbit setup
+# Version: v3.1
 # Purpose: Main setup and update script; prepares folder structure, downloads/updates scripts, and manages config files.
 # -------------------------------------------------------------------------------------------------------------
+
+scriptVersion="v3.1"
 
 # ------------------ 0. ENV and PATHS (constants) ------------------
 GITHUB_REPO="https://github.com/prvctech/Arrbit"
@@ -14,96 +16,124 @@ LOG_DIR="/config/logs"
 TMP_DIR="/tmp/arrbit_update_$$"
 SETUP_DIR="$SERVICE_DIR/setup"
 SCRIPT_NAME="setup"
-log_file_path="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+LOG_FILE_PATH="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 
-# --- Source universal helpers (LOG_LEVEL is always read from config) ---
+# ------------------ 1. SOURCE HELPERS ------------------
 source "$SERVICE_DIR/universal/helpers/logging_utils.bash"
 source "$SERVICE_DIR/universal/helpers/error_utils.bash"
 source "$SERVICE_DIR/universal/helpers/helpers.bash"
 
-# ------------------ 1. LOGO & HEADER ------------------
+trap 'errorTrap $LINENO' ERR
+trap _cleanup EXIT
+
+# ------------------ 2. CONFIG FLAGS & LOGIC ------------------
+LOG_LEVEL=$(getFlag "LOG_LEVEL")
+ENABLE_ARRBIT=$(getFlag "ENABLE_ARRBIT")
+
+# Safe default if missing
+[[ -z "$LOG_LEVEL" ]] && LOG_LEVEL=0
+
+if [[ "$ENABLE_ARRBIT" != "true" ]]; then
+  [[ "$LOG_LEVEL" -gt 0 ]] && log "⏩  Arrbit is DISABLED (ENABLE_ARRBIT=false); setup.bash will not proceed."
+  sleep infinity
+fi
+
+# ------------------ 3. LOGO & FIRST LOG LINE ------------------
 sleep 8  # Let container logs settle before Arrbit logo
+
 if [ -f "$SERVICE_DIR/process_scripts/modules/data/arrbit_logo.bash" ]; then
     source "$SERVICE_DIR/process_scripts/modules/data/arrbit_logo.bash"
     arrbit_logo
 fi
-log "🚀  $ARRBIT_TAG Running Arrbit setup.bash v3.0..."
 
-# ------------------ 2. CREATE FOLDER STRUCTURE ------------------
-log "🔧  $ARRBIT_TAG Building folder structure..."
+if [[ "$LOG_LEVEL" -eq 3 ]]; then
+  log "🚀  $ARRBIT_TAG Starting $SCRIPT_NAME setup v$scriptVersion..."
+else
+  echo -e "🚀  $ARRBIT_TAG Starting $SCRIPT_NAME setup v$scriptVersion..." | tee -a "$LOG_FILE_PATH"
+fi
+
+# --------------- 4. OLD LOGS CLEANUP (MAX 3) ------------------
+if [[ -d "$LOG_DIR" ]]; then
+  log_count=$(ls -1 "$LOG_DIR"/arrbit-${SCRIPT_NAME}-*.log 2>/dev/null | wc -l)
+  if [[ $log_count -gt 3 ]]; then
+    ls -1t "$LOG_DIR"/arrbit-${SCRIPT_NAME}-*.log | tail -n +4 | xargs rm -f
+  fi
+fi
+
+# ------------------ 5. BUILD FOLDER STRUCTURE ------------------
+[[ "$LOG_LEVEL" -eq 3 ]] && log "🔧  Building folder structure..."
 mkdir -p "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR" "$TMP_DIR" "$SETUP_DIR"
 chmod -R 777 "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR" "$SETUP_DIR"
 
-# ------------------ 3. SYNC SCRIPTS/MODULES FROM GITHUB ------------------
-log "🌐  $ARRBIT_TAG Downloading latest modules/scripts from GitHub..."
+# ------------------ 6. DOWNLOAD SCRIPTS/MODULES ------------------
+[[ "$LOG_LEVEL" -eq 3 ]] && log "🌐  Downloading latest modules/scripts from GitHub..."
 curl -sfL "$GITHUB_REPO/archive/refs/heads/$GITHUB_BRANCH.zip" -o "$TMP_DIR/arrbit.zip"
 if [ $? -ne 0 ]; then
-  log "❌  $ARRBIT_TAG Failed to download scripts/modules from GitHub! Exiting."
+  log "❌  Failed to download scripts/modules from GitHub! Exiting."
   rm -rf "$TMP_DIR"
   sleep infinity
 fi
-log "📦  $ARRBIT_TAG Downloaded archive: $TMP_DIR/arrbit.zip"
+[[ "$LOG_LEVEL" -eq 3 ]] && log "📦  Downloaded archive: $TMP_DIR/arrbit.zip"
 
 unzip -q "$TMP_DIR/arrbit.zip" -d "$TMP_DIR"
 if [ $? -ne 0 ]; then
-  log "❌  $ARRBIT_TAG Failed to unzip modules! Exiting."
+  log "❌  Failed to unzip modules! Exiting."
   rm -rf "$TMP_DIR"
   sleep infinity
 fi
-log "📁  $ARRBIT_TAG Modules unzipped to temp directory."
+[[ "$LOG_LEVEL" -eq 3 ]] && log "📁  Modules unzipped to temp directory."
 
-# Copy process_scripts (modules, services, data, custom) into SERVICE_DIR
 cp -rf "$TMP_DIR/Arrbit-main/lidarr/process_scripts/"* "$SERVICE_DIR/"
 if [ $? -ne 0 ]; then
-  log "❌  $ARRBIT_TAG Failed to copy modules to service directory! Exiting."
+  log "❌  Failed to copy modules to service directory! Exiting."
   rm -rf "$TMP_DIR"
   sleep infinity
 fi
 chmod -R 777 "$SERVICE_DIR"
-log "📋  $ARRBIT_TAG Modules copied to modules directory."
+[[ "$LOG_LEVEL" -eq 3 ]] && log "📋  Modules copied to modules directory."
 
-# ------------------ 4. COPY SETUP SCRIPTS ------------------
+# ------------------ 7. COPY SETUP SCRIPTS ------------------
 for setup_script in start.bash dependencies.bash; do
   if [ -f "$TMP_DIR/Arrbit-main/lidarr/setup_scripts/$setup_script" ]; then
     cp -f "$TMP_DIR/Arrbit-main/lidarr/setup_scripts/$setup_script" "$SETUP_DIR/$setup_script"
     chmod 777 "$SETUP_DIR/$setup_script"
-    log "📋  $ARRBIT_TAG $setup_script copied to setup directory."
+    [[ "$LOG_LEVEL" -eq 3 ]] && log "📋  $setup_script copied to setup directory."
   else
-    log "⚠️   $ARRBIT_TAG $setup_script not found in repo! Skipping."
+    [[ "$LOG_LEVEL" -eq 3 ]] && log "⚠️   $setup_script not found in repo! Skipping."
   fi
 done
 
-# ------------------ 5. COPY CONFIG FILES IF MISSING (NEVER OVERWRITE) ------------------
+# ------------------ 8. COPY CONFIG FILES IF MISSING ------------------
 for cfg in arrbit-config.conf beets-config.yaml; do
   if [ -f "$TMP_DIR/Arrbit-main/lidarr/config/$cfg" ] && [ ! -f "$CONFIG_DIR/$cfg" ]; then
     cp "$TMP_DIR/Arrbit-main/lidarr/config/$cfg" "$CONFIG_DIR/$cfg"
     if [ $? -eq 0 ]; then
       chmod 666 "$CONFIG_DIR/$cfg"
-      log "💾  $ARRBIT_TAG $cfg saved to config directory."
+      [[ "$LOG_LEVEL" -eq 3 ]] && log "💾  $cfg saved to config directory."
     else
-      log "❌  $ARRBIT_TAG Failed to copy $cfg to config directory!"
+      log "❌  Failed to copy $cfg to config directory!"
     fi
   elif [ -f "$CONFIG_DIR/$cfg" ]; then
-    log "⏩  $ARRBIT_TAG $cfg exists; skipping download."
+    [[ "$LOG_LEVEL" -eq 3 ]] && log "⏩  $cfg exists; skipping download."
   fi
 done
 
-# ------------------ 6. CLEANUP TEMP FOLDER ------------------
+# ------------------ 9. CLEANUP TEMP FOLDER ------------------
 rm -rf "$TMP_DIR"
-log "✅  $ARRBIT_TAG Setup complete. All scripts and config checked."
+[[ "$LOG_LEVEL" -eq 3 ]] && log "✅  Setup complete. All scripts and config checked."
 
-# ------------------ 7. FINAL PERMISSIONS ------------------
+# ------------------ 10. FINAL PERMISSIONS ------------------
 chmod -R 777 "$LOG_DIR" "$CONFIG_DIR" "$SERVICE_DIR" "$SETUP_DIR" || true
-log "📄  $ARRBIT_TAG Log saved to $log_file_path"
+[[ "$LOG_LEVEL" -eq 3 ]] && log "📄  Log saved to $LOG_FILE_PATH"
 
-# ------------------ 8. AUTO-TRIGGER start.bash IF PRESENT IN setup/ ------------------
+# ------------------ 11. AUTO-TRIGGER start.bash IF PRESENT ------------------
 if [ -x "$SETUP_DIR/start.bash" ]; then
-  log "🚀  $ARRBIT_TAG Launching start.bash..."
+  [[ "$LOG_LEVEL" -eq 3 ]] && log "🚀  Launching start.bash..."
   bash "$SETUP_DIR/start.bash"
   exit $?
 else
-  log "⚠️   $ARRBIT_TAG start.bash not found or not executable in setup folder. Setup finished."
+  log "⚠️   start.bash not found or not executable in setup folder. Setup finished."
   sleep infinity
 fi
 
