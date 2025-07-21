@@ -1,28 +1,31 @@
 #!/usr/bin/env bash
-# ------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------------------
 # Arrbit [plugins]
-# Version: 1.3
+# Version: v2.2
 # Purpose: Install community plugins for Lidarr (Tidal, Deezer, Tubifarry)
-# ------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------------------
 
 set -euo pipefail
 
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
+MODULE_YELLOW="\033[1;33m"
+PLUGIN_PURPLE="\033[1;35m"
+LOG_DIR="/config/logs"
 CONFIG_FILE="/config/arrbit/arrbit-config.conf"
 PLUGINS_DIR="/config/plugins"
+SCRIPT_NAME="plugins"
+scriptVersion="v2.2"
+logFilePath="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%d-%m-%Y-%H:%M).log"
 
-rawScriptName="plugins"
-scriptName="plugins module"
-scriptVersion="v1.3"
-
-logfileSetup() {
-  timestamp=$(date +"%Y_%m_%d-%H_%M")
-  logFileName="arrbit-${rawScriptName}-${timestamp}.log"
-  logFilePath="/config/logs/${logFileName}"
-  mkdir -p /config/logs
-  find "/config/logs" -type f -iname "arrbit-${rawScriptName}-*.log" -mtime +5 -delete
-  touch "$logFilePath"
-  chmod 777 "$logFilePath"
+# ------------------------------------------------------------
+# LOGGING FUNCTIONS: emoji/color on STDOUT, plain in log file
+# ------------------------------------------------------------
+logRaw() {
+  local msg="$1"
+  msg=$(echo -e "$msg" | tr -d "🚀⏩📥🌐🔧📦📁🔄📋📄✅❌⚠️🔵🟢🔴💾")
+  msg=$(echo -e "$msg" | sed -E "s/(\x1B|\033)\[[0-9;]*[a-zA-Z]//g")
+  msg=$(echo -e "$msg" | sed -E "s/^[[:space:]]+\[Arrbit\]/[Arrbit]/")
+  echo "$msg" >> "$logFilePath"
 }
 
 log() {
@@ -30,10 +33,41 @@ log() {
   logRaw "$1"
 }
 
-logRaw() {
-  local stripped
-  stripped=$(echo -e "$1" | sed -E $'s/(\\x1B|\\033)\\[[0-9;]*[a-zA-Z]//g; s/[🔵🟢⚠️📥🌐🛠️📦📁🔄📋⏩🚀✅❌🔧🔴🟪🟦🟩🟥]//g; s/\\\\n/\\\n/g; s/^[[:space:]]+\\[Arrbit\\]/[Arrbit]/')
-  echo "$stripped" >> "$logFilePath"
+# ------------------------------------------------------------
+# LOG FILE SETUP
+# ------------------------------------------------------------
+mkdir -p "$LOG_DIR"
+find "$LOG_DIR" -type f -iname "arrbit-${SCRIPT_NAME}-*.log" -mtime +5 -delete
+touch "$logFilePath"
+chmod 777 "$logFilePath"
+
+# ------------------------------------------------------------
+# SERVICE STARTUP
+# ------------------------------------------------------------
+log "🚀  ${ARRBIT_TAG} Starting ${MODULE_YELLOW}plugins\033[0m service $scriptVersion..."
+
+# ------------------------------------------------------------
+# CONFIG FILE CHECK AND LOAD
+# ------------------------------------------------------------
+if [ ! -r "$CONFIG_FILE" ]; then
+  log "⚠️  ${ARRBIT_TAG} Config file not found: $CONFIG_FILE. Skipping plugins."
+  exit 0
+fi
+
+source "$CONFIG_FILE"
+
+if [ "${ENABLE_PLUGINS,,}" != "true" ]; then
+  log "⏩  ${ARRBIT_TAG} Plugin install is disabled. Skipping."
+  exit 0
+fi
+
+# ------------------------------------------------------------
+# HELPER FUNCTIONS
+# ------------------------------------------------------------
+has_dll() {
+  shopt -s nullglob
+  files=("$1"/*.dll)
+  ((${#files[@]} > 0))
 }
 
 print_unzip_clean() {
@@ -46,97 +80,85 @@ print_unzip_clean() {
   done
 }
 
-logfileSetup
-log "🚀  ${ARRBIT_TAG} Starting \033[1;33m${scriptName}\033[0m ${scriptVersion}..."
-
-if [ ! -r "$CONFIG_FILE" ]; then
-  log "⚠️  ${ARRBIT_TAG} Config file not found: $CONFIG_FILE. Skipping plugins."
-  exit 0
-fi
-
-source "$CONFIG_FILE"
-
-# Only enable community plugins if ENABLE_COMMUNITY_PLUGINS is "true"
-if [ "${ENABLE_COMMUNITY_PLUGINS,,}" != "true" ]; then
-  log "⏩  ${ARRBIT_TAG} Community plugin install is disabled. Skipping."
-  exit 0
-fi
-
-has_dll() {
-  shopt -s nullglob
-  files=("$1"/*.dll)
-  ((${#files[@]} > 0))
-}
-
-# ----------------- Deezer -----------------
+# ------------------------------------------------------------
+# DEEZER PLUGIN INSTALLATION
+# ------------------------------------------------------------
 DEEZER_TARGET="$PLUGINS_DIR/TrevTV/Lidarr.Plugin.Deezer"
 if [ "${INSTALL_PLUGIN_DEEZER,,}" = "true" ]; then
   if has_dll "$DEEZER_TARGET"; then
-    log "⏩  ${ARRBIT_TAG} Deezer already installed; skipping"
-    logRaw "[SKIP] Deezer already exists at $DEEZER_TARGET"
+    log "⏩  ${ARRBIT_TAG} ${PLUGIN_PURPLE}Deezer\033[0m plugin already installed; skipping"
   else
-    log "📥  ${ARRBIT_TAG} Installing Deezer plugin..."
+    log "🌐  ${ARRBIT_TAG} Downloading ${PLUGIN_PURPLE}Deezer\033[0m plugin..."
     rm -rf /tmp/*
     mkdir -p /tmp/deezer
     curl -sfL -o /tmp/deezer.zip \
       https://github.com/TrevTV/Lidarr.Plugin.Deezer/releases/latest/download/Lidarr.Plugin.Deezer.net6.0.zip
+    log "📦  ${ARRBIT_TAG} Deezer archive downloaded."
     unzip -o /tmp/deezer.zip -d /tmp/deezer | print_unzip_clean
+    log "📥  ${ARRBIT_TAG} Installing Deezer plugin..."
     mkdir -p "$DEEZER_TARGET"
     mv /tmp/deezer/* "$DEEZER_TARGET/"
     chmod -R 777 "$DEEZER_TARGET"
     log "✅  ${ARRBIT_TAG} Deezer plugin installed"
-    logRaw "[SUCCESS] Deezer installed to $DEEZER_TARGET"
   fi
 else
-  log "⏩  ${ARRBIT_TAG} Deezer plugin disabled; skipping"
+  log "⏩  ${ARRBIT_TAG} ${PLUGIN_PURPLE}Deezer\033[0m plugin disabled; skipping"
 fi
 
-# ----------------- Tidal -----------------
+# ------------------------------------------------------------
+# TIDAL PLUGIN INSTALLATION
+# ------------------------------------------------------------
 TIDAL_TARGET="$PLUGINS_DIR/TrevTV/Lidarr.Plugin.Tidal"
 if [ "${INSTALL_PLUGIN_TIDAL,,}" = "true" ]; then
   if has_dll "$TIDAL_TARGET"; then
-    log "⏩  ${ARRBIT_TAG} Tidal already installed; skipping"
-    logRaw "[SKIP] Tidal already exists at $TIDAL_TARGET"
+    log "⏩  ${ARRBIT_TAG} ${PLUGIN_PURPLE}Tidal\033[0m plugin already installed; skipping"
   else
-    log "📥  ${ARRBIT_TAG} Installing Tidal plugin..."
+    log "🌐  ${ARRBIT_TAG} Downloading ${PLUGIN_PURPLE}Tidal\033[0m plugin..."
     rm -rf /tmp/*
     mkdir -p /tmp/tidal
     curl -sfL -o /tmp/tidal.zip \
       https://github.com/TrevTV/Lidarr.Plugin.Tidal/releases/latest/download/Lidarr.Plugin.Tidal.net6.0.zip
+    log "📦  ${ARRBIT_TAG} Tidal archive downloaded."
     unzip -o /tmp/tidal.zip -d /tmp/tidal | print_unzip_clean
+    log "📥  ${ARRBIT_TAG} Installing Tidal plugin..."
     mkdir -p "$TIDAL_TARGET"
     mv /tmp/tidal/* "$TIDAL_TARGET/"
     chmod -R 777 "$TIDAL_TARGET"
     log "✅  ${ARRBIT_TAG} Tidal plugin installed"
-    logRaw "[SUCCESS] Tidal installed to $TIDAL_TARGET"
   fi
 else
-  log "⏩  ${ARRBIT_TAG} Tidal plugin disabled; skipping"
+  log "⏩  ${ARRBIT_TAG} ${PLUGIN_PURPLE}Tidal\033[0m plugin disabled; skipping"
 fi
 
-# ----------------- Tubifarry -----------------
+# ------------------------------------------------------------
+# TUBIFARRY PLUGIN INSTALLATION
+# ------------------------------------------------------------
 TUBI_TARGET="$PLUGINS_DIR/TypNull/Tubifarry"
 if [ "${INSTALL_PLUGIN_TUBIFARRY,,}" = "true" ]; then
   if has_dll "$TUBI_TARGET"; then
-    log "⏩  ${ARRBIT_TAG} Tubifarry already installed; skipping"
-    logRaw "[SKIP] Tubifarry already exists at $TUBI_TARGET"
+    log "⏩  ${ARRBIT_TAG} ${PLUGIN_PURPLE}Tubifarry\033[0m plugin already installed; skipping"
   else
-    log "📥  ${ARRBIT_TAG} Installing Tubifarry plugin..."
+    log "🌐  ${ARRBIT_TAG} Downloading ${PLUGIN_PURPLE}Tubifarry\033[0m plugin..."
     rm -rf /tmp/*
     mkdir -p /tmp/tubifarry
     curl -sfL -o /tmp/tubifarry.zip \
       https://github.com/TypNull/Tubifarry/releases/download/v1.8.1.1/Tubifarry-v1.8.1.1.net6.0-develop.zip
+    log "📦  ${ARRBIT_TAG} Tubifarry archive downloaded."
     unzip -o /tmp/tubifarry.zip -d /tmp/tubifarry | print_unzip_clean
+    log "📥  ${ARRBIT_TAG} Installing Tubifarry plugin..."
     mkdir -p "$TUBI_TARGET"
     mv /tmp/tubifarry/* "$TUBI_TARGET/"
     chmod -R 777 "$TUBI_TARGET"
     log "✅  ${ARRBIT_TAG} Tubifarry plugin installed"
-    logRaw "[SUCCESS] Tubifarry installed to $TUBI_TARGET"
   fi
 else
-  log "⏩  ${ARRBIT_TAG} Tubifarry plugin disabled; skipping"
+  log "⏩  ${ARRBIT_TAG} ${PLUGIN_PURPLE}Tubifarry\033[0m plugin disabled; skipping"
 fi
 
-log "🔵  ${ARRBIT_TAG} Log saved to /config/logs/${logFileName}"
-log "✅  ${ARRBIT_TAG} Done with ${rawScriptName}!"
+# ------------------------------------------------------------
+# SERVICE END LOGS
+# ------------------------------------------------------------
+log "📄  ${ARRBIT_TAG} Log saved to $logFilePath"
+log "✅  ${ARRBIT_TAG} Done with ${MODULE_YELLOW}plugins\033[0m service!"
+
 exit 0
