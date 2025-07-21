@@ -1,39 +1,28 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
-# Arrbit [dependencies]
-# Version: v1.2
+# Arrbit dependencies.bash
+# Version: v2.0
 # Purpose: Installs all required dependencies for Arrbit scripts and services, only if missing, and applies updates.
 # -------------------------------------------------------------------------------------------------------------
 
-set -euo pipefail
+# === ARRBIT "TRINITY" HELPERS ===
+source /etc/services.d/arrbit/helpers/helpers.bash
+source /etc/services.d/arrbit/helpers/logging_utils.bash
+source /etc/services.d/arrbit/helpers/error_utils.bash
 
+SCRIPT_NAME="dependencies"
+SCRIPT_VERSION="v2.0"
+LOG_DIR="/config/logs"
+log_file_path="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 MODULE_YELLOW="\033[1;33m"
-LOG_DIR="/config/logs"
-SCRIPT_NAME="dependencies"
-scriptVersion="v1.2"
-logFilePath="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%d-%m-%Y-%H:%M).log"
-
-logRaw() {
-  local msg="$1"
-  msg=$(echo -e "$msg" | tr -d "🚀⏩📥🌐🔧📦📁🔄📋📄✅❌⚠️🔵🟢🔴💾")
-  msg=$(echo -e "$msg" | sed -E "s/(\x1B|\033)\[[0-9;]*[a-zA-Z]//g")
-  msg=$(echo -e "$msg" | sed -E "s/^[[:space:]]+\[Arrbit\]/[Arrbit]/")
-  echo "$msg" >> "$logFilePath"
-}
-
-log() {
-  local msg="$1"
-  echo -e "$msg"
-  logRaw "$msg"
-}
 
 mkdir -p "$LOG_DIR"
 find "$LOG_DIR" -type f -iname "arrbit-${SCRIPT_NAME}-*.log" -mtime +5 -delete
-touch "$logFilePath"
-chmod 777 "$logFilePath"
+touch "$log_file_path"
+chmod 777 "$log_file_path"
 
-log "🚀  $ARRBIT_TAG Starting ${MODULE_YELLOW}dependencies script\033[0m $scriptVersion..."
+arrbitLog "🚀  $ARRBIT_TAG Starting ${MODULE_YELLOW}${SCRIPT_NAME} script\033[0m ${SCRIPT_VERSION}..."
 
 # ------------------------------------------------------------
 # DETECT PACKAGE MANAGER AND DEFINE COMMANDS
@@ -57,12 +46,18 @@ elif command -v yum &>/dev/null; then
     PKG_INSTALL="yum install -y"
     PKGS="curl bash coreutils jq unzip ffmpeg sox opus-tools python3 python3-pip git python3-requests"
 else
-    log "⚠️  $ARRBIT_TAG Unknown package manager! Exiting."
-    exit 1
+    arrbitErrorLog "⚠️" \
+      "[Arrbit] Unknown package manager! Exiting." \
+      "Unknown package manager" \
+      "dependencies.bash" \
+      "${SCRIPT_NAME}:${LINENO}" \
+      "No supported package manager (apk/apt/yum) found" \
+      "Install one of apk, apt-get, or yum and rerun this script"
+    sleep infinity
 fi
 
-log "🔄  $ARRBIT_TAG Updating package sources..."
-$UPDATE_CMD >> "$logFilePath" 2>&1
+arrbitLog "🔄  $ARRBIT_TAG Updating package sources..."
+$UPDATE_CMD >> "$log_file_path" 2>&1
 
 # ------------------------------------------------------------
 # CHECK AND INSTALL INDIVIDUAL PACKAGES IF MISSING
@@ -89,34 +84,40 @@ for pkg in $PKGS; do
 done
 
 if [ -n "$MISSING_PKGS" ]; then
-  log "🔧  $ARRBIT_TAG Installing missing dependencies:$MISSING_PKGS"
-  $PKG_INSTALL $MISSING_PKGS >> "$logFilePath" 2>&1
+  arrbitLog "🔧  $ARRBIT_TAG Installing missing dependencies:$MISSING_PKGS"
+  $PKG_INSTALL $MISSING_PKGS >> "$log_file_path" 2>&1
 else
-  log "⏩  $ARRBIT_TAG All base dependencies already installed. Skipping install."
+  arrbitLog "⏩  $ARRBIT_TAG All base dependencies already installed. Skipping install."
 fi
 
 # ------------------------------------------------------------
 # UPGRADE/UPDATE INSTALLED PACKAGES
 # ------------------------------------------------------------
-log "🔄  $ARRBIT_TAG Upgrading installed packages (if any updates available)..."
-$UPGRADE_CMD >> "$logFilePath" 2>&1
+arrbitLog "🔄  $ARRBIT_TAG Upgrading installed packages (if any updates available)..."
+$UPGRADE_CMD >> "$log_file_path" 2>&1
 
 # ------------------------------------------------------------
 # VERIFY PYTHON REQUESTS (AND FIX IF NEEDED)
 # ------------------------------------------------------------
 if ! python3 -c "import requests" &>/dev/null; then
     if [ "$PM" = "apk" ]; then
-        log "⚠️  $ARRBIT_TAG requests not found after APK install! Please check your Alpine packages."
-        exit 1
+        arrbitErrorLog "⚠️" \
+          "[Arrbit] requests not found after APK install! Please check your Alpine packages." \
+          "python3-requests not found" \
+          "python3-requests, dependencies.bash" \
+          "${SCRIPT_NAME}:${LINENO}" \
+          "python3-requests package missing after install" \
+          "Check APK packages or try installing via pip"
+        sleep infinity
     else
-        log "🔧  $ARRBIT_TAG Installing python3-requests via pip..."
-        pip3 install --no-cache-dir requests >> "$logFilePath" 2>&1
+        arrbitLog "🔧  $ARRBIT_TAG Installing python3-requests via pip..."
+        pip3 install --no-cache-dir requests >> "$log_file_path" 2>&1
     fi
 fi
 
 chmod -R 777 "$LOG_DIR" 2>/dev/null || true
 
-log "✅  $ARRBIT_TAG Dependencies install complete!"
-log "📄  $ARRBIT_TAG Log saved to $logFilePath"
+arrbitLog "✅  $ARRBIT_TAG Dependencies install complete!"
+arrbitLog "📄  $ARRBIT_TAG Log saved to $log_file_path"
 
-exit 0
+sleep infinity
