@@ -19,6 +19,8 @@ SETUP_DIR="$SERVICE_DIR/setup_scripts"
 SCRIPT_NAME="setup"
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 
+sleep 8
+
 # ------------------ 1. PREPARE DIRECTORIES ------------------
 mkdir -p "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR" "$TMP_DIR" "$HELPERS_DIR" "$SETUP_DIR"
 chmod -R 777 "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR" "$TMP_DIR" "$HELPERS_DIR" "$SETUP_DIR"
