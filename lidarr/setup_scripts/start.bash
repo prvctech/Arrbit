@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit start.bash
-# Version: v2.1
+# Version: v2.2
 # Purpose: Launches Arrbit services based on config flags. Installs dependencies from local copy. Supervises service modules.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -11,13 +11,13 @@ source /etc/services.d/arrbit/helpers/logging_utils.bash
 source /etc/services.d/arrbit/helpers/error_utils.bash
 
 SCRIPT_NAME="start"
-SCRIPT_VERSION="v2.1"
+SCRIPT_VERSION="v2.2"
 SERVICE_DIR="/etc/services.d/arrbit"
 CONFIG_DIR="/config/arrbit"
 LOG_DIR="/config/logs"
 SETUP_DIR="$SERVICE_DIR/setup"
-# Updated services directory path
-SERVICES_DIR="$SERVICE_DIR/process_scripts/services"
+# Services directory contains autoconfig and plugins
+SERVICES_DIR="$SERVICE_DIR/services"
 log_file_path="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
@@ -34,8 +34,9 @@ if [ "$log_count" -gt 3 ]; then
 fi
 
 touch "$log_file_path"
-chmod 777 "$log_file_path"
-chmod -R 777 "$SERVICE_DIR"
+chmod 777 "$log_file_path" && chmod -R 777 "$SERVICE_DIR"
+
+arrbitLog "🚀  ${ARRBIT_TAG} Starting ${SERVICE_YELLOW}${SCRIPT_NAME}\033[0m ${SCRIPT_VERSION}..."
 
 # ----------------------------------------------------------------------------
 # 2. LOGO & HEADER
@@ -48,7 +49,7 @@ if [ -f "$SERVICE_DIR/modules/data/arrbit_logo.bash" ]; then
 fi
 
 # ----------------------------------------------------------------------------
-# 3. CHECK MASTER ARRBIT ENABLE FLAG
+# 3. CHECK MASTER FLAG
 # ----------------------------------------------------------------------------
 ENABLE_ARRBIT=$(getFlag "ENABLE_ARRBIT")
 : "${ENABLE_ARRBIT:=true}"
@@ -59,32 +60,32 @@ if [[ "${ENABLE_ARRBIT,,}" != "true" ]]; then
 fi
 
 # ----------------------------------------------------------------------------
-# 4. INSTALL DEPENDENCIES IF PRESENT
+# 4. INSTALL DEPENDENCIES
 # ----------------------------------------------------------------------------
 if [ -f "$SETUP_DIR/dependencies.bash" ]; then
   chmod 777 "$SETUP_DIR/dependencies.bash"
   arrbitLog "📥  ${ARRBIT_TAG} Installing dependencies..."
   bash "$SETUP_DIR/dependencies.bash"
 else
-  arrbitLog "⚠️   ${ARRBIT_TAG} dependencies.bash not found in setup/. Skipping dependency install."
+  arrbitLog "⚠️   ${ARRBIT_TAG} dependencies.bash not found; skipping dependencies."
 fi
 
 # ----------------------------------------------------------------------------
-# 5. PARSE FLAGS FOR SERVICES
+# 5. PARSE FLAGS FOR SERVICES (using helpers)
 # ----------------------------------------------------------------------------
 ENABLE_AUTOCONFIG=$(getFlag "ENABLE_AUTOCONFIG")
 : "${ENABLE_AUTOCONFIG:=true}"
 ENABLE_PLUGINS=$(getFlag "ENABLE_PLUGINS")
-: "${ENABLE_PLUGINS:=false}"
+: "${ENABLE_PLUGINS:=true}"
 
 # ----------------------------------------------------------------------------
 # 6. BUILD SERVICE LIST
 # ----------------------------------------------------------------------------
 ARRBIT_SERVICES=()
-if [[ "${ENABLE_PLUGINS,,}" == "true" ]]; then
+if [[ "$(getFlag ENABLE_PLUGINS || echo \"${ENABLE_PLUGINS}\")" == "true" ]]; then
   ARRBIT_SERVICES+=("plugins.bash")
 fi
-if [[ "${ENABLE_AUTOCONFIG,,}" == "true" ]]; then
+if [[ "$(getFlag ENABLE_AUTOCONFIG || echo \"${ENABLE_AUTOCONFIG}\")" == "true" ]]; then
   ARRBIT_SERVICES+=("autoconfig.bash")
 fi
 
@@ -94,16 +95,16 @@ fi
 for script in "${ARRBIT_SERVICES[@]}"; do
   service_path="$SERVICES_DIR/$script"
   if [ -x "$service_path" ]; then
-    arrbitLog "🚀  ${ARRBIT_TAG} Running $script..."
+    arrbitLog "🚀  ${ARRBIT_TAG} Running ${SERVICE_YELLOW}$script\033[0m..."
     bash "$service_path"
     ret=$?
     if [ $ret -ne 0 ]; then
       arrbitErrorLog "❌" \
         "[Arrbit] $script exited with errors!" \
-        "$script service failed" \
+        "$script failed" \
         "$service_path" \
         "${SCRIPT_NAME}:${LINENO}" \
-        "$script returned $ret" \
+        "Exit code $ret" \
         "Check $service_path for errors or missing dependencies"
     else
       arrbitLog "✅  ${ARRBIT_TAG} $script completed successfully."
@@ -114,7 +115,7 @@ for script in "${ARRBIT_SERVICES[@]}"; do
 done
 
 # ----------------------------------------------------------------------------
-# 8. DONE — WRAP UP & SLEEP
+# 8. WRAP UP
 # ----------------------------------------------------------------------------
 arrbitLog "📄  ${ARRBIT_TAG} Log saved to $log_file_path"
 arrbitLog "✅  ${ARRBIT_TAG} All enabled services processed."
