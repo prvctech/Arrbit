@@ -1,21 +1,18 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit [arr_bridge]
-# Version: v2.1
-# Purpose: Connects Arrbit modules to Lidarr/Sonarr/etc. via HTTP. Handles API key, base URL, app name, version.
+# Version: v2.3
+# Purpose: Connects Arrbit modules to Lidarr/Sonarr/etc. via HTTP. Detects API key, base URL, version.
 # -------------------------------------------------------------------------------------------------------------
 
 set -euo pipefail
 
-# ------------------------------------------------------------
-# ENV / PATHS
-# ------------------------------------------------------------
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 MODULE_YELLOW="\033[1;33m"
 LOG_DIR="/config/logs"
-CONFIG_FILE="/config/arrbit/arrbit-config.conf"
+APP_XML="/config/config.xml"
 scriptName="arr_bridge"
-scriptVersion="v2.1"
+scriptVersion="v2.3"
 logFilePath="$LOG_DIR/arrbit-${scriptName}-$(date +%d-%m-%Y-%H:%M).log"
 
 # ------------------------------------------------------------
@@ -40,20 +37,24 @@ touch "$logFilePath"
 chmod 666 "$logFilePath"
 
 # ------------------------------------------------------------
-# LOAD CONFIG (App name, API Key, Base URL)
+# DETECT ARR DATA FROM config.xml using xq + jq
 # ------------------------------------------------------------
-if [ ! -f "$CONFIG_FILE" ]; then
-  log "❌  ${ARRBIT_TAG} Config file missing at $CONFIG_FILE"
+if [ ! -f "$APP_XML" ]; then
+  log "❌  ${ARRBIT_TAG} Config file $APP_XML not found!"
   exit 1
 fi
 
-arrUrl=$(awk -F= '$1=="ARR_URL"{print $2}' "$CONFIG_FILE" | tr -d '\r"')
-arrApiKey=$(awk -F= '$1=="ARR_API_KEY"{print $2}' "$CONFIG_FILE" | tr -d '\r"')
-arrAppName=$(awk -F= '$1=="ARR_APP_NAME"{print $2}' "$CONFIG_FILE" | tr -d '\r"')
+arrUrlBase=$(cat "$APP_XML" | xq | jq -r .Config.UrlBase)
+arrPort=$(cat "$APP_XML" | xq | jq -r .Config.Port)
+arrApiKey=$(cat "$APP_XML" | xq | jq -r .Config.ApiKey)
+arrAppName=$(cat "$APP_XML" | xq | jq -r .Config.InstanceName)
+
+arrUrlBase=${arrUrlBase#/}  # strip leading slash if present
+arrUrl="http://127.0.0.1:${arrPort}/${arrUrlBase}"
 arrAppName=${arrAppName:-"ARR"}
 
 if [ -z "$arrUrl" ] || [ -z "$arrApiKey" ]; then
-  log "❌  ${ARRBIT_TAG} ARR_URL or ARR_API_KEY is missing in config"
+  log "❌  ${ARRBIT_TAG} Failed to extract arrUrl or arrApiKey from config.xml"
   exit 1
 fi
 
@@ -61,11 +62,10 @@ export arrUrl
 export arrApiKey
 export arrAppName
 
-log "🔧  ${ARRBIT_TAG} Loaded $arrAppName URL and API key (key redacted)"
 log "🔵  ${ARRBIT_TAG} Found ${arrAppName} instance at $arrUrl"
 
 # ------------------------------------------------------------
-# Determine API Version (prefer v3, fallback to v1)
+# DETERMINE API VERSION (prefer v3, fallback to v1)
 # ------------------------------------------------------------
 statusV3=$(curl -s -o /dev/null -w "%{http_code}" \
   -H "X-Api-Key: $arrApiKey" \
