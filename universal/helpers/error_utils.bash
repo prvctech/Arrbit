@@ -9,16 +9,15 @@ if [[ -z "${ARRBIT_ERROR_INCLUDED}" ]]; then
 
   # ---- Error handling function
   errorTrap() {
-    # Needs log() and ARRBIT_TAG from logging_utils.bash
     local line="$1"
-    log "❌  ${ARRBIT_TAG} Error at line $line"
+    # Use arrbitLog for consistent Golden Standard logging
+    arrbitLog "❌  ${ARRBIT_TAG} Error at line $line"
   }
 
   # ---- Cleanup function for temp files, always runs at script exit
   _cleanup() {
     # Remove all /tmp/arrbit-* temp dirs/files
     rm -rf /tmp/arrbit-* 2>/dev/null || true
-    # (add more cleanup logic here if needed)
   }
 
   # ---- Register traps (idempotent, runs only once)
