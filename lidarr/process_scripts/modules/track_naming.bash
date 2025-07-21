@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit track_naming.bash
-# Version: v2.7
+# Version: v2.8
 # Purpose: Configure Lidarr Track Naming profile via API (standalone, self-connects to bridge).
 # -------------------------------------------------------------------------------------------------------------
 
@@ -11,7 +11,7 @@ source /etc/services.d/arrbit/helpers/logging_utils.bash
 source /etc/services.d/arrbit/helpers/error_utils.bash
 
 SCRIPT_NAME="track_naming"
-SCRIPT_VERSION="v2.7"
+SCRIPT_VERSION="v2.8"
 LOG_DIR="/config/logs"
 log_file_path="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
@@ -62,7 +62,7 @@ if [[ "${CFG_FLAG,,}" == "true" ]]; then
     "id": 1
   }'
 
-  arrbitLog "🔧  ${ARRBIT_TAG} Sending Track Naming config payload (details in log)..."
+  # Log payload and response to file ONLY
   echo "[Arrbit] Track Naming payload:" >> "$log_file_path"
   echo "$payload" >> "$log_file_path"
 
@@ -71,14 +71,13 @@ if [[ "${CFG_FLAG,,}" == "true" ]]; then
     -H "Content-Type: application/json" \
     --data-raw "$payload")
 
-  arrbitLog "🔵  ${ARRBIT_TAG} Response received (see log for details)"
   echo "[Arrbit] API Response:" >> "$log_file_path"
   echo "$response" >> "$log_file_path"
 
   if echo "$response" | jq -e '.renameTracks' >/dev/null 2>&1; then
     arrbitLog "✅  ${ARRBIT_TAG} Track Naming has been configured successfully"
   else
-    arrbitErrorLog "⚠️   " \
+    arrbitErrorLog "⚠️  " \
       "${CYAN}[Arrbit]${RESET} Track Naming API call failed" \
       "Track Naming API failure" \
       "track_naming.bash" \
@@ -87,10 +86,9 @@ if [[ "${CFG_FLAG,,}" == "true" ]]; then
       "Check ARR API connectivity and payload"
   fi
 else
-  arrbitLog "⏩   ${ARRBIT_TAG} Skipping Track Naming module (flag disabled)"
+  arrbitLog "⏩  ${ARRBIT_TAG} Skipping Track Naming module (flag disabled)"
 fi
 
-arrbitLog "📄   ${ARRBIT_TAG} Log saved to $log_file_path"
-arrbitLog "✅   ${ARRBIT_TAG} Done with track_naming module!"
+arrbitLog "✅  ${ARRBIT_TAG} Done with track_naming module!"
 
 exit 0
