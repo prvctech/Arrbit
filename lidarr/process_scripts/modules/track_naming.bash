@@ -74,7 +74,9 @@ if [[ "${CFG_FLAG,,}" == "true" ]]; then
   echo "[Arrbit] API Response:" >> "$log_file_path"
   echo "$response" >> "$log_file_path"
 
-  if ! echo "$response" | jq -e '.renameTracks' >/dev/null 2>&1; then
+  if echo "$response" | jq -e '.renameTracks' >/dev/null 2>&1; then
+    arrbitLog "✅  ${ARRBIT_TAG} Track Naming has been configured successfully"
+  else
     arrbitErrorLog "⚠️  " \
       "${CYAN}[Arrbit]${RESET} Track Naming API call failed" \
       "Track Naming API failure" \
@@ -86,5 +88,7 @@ if [[ "${CFG_FLAG,,}" == "true" ]]; then
 else
   arrbitLog "⏩  ${ARRBIT_TAG} Skipping Track Naming module (flag disabled)"
 fi
+
+arrbitLog "✅  ${ARRBIT_TAG} Done with track_naming module!"
 
 exit 0
