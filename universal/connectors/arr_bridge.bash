@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit arr_bridge.bash
-# Version: v2.0
+# Version: v2.1
 # Purpose: Sets up API variables for Arrbit modules and ensures API is reachable before proceeding.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -12,14 +12,12 @@ source /etc/services.d/arrbit/helpers/error_utils.bash
 
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 
-CONFIG_FILE="/config/arrbit/arrbit-config.conf"
 CONFIG_XML="/config/config.xml"
 
 # -------------------------------------------------------
 # Extract arrApiKey and arrApiVersion from config file or env
 # -------------------------------------------------------
 if [[ -f "$CONFIG_XML" ]]; then
-  # Try to use xmlstarlet for XML parsing if available, else fallback to grep/sed
   if command -v xmlstarlet &>/dev/null; then
     arrApiKey=$(xmlstarlet sel -t -v "//ApiKey" "$CONFIG_XML" 2>/dev/null)
     arrPort=$(xmlstarlet sel -t -v "//Port" "$CONFIG_XML" 2>/dev/null)
@@ -32,14 +30,13 @@ if [[ -f "$CONFIG_XML" ]]; then
     arrUseSsl=$(grep -oPm1 "(?<=<EnableSsl>)[^<]+" "$CONFIG_XML" 2>/dev/null)
   fi
 
-  # Build arrUrl
   if [[ "$arrUseSsl" == "true" ]]; then
     arrUrl="https://127.0.0.1:${arrSsl:-8686}"
   else
     arrUrl="http://127.0.0.1:${arrPort:-8686}"
   fi
 else
-  arrbitErrorLog "❌" \
+  arrbitErrorLog "❌   " \
     "[Arrbit] $CONFIG_XML missing! Can't set API URL or key." \
     "config.xml missing" \
     "arr_bridge.bash" \
@@ -49,18 +46,16 @@ else
   exit 1
 fi
 
-# Set API version (always v1 for Lidarr, override via config if needed)
 arrApiVersion=$(getFlag "API_VERSION")
 : "${arrApiVersion:=v1}"
 
 # -------------------------------------------------------
-# Log found values (redacted API key)
+# Log found value (minimal: only Found and Connected)
 # -------------------------------------------------------
 arrbitLog "🔵  ${ARRBIT_TAG} Found Lidarr instance at $arrUrl"
-arrbitLog "🟢  ${ARRBIT_TAG} Using API version: $arrApiVersion"
 
 # -------------------------------------------------------
-# Golden Standard Wait for API Function (inline for all modules)
+# Wait for API (minimal: only logs when connected or on fatal error)
 # -------------------------------------------------------
 waitForArrApi() {
   local url="$1"
@@ -70,16 +65,15 @@ waitForArrApi() {
   local endpoint="system/status"
   local statusName
 
-  arrbitLog "🔄  ${ARRBIT_TAG} Waiting for API at $url (API $version)..."
   while true; do
     statusName=$(curl -s --max-time 3 "$url/api/$version/$endpoint?apikey=$key" | jq -r .instanceName 2>/dev/null)
     if [ -n "$statusName" ] && [ "$statusName" != "null" ]; then
-      arrbitLog "🟢  ${ARRBIT_TAG} Connected to $statusName at $url (API $version)"
+      arrbitLog "🟢  ${ARRBIT_TAG} Connected to Lidarr at $url (API $version)"
       break
     fi
     tries=$((tries+1))
     if (( tries >= 20 )); then
-      arrbitErrorLog "❌" \
+      arrbitErrorLog "❌   " \
         "[Arrbit] API at $url not available after 20 tries" \
         "API wait failed" \
         "waitForArrApi" \
@@ -88,12 +82,8 @@ waitForArrApi() {
         "Check if server is up and config is correct"
       exit 1
     fi
-    arrbitLog "⏳  ${ARRBIT_TAG} API not ready, retrying... ($tries/20)"
     sleep 2
   done
 }
 
-# -------------------------------------------------------
-# Call waitForArrApi to block until API is available
-# -------------------------------------------------------
 waitForArrApi "$arrUrl" "$arrApiKey" "$arrApiVersion"
