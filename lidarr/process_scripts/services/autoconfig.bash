@@ -1,26 +1,27 @@
 #!/usr/bin/env bash
-# ------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------------------
 # Arrbit [autoconfig]
-# Version: 2.3
+# Version: v2.4
 # Purpose: Orchestrates Arrbit modules to configure Lidarr, only if enabled in config.
-# ------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------------------
 
 set -euo pipefail
 
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
-MODULES_DIR="modules"
-CONFIG_FILE="/config/arrbit/arrbit-config.conf"
+MODULE_YELLOW="\033[1;33m"
 LOG_DIR="/config/logs"
+CONFIG_FILE="/config/arrbit/arrbit-config.conf"
+MODULES_DIR="modules"
 
 rawScriptName="autoconfig"
-scriptName="autoconfig module"
-scriptVersion="v2.3"
+scriptName="autoconfig"
+scriptVersion="v2.4"
 
 # ------------------------------------------------------------
 # 1. Logging Setup
 # ------------------------------------------------------------
 logfileSetup() {
-  timestamp=$(date +"%Y_%m_%d-%H_%M")
+  timestamp=$(date +%d-%m-%Y-%H:%M)
   logFileName="arrbit-${rawScriptName}-${timestamp}.log"
   logFilePath="${LOG_DIR}/${logFileName}"
   mkdir -p "${LOG_DIR}"
@@ -29,45 +30,47 @@ logfileSetup() {
   chmod 666 "$logFilePath"
 }
 
+logRaw() {
+  local msg="$1"
+  msg=$(echo -e "$msg" | tr -d "🚀⏩📥🌐🔧📦📁🔄📋📄✅❌⚠️🔵🟢🔴💾")
+  msg=$(echo -e "$msg" | sed -E "s/(\x1B|\033)\[[0-9;]*[a-zA-Z]//g")
+  msg=$(echo -e "$msg" | sed -E "s/^[[:space:]]+\[Arrbit\]/[Arrbit]/")
+  echo "$msg" >> "$logFilePath"
+}
+
 log() {
   echo -e "$1"
   logRaw "$1"
 }
 
-logRaw() {
-  local stripped
-  stripped=$(echo -e "$1" | sed -E $'s/(\\x1B|\\033)\\[[0-9;]*[a-zA-Z]//g; s/🚀|⏩|📥|🌐|🛠️|📦|📁|🔄|📋|📄|✅|❌|⚠️|🔵|🟢|🔴//g; s/\\\\n/\\\n/g; s/^.*\\[Arrbit\\]/[Arrbit]/;')
-  echo "$stripped" >> "$logFilePath"
-}
-
 logfileSetup
-log "🚀  ${ARRBIT_TAG} Starting \033[1;33m${scriptName}\033[0m ${scriptVersion}..."
+log "🚀  ${ARRBIT_TAG} Starting ${MODULE_YELLOW}${scriptName} service\033[0m $scriptVersion..."
 
 # ------------------------------------------------------------
 # 2. Config Flag Check
 # ------------------------------------------------------------
-ENABLE_AUTOCONFIG=1
+ENABLE_AUTOCONFIG="1"
 if [ -f "$CONFIG_FILE" ]; then
   ENABLE_AUTOCONFIG=$(awk -F= '$1=="ENABLE_AUTOCONFIG"{print $2}' "$CONFIG_FILE" | tr -d '\r' || echo "1")
 fi
 
 if [ "$ENABLE_AUTOCONFIG" != "1" ] && [[ ! "${ENABLE_AUTOCONFIG,,}" =~ ^(true|yes)$ ]]; then
-  log "⏩  ${ARRBIT_TAG} autoconfig is disabled by config flag. Exiting."
+  log "⏩  ${ARRBIT_TAG} autoconfig is disabled. Skipping."
   exit 0
 fi
 
 # ------------------------------------------------------------
-# 3. Load Functions
+# 3. Load Shared Functions
 # ------------------------------------------------------------
 if [ -f "$MODULES_DIR/functions.bash" ]; then
   source "$MODULES_DIR/functions.bash"
 else
-  log "❌  ${ARRBIT_TAG} functions.bash missing! Aborting autoconfig."
+  log "❌  ${ARRBIT_TAG} functions.bash missing in modules/. Aborting."
   exit 1
 fi
 
 # ------------------------------------------------------------
-# 4. Run Modules
+# 4. Run Enabled Modules
 # ------------------------------------------------------------
 MODULES_TO_RUN=(
   "custom_formats.bash"
@@ -80,7 +83,7 @@ MODULES_TO_RUN=(
   "metadata_write.bash"
   "quality_profile.bash"
   "track_naming.bash"
-  "ui_settings.bash"  
+  "ui_settings.bash"
 )
 
 EXIT_CODE=0
@@ -106,7 +109,7 @@ for module in "${MODULES_TO_RUN[@]}"; do
       log "✅  ${ARRBIT_TAG} $module_name complete"
     fi
   else
-    log "⚠️  ${ARRBIT_TAG} $module_name missing, skipping"
+    log "⚠️   ${ARRBIT_TAG} $module_name missing, skipping"
   fi
 done
 
@@ -114,6 +117,6 @@ done
 # 5. Wrap Up
 # ------------------------------------------------------------
 log "📄  ${ARRBIT_TAG} Log saved to $logFilePath"
-log "✅  ${ARRBIT_TAG} Done with ${rawScriptName}!"
+log "✅  ${ARRBIT_TAG} Done with ${MODULE_YELLOW}${scriptName}\033[0m service!"
 
 exit $EXIT_CODE
