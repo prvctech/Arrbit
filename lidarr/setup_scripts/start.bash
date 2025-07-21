@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit start.bash
-# Version: v3.3
+# Version: v3.4
 # Purpose: Launch dependencies, plugins, and autoconfig services.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -25,8 +25,19 @@ mkdir -p "$LOG_DIR"
 find "$SETUP_DIR" "$SERVICES_DIR" -type f -name "*.bash" -exec chmod +x {} \;
 
 # ----------------------------------------------------------------------------
-# 2. RUN DEPENDENCIES
+# 2. LOGO & HEADER
 # ----------------------------------------------------------------------------
+sleep 8  # Let container logs settle before Arrbit logo
+if [ -f "$SERVICE_DIR/modules/data/arrbit_logo.bash" ]; then
+  source "$SERVICE_DIR/modules/data/arrbit_logo.bash"
+  arrbit_logo
+  echo
+fi
+
+# ----------------------------------------------------------------------------
+# 3. RUN DEPENDENCIES
+# ----------------------------------------------------------------------------
+
 if [ -x "$SETUP_DIR/dependencies.bash" ]; then
   bash "$SETUP_DIR/dependencies.bash" || arrbitErrorLog "❌" \
     "[Arrbit] dependencies failed" "dependencies.bash" "$SETUP_DIR/dependencies.bash" "start:${LINENO}" "exit non-zero" "Check setup script"
@@ -35,9 +46,9 @@ else
 fi
 
 # ----------------------------------------------------------------------------
-# 3. PLUGINS SERVICE
+# 4. PLUGINS SERVICE
 # ----------------------------------------------------------------------------
-if [[ "$(getFlag ENABLE_PLUGINS || echo true)" == "true" ]]; then
+if [[ "$(getFlag ENABLE_PLUGINS || echo true)" == "true" ]]; then  
   if [ -x "$SERVICES_DIR/plugins.bash" ]; then
     bash "$SERVICES_DIR/plugins.bash"
   else
@@ -46,9 +57,9 @@ if [[ "$(getFlag ENABLE_PLUGINS || echo true)" == "true" ]]; then
 fi
 
 # ----------------------------------------------------------------------------
-# 4. AUTOCONFIG SERVICE
+# 5. AUTOCONFIG SERVICE
 # ----------------------------------------------------------------------------
-if [[ "$(getFlag ENABLE_AUTOCONFIG || echo true)" == "true" ]]; then
+if [[ "$(getFlag ENABLE_AUTOCONFIG || echo true)" == "true" ]]; then  
   if [ -x "$SERVICES_DIR/autoconfig.bash" ]; then
     bash "$SERVICES_DIR/autoconfig.bash"
   else
@@ -57,8 +68,8 @@ if [[ "$(getFlag ENABLE_AUTOCONFIG || echo true)" == "true" ]]; then
 fi
 
 # ----------------------------------------------------------------------------
-# 5. WRAP UP
+# 6. WRAP UP
 # ----------------------------------------------------------------------------
 arrbitLog "✅  [Arrbit] All services processed."
 
-sleep infinity
+exit 0
