@@ -31,7 +31,7 @@ sleep 8  # Let container logs settle before Arrbit logo
 if [ -f "$SERVICE_DIR/modules/data/arrbit_logo.bash" ]; then
     source "$SERVICE_DIR/modules/data/arrbit_logo.bash"
     arrbit_logo
-    echo -e "\n"
+    echo -e "\n\n"
 fi
 
 # Clean old logs if > 3 exist
