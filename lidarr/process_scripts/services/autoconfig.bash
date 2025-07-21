@@ -1,72 +1,58 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
-# Arrbit [autoconfig]
-# Version: v3.3
+# Arrbit autoconfig.bash
+# Version: v3.6
 # Purpose: Orchestrates Arrbit modules to configure Lidarr, Readarr, etc., based on config flags.
 # -------------------------------------------------------------------------------------------------------------
 
-set -euo pipefail
+# === ARRBIT "TRINITY" HELPERS ===
+source /etc/services.d/arrbit/helpers/helpers.bash
+source /etc/services.d/arrbit/helpers/logging_utils.bash
+source /etc/services.d/arrbit/helpers/error_utils.bash
 
-ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
-MODULE_YELLOW="\033[1;33m"
+SCRIPT_NAME="autoconfig"
+SCRIPT_VERSION="v3.6"
 LOG_DIR="/config/logs"
 CONFIG_FILE="/config/arrbit/arrbit-config.conf"
 SERVICE_DIR="/etc/services.d/arrbit"
 MODULES_DIR="$SERVICE_DIR/modules"
+log_file_path="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
+MODULE_YELLOW="\033[1;33m"
 
-scriptName="autoconfig"
-scriptVersion="v3.3"
-rawScriptName="autoconfig"
+# init log directory and cleanup
+mkdir -p "$LOG_DIR"
+find "$LOG_DIR" -type f -iname "arrbit-${SCRIPT_NAME}-*.log" -mtime +5 -delete
+touch "$log_file_path"
+chmod 777 "$log_file_path"
 
-# ------------------------------------------------------------
-# 1. Logging Setup
-# ------------------------------------------------------------
-logfileSetup() {
-  timestamp=$(date +%Y_%m_%d-%H_%M)
-  logFileName="arrbit-${rawScriptName}-${timestamp}.log"
-  logFilePath="${LOG_DIR}/${logFileName}"
-  mkdir -p "${LOG_DIR}"
-  find "${LOG_DIR}" -type f -iname "arrbit-${rawScriptName}-*.log" -mtime +5 -delete
-  touch "$logFilePath"
-  chmod 666 "$logFilePath"
-}
-
-logRaw() {
-  local msg="$1"
-  msg=$(echo -e "$msg" | tr -d "🚀⏩📥🌐🔧📦📁🔄📋📄✅❌⚠️🔵🟢🔴💾")
-  msg=$(echo -e "$msg" | sed -E "s/(\x1B|\033)\[[0-9;]*[a-zA-Z]//g")
-  msg=$(echo -e "$msg" | sed -E "s/^[[:space:]]+\[Arrbit\]/[Arrbit]/")
-  echo "$msg" >> "$logFilePath"
-}
-
-log() {
-  echo -e "$1"
-  logRaw "$1"
-}
-
-logfileSetup
-log "🚀  ${ARRBIT_TAG} Starting ${MODULE_YELLOW}${scriptName}\033[0m service $scriptVersion..."
+arrbitLog "🚀  ${ARRBIT_TAG} Starting ${MODULE_YELLOW}${SCRIPT_NAME}\033[0m service ${SCRIPT_VERSION}..."
 
 # ------------------------------------------------------------
 # 2. Master Flag Check: ENABLE_AUTOCONFIG must be "true"
 # ------------------------------------------------------------
-ENABLE_AUTOCONFIG="true"
-if [ -f "$CONFIG_FILE" ]; then
-  ENABLE_AUTOCONFIG=$(awk -F= '$1=="ENABLE_AUTOCONFIG"{print $2}' "$CONFIG_FILE" | tr -d '\r"[:space:]')
-fi
+ENABLE_AUTOCONFIG=$(getFlag "ENABLE_AUTOCONFIG")
+: "${ENABLE_AUTOCONFIG:=true}"
 
 if [[ "${ENABLE_AUTOCONFIG,,}" != "true" ]]; then
-  log "⏩  ${ARRBIT_TAG} autoconfig is disabled by flag. Skipping service."
-  exit 0
+  arrbitLog "⏩  ${ARRBIT_TAG} autoconfig is disabled by flag. Skipping service."
+  sleep infinity
 fi
 
 # ------------------------------------------------------------
-# 3. Execute arr_bridge.bash remotely
+# 3. Source LOCAL arr_bridge.bash (no remote exec!)
 # ------------------------------------------------------------
-curl -sSfL https://raw.githubusercontent.com/prvctech/Arrbit/refs/heads/main/connectors/arr_bridge.bash | bash
-if [ $? -ne 0 ]; then
-  log "❌  ${ARRBIT_TAG} Failed to execute remote arr_bridge.bash!"
-  exit 1
+if [ -f "$SERVICE_DIR/connectors/arr_bridge.bash" ]; then
+  source "$SERVICE_DIR/connectors/arr_bridge.bash"
+else
+  arrbitErrorLog "❌" \
+    "[Arrbit] Missing arr_bridge.bash in connectors!" \
+    "arr_bridge.bash missing" \
+    "arr_bridge.bash" \
+    "${SCRIPT_NAME}:${LINENO}" \
+    "arr_bridge.bash not found in $SERVICE_DIR/connectors/" \
+    "Check your Arrbit installation or re-pull repository"
+  sleep infinity
 fi
 
 # ------------------------------------------------------------
@@ -97,49 +83,57 @@ enabledCount=0
 for module in "${MODULES_TO_RUN[@]}"; do
   module_name="${module%.bash}"
   flag_var="CONFIGURE_${module_name^^}"
-  if [ "${!flag_var:-true}" == "true" ]; then
+  cfg_val=$(getFlag "$flag_var")
+  : "${cfg_val:=true}"
+  if [[ "${cfg_val,,}" == "true" ]]; then
     ((enabledCount++))
   fi
 done
 
 if [ "$enabledCount" -eq 0 ]; then
-  log "⏩  ${ARRBIT_TAG} All modules are disabled. Skipping service (even though ENABLE_AUTOCONFIG is true)."
-  exit 0
+  arrbitLog "⏩  ${ARRBIT_TAG} All modules are disabled. Skipping service (even though ENABLE_AUTOCONFIG is true)."
+  sleep infinity
 fi
 
 # ------------------------------------------------------------
 # 6. Run Each Enabled Module
 # ------------------------------------------------------------
-EXIT_CODE=0
 for module in "${MODULES_TO_RUN[@]}"; do
   module_name="${module%.bash}"
   module_path="$MODULES_DIR/$module"
   flag_var="CONFIGURE_${module_name^^}"
+  cfg_val=$(getFlag "$flag_var")
+  : "${cfg_val:=true}"
 
-  if [ "${!flag_var:-true}" != "true" ]; then
-    log "⏩  ${ARRBIT_TAG} Skipping $module_name (flag disabled)"
+  if [[ "${cfg_val,,}" != "true" ]]; then
+    arrbitLog "⏩  ${ARRBIT_TAG} Skipping ${module_name} (flag disabled)"
     continue
   fi
 
   if [ -f "$module_path" ]; then
-    log "🔄  ${ARRBIT_TAG} Running $module_name..."
+    arrbitLog "🔄  ${ARRBIT_TAG} Running ${module_name}..."
     module_output=$(bash "$module_path" 2>&1)
-    log "$module_output"
+    arrbitLog "$module_output"
     if [ $? -ne 0 ]; then
-      log "❌  ${ARRBIT_TAG} $module_name failed"
-      EXIT_CODE=1
+      arrbitErrorLog "❌" \
+        "[Arrbit] ${module_name} failed" \
+        "${module_name} module failed" \
+        "${module_name}" \
+        "${SCRIPT_NAME}:${LINENO}" \
+        "${module_name} exited nonzero" \
+        "Check ${module_path} for errors or missing dependencies"
     else
-      log "✅  ${ARRBIT_TAG} $module_name complete"
+      arrbitLog "✅  ${ARRBIT_TAG} ${module_name} complete"
     fi
   else
-    log "⚠️   ${ARRBIT_TAG} $module_name missing, skipping"
+    arrbitLog "⚠️   ${ARRBIT_TAG} ${module_name} missing, skipping"
   fi
 done
 
 # ------------------------------------------------------------
 # 7. Wrap Up
 # ------------------------------------------------------------
-log "📄  ${ARRBIT_TAG} Log saved to $logFilePath"
-log "✅  ${ARRBIT_TAG} Done with ${MODULE_YELLOW}${scriptName}\033[0m service!"
+arrbitLog "📄  ${ARRBIT_TAG} Log saved to ${log_file_path}"
+arrbitLog "✅  ${ARRBIT_TAG} Done with ${MODULE_YELLOW}${SCRIPT_NAME}\033[0m service!"
 
-exit $EXIT_CODE
+sleep infinity
