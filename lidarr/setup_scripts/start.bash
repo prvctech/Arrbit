@@ -72,4 +72,4 @@ fi
 # ----------------------------------------------------------------------------
 arrbitLog "✅  [Arrbit] All services processed."
 
-exit 0
+sleep infinity
