@@ -110,7 +110,6 @@ for name in "${MODULES[@]}"; do
   val=$(getFlag "$flag")
   : "${val:=true}"
   if [[ "$(echo "$val" | tr '[:upper:]' '[:lower:]')" != "true" ]]; then
-    arrbitLog "⏩   ${ARRBIT_TAG} Skipping ${MODULE_YELLOW}${name} module${RESET}  (disabled)"
     continue
   fi
 
