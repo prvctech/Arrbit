@@ -23,6 +23,16 @@ SERVICE_YELLOW="\033[1;33m"
 
 mkdir -p "$LOG_DIR"
 
+sleep 8  # Let container logs settle before Arrbit logo
+
+# ------------------------------------------------------------
+# 2. LOGO & HEADER
+# ------------------------------------------------------------
+
+if [ -f "$SERVICE_DIR/modules/data/arrbit_logo.bash" ]; then
+    source "$SERVICE_DIR/modules/data/arrbit_logo.bash"
+    arrbit_logo
+fi
 # Clean old logs if > 3 exist
 log_count=$(ls -1 "$LOG_DIR"/arrbit-${SCRIPT_NAME}-*.log 2>/dev/null | wc -l)
 if [ "$log_count" -gt 3 ]; then
