@@ -28,7 +28,6 @@ sleep 8  # Let container logs settle before Arrbit logo
 # ------------------------------------------------------------
 # 2. LOGO & HEADER
 # ------------------------------------------------------------
-
 if [ -f "$SERVICE_DIR/modules/data/arrbit_logo.bash" ]; then
     source "$SERVICE_DIR/modules/data/arrbit_logo.bash"
     arrbit_logo
@@ -36,7 +35,6 @@ if [ -f "$SERVICE_DIR/modules/data/arrbit_logo.bash" ]; then
 fi
 
 # Clean old logs if > 3 exist
-
 log_count=$(ls -1 "$LOG_DIR"/arrbit-${SCRIPT_NAME}-*.log 2>/dev/null | wc -l)
 if [ "$log_count" -gt 3 ]; then
   ls -1tr "$LOG_DIR"/arrbit-${SCRIPT_NAME}-*.log | head -n -3 | xargs rm -f
@@ -49,7 +47,6 @@ chmod -R 777 "$SERVICE_DIR"
 # ------------------------------------------------------------
 # 3. CHECK MASTER ARRBIT ENABLE FLAG
 # ------------------------------------------------------------
-
 ENABLE_ARRBIT="true"
 if [ -f "$CONFIG_DIR/arrbit-config.conf" ]; then
   ENABLE_ARRBIT=$(getFlag "ENABLE_ARRBIT")
@@ -65,7 +62,6 @@ fi
 # ------------------------------------------------------------
 # 4. INSTALL DEPENDENCIES IF PRESENT
 # ------------------------------------------------------------
-
 if [ -f "$SETUP_DIR/dependencies.bash" ]; then
   chmod 777 "$SETUP_DIR/dependencies.bash"
   arrbitLog "📥  ${ARRBIT_TAG} Installing dependencies..."
