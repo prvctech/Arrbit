@@ -11,17 +11,18 @@ if [[ -z "${ARRBIT_ERROR_INCLUDED}" ]]; then
   # ---- Error handling function (captures unhandled errors) ----
   _error_trap() {
     local lineno="$1"
-    # Log structured error: summary only to terminal, full details to log
+    local cmd="${BASH_COMMAND}"
+    local exit_code=$?
+    # Log structured error including the failed command and exit code
     arrbitErrorLog "❌" \
-      "[Arrbit] Unhandled error at line ${lineno}" \
-      "unhandled error" \
-      "${BASH_SOURCE[1]}" \
+      "[Arrbit] Unhandled error in '${cmd}'" \
+      "command failed" \
+      "${cmd}" \
       "${BASH_SOURCE[1]}:${lineno}" \
-      "errorTrap triggered" \
-      "Review log for details"
-    exit 1
+      "exit code ${exit_code}" \
+      "Review command and log for details"
+    exit $exit_code
   }
-
   # ---- Cleanup function for temp files, always runs at script exit ----
   _cleanup() {
     rm -rf /tmp/arrbit-* 2>/dev/null || true
