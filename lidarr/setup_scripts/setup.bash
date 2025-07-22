@@ -9,7 +9,7 @@ set -euo pipefail
 
 ARRBIT_CONF="/config/arrbit/config/arrbit-config.conf"
 DEST_DIR="/config/arrbit"
-GITHUB_RAW="https://raw.githubusercontent.com/prvctech/Arrbit/refs/heads/main/lidarr"
+GITHUB_RAW="https://github.com/prvctech/Arrbit/tree/main/lidarr"
 
 mkdir -p "$DEST_DIR"
 
