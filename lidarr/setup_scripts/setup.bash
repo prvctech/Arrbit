@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - setup
-# Version: v1.5
+# Version: v1.6
 # Purpose: Prepare folder structure, install/upgrade dependencies once, download/refresh Arrbit scripts,
 #          and manage config files. All verbose installer output is captured in the run-time log file.
 # -------------------------------------------------------------------------------------------------------------
 
 set -euo pipefail
-scriptVersion="1.5"                        # bump when dependency list changes
+scriptVersion="1.6"                        # bump when dependency list changes
 
 # ------------------ ENV & PATHS ------------------
 GITHUB_REPO="https://github.com/prvctech/Arrbit"
@@ -42,9 +42,7 @@ if [ -f "$deps_marker" ]; then
 fi
 
 needs_install=false
-if ! command -v atomicparsley >/dev/null 2>&1; then
-  needs_install=true
-fi
+command -v atomicparsley >/dev/null 2>&1 || needs_install=true
 
 if [ "${depsversion:-}" = "$scriptVersion" ] && [ "$needs_install" = false ]; then
   echo "[Arrbit] dependencies already installed - skipping" | tee -a "$LOG_FILE"
@@ -130,7 +128,15 @@ rm -rf "$TMP_DIR"
 chmod -R 777 "$LOG_DIR" "$CONFIG_DIR" "$SERVICE_DIR" || true
 
 echo "[Arrbit] Setup complete – log saved in $LOG_DIR"
-echo "[Arrbit] See config settings to enable Arrbit, everything is off by default." | tee -a "$LOG_FILE"
+
+# Conditional guidance based on ENABLE_ARRBIT flag
+enable_flag=false
+if [ -f "$CONFIG_DIR/arrbit-config.conf" ]; then
+  enable_flag=$(grep -E '^ENABLE_ARRBIT=' "$CONFIG_DIR/arrbit-config.conf" | tail -n1 | cut -d '=' -f2 | tr '[:upper:]' '[:lower:]')
+fi
+if [ "$enable_flag" != "true" ]; then
+  echo "[Arrbit] See config settings to enable Arrbit, everything is off by default." | tee -a "$LOG_FILE"
+fi
 
 sleep infinity
 exit 0
