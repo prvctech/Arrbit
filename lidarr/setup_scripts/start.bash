@@ -1,75 +1,105 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
-# Arrbit start.bash
-# Version: v3.4
-# Purpose: Launch dependencies, plugins, and autoconfig services.
+# Arrbit [setup]
+# Version: v1.0
+# Purpose: Main setup and update script; prepares folder structure, downloads/updates scripts, and manages config files.
 # -------------------------------------------------------------------------------------------------------------
 
-# === ARRBIT "TRINITY" HELPERS ===
-source /etc/services.d/arrbit/helpers/helpers.bash
-source /etc/services.d/arrbit/helpers/logging_utils.bash
-source /etc/services.d/arrbit/helpers/error_utils.bash
+set -euo pipefail
 
-SERVICE_DIR="/etc/services.d/arrbit"
+# ------------------ 0. ENV and PATHS (constants) ------------------
+GITHUB_REPO="https://github.com/prvctech/Arrbit"
+GITHUB_BRANCH="main"
+SERVICE_DIR="/custom-services.d"          # destination for all Arrbit code
+HELPERS_DIR="$SERVICE_DIR/helpers"
+CONNECTORS_DIR="$SERVICE_DIR/connectors"
 CONFIG_DIR="/config/arrbit"
 LOG_DIR="/config/logs"
+TMP_DIR="/tmp/arrbit_update_$$"
 SETUP_DIR="$SERVICE_DIR/setup"
-SERVICES_DIR="$SERVICE_DIR/services"
+SCRIPT_NAME="setup"
+log_file_path="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 
-SERVICE_YELLOW="\033[1;33m"
+# --- Source universal helpers (must exist from previous image/build) ---
+source "$HELPERS_DIR/logging_utils.bash"
+source "$HELPERS_DIR/helpers.bash"
 
-# ----------------------------------------------------------------------------
-# 1. INIT: Ensure logs dir and executables
-# ----------------------------------------------------------------------------
-mkdir -p "$LOG_DIR"
-find "$SETUP_DIR" "$SERVICES_DIR" -type f -name "*.bash" -exec chmod +x {} \;
+# ------------------ 1. LOGO & HEADER ------------------
+sleep 8
+[[ -f "$SERVICE_DIR/process_scripts/modules/data/arrbit_logo.bash" ]] && \
+  source "$SERVICE_DIR/process_scripts/modules/data/arrbit_logo.bash" && arrbit_logo
+log "🚀  $ARRBIT_TAG Running Arrbit setup.bash v1.0..."
 
-# ----------------------------------------------------------------------------
-# 2. LOGO & HEADER
-# ----------------------------------------------------------------------------
-sleep 8  # Let container logs settle before Arrbit logo
-if [ -f "$SERVICE_DIR/modules/data/arrbit_logo.bash" ]; then
-  source "$SERVICE_DIR/modules/data/arrbit_logo.bash"
-  arrbit_logo
-  echo
+# ------------------ Failsafe ------------------
+if [[ -f /custom-cont-init.d/initial_run.bash ]]; then
+  log "⚠️  $ARRBIT_TAG initial_run.bash found in /custom-cont-init.d. Sleeping to avoid conflict."
+  sleep infinity
 fi
 
-# ----------------------------------------------------------------------------
-# 3. RUN DEPENDENCIES
-# ----------------------------------------------------------------------------
+# ------------------ 2. CREATE FOLDER STRUCTURE ------------------
+log "🔨  $ARRBIT_TAG Building folder structure..."
+mkdir -p "$SERVICE_DIR" "$HELPERS_DIR" "$CONNECTORS_DIR" "$CONFIG_DIR" "$LOG_DIR" "$TMP_DIR" "$SETUP_DIR"
+chmod -R 777 "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR" "$SETUP_DIR"
 
-if [ -x "$SETUP_DIR/dependencies.bash" ]; then
-  bash "$SETUP_DIR/dependencies.bash" || arrbitErrorLog "❌" \
-    "[Arrbit] dependencies failed" "dependencies.bash" "$SETUP_DIR/dependencies.bash" "start:${LINENO}" "exit non-zero" "Check setup script"
-else
-  arrbitLog "⚠️   [Arrbit] dependencies.bash not found; skipping."
+# ------------------ 3. DOWNLOAD & UNZIP REPO ------------------
+log "🌐  $ARRBIT_TAG Downloading latest Arrbit bundle..."
+curl -sfL "$GITHUB_REPO/archive/refs/heads/$GITHUB_BRANCH.zip" -o "$TMP_DIR/arrbit.zip"
+log "📦️  $ARRBIT_TAG Archive saved."
+unzip -q "$TMP_DIR/arrbit.zip" -d "$TMP_DIR"
+log "🗃️  $ARRBIT_TAG Archive extracted."
+
+# ------------------ 4. COPY CODE ------------------
+# 4a. process_scripts  → /custom-services.d/
+cp -rf "$TMP_DIR/Arrbit-main/lidarr/process_scripts/"* "$SERVICE_DIR/"
+
+# 4b. helpers → /custom-services.d/helpers/
+if [[ -d "$TMP_DIR/Arrbit-main/universal/helpers" ]]; then
+  cp -rf "$TMP_DIR/Arrbit-main/universal/helpers/"* "$HELPERS_DIR/"
 fi
 
-# ----------------------------------------------------------------------------
-# 4. PLUGINS SERVICE
-# ----------------------------------------------------------------------------
-if [[ "$(getFlag ENABLE_PLUGINS || echo true)" == "true" ]]; then  
-  if [ -x "$SERVICES_DIR/plugins.bash" ]; then
-    bash "$SERVICES_DIR/plugins.bash"
+# 4c. connectors → /custom-services.d/connectors/
+if [[ -d "$TMP_DIR/Arrbit-main/universal/connectors" ]]; then
+  cp -rf "$TMP_DIR/Arrbit-main/universal/connectors/"* "$CONNECTORS_DIR/"
+fi
+
+chmod -R 777 "$SERVICE_DIR"
+log "📋  $ARRBIT_TAG Modules, helpers & connectors copied."
+
+# ----- Strip .bash from service scripts -----
+if [[ -d "$SERVICE_DIR/services" ]]; then
+  for f in "$SERVICE_DIR/services/"*.bash; do
+    [[ -e "$f" ]] || break           # nothing to rename
+    mv "$f" "${f%.bash}" && chmod 777 "${f%.bash}"
+  done
+fi
+
+# ------------------ 5. COPY SETUP SCRIPTS ------------------
+for setup_script in start.bash dependencies.bash; do
+  src="$TMP_DIR/Arrbit-main/lidarr/setup_scripts/$setup_script"
+  if [[ -f "$src" ]]; then
+    cp -f "$src" "$SETUP_DIR/"
+    chmod 777 "$SETUP_DIR/$setup_script"
+    log "📋  $ARRBIT_TAG $setup_script copied."
   else
-    arrbitLog "⚠️   [Arrbit] plugins.bash not found or not executable; skipping."
+    log "⚠️  $ARRBIT_TAG $setup_script not found; skipping."
   fi
-fi
+done
 
-# ----------------------------------------------------------------------------
-# 5. AUTOCONFIG SERVICE
-# ----------------------------------------------------------------------------
-if [[ "$(getFlag ENABLE_AUTOCONFIG || echo true)" == "true" ]]; then  
-  if [ -x "$SERVICES_DIR/autoconfig.bash" ]; then
-    bash "$SERVICES_DIR/autoconfig.bash"
-  else
-    arrbitLog "⚠️   [Arrbit] autoconfig.bash not found or not executable; skipping."
+# ------------------ 6. COPY CONFIG FILES (IF MISSING) ------------------
+for cfg in arrbit-config.conf beets-config.yaml; do
+  src_cfg="$TMP_DIR/Arrbit-main/lidarr/config/$cfg"
+  if [[ -f "$src_cfg" && ! -f "$CONFIG_DIR/$cfg" ]]; then
+    cp "$src_cfg" "$CONFIG_DIR/"
+    chmod 666 "$CONFIG_DIR/$cfg"
+    log "💾  $ARRBIT_TAG $cfg saved."
   fi
-fi
+done
 
-# ----------------------------------------------------------------------------
-# 6. WRAP UP
-# ----------------------------------------------------------------------------
-arrbitLog "✅  [Arrbit] All services processed."
+# ------------------ 7. CLEANUP & FINAL PERMISSIONS ------------------
+rm -rf "$TMP_DIR"
+chmod -R 777 "$LOG_DIR" "$CONFIG_DIR" "$SERVICE_DIR" "$SETUP_DIR" || true
+log "✅  $ARRBIT_TAG Setup complete. Log saved to $log_file_path"
 
+# ------------------ 8. HOLD CONTAINER ------------------
 sleep infinity
