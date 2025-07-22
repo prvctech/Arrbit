@@ -62,8 +62,7 @@ else
     parallel \
     npm \
     ripgrep >> "$LOG_FILE" 2>&1
-
-  echo "[Arrbit] installing AtomicParsley ..." | tee -a "$LOG_FILE"
+  
   apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/testing atomicparsley >> "$LOG_FILE" 2>&1
 
   echo "[Arrbit] installing Python packages (uv) ..." | tee -a "$LOG_FILE"
