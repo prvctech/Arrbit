@@ -47,8 +47,7 @@ apk add -U --upgrade --no-cache \
   libc-dev \
   uv \
   parallel \
-  npm \
-  perl \
+  npm \  
   ripgrep
 
 echo "[Arrbit] installing AtomicParsley ..."
@@ -74,7 +73,7 @@ uv pip install --system --upgrade --no-cache-dir --break-system-packages \
 # ------------------ 5. DOWNLOAD & UNZIP REPO ------------------
 echo "[Arrbit] downloading Arrbit repository ..."
 curl -sfL "$GITHUB_REPO/archive/refs/heads/$GITHUB_BRANCH.zip" -o "$TMP_DIR/arrbit.zip"
-echo "Arrbit: extracting repository ..."
+echo "[Arrbit] extracting repository ..."
 unzip -q "$TMP_DIR/arrbit.zip" -d "$TMP_DIR"
 
 # ------------------ 6. COPY CODE ------------------
@@ -89,7 +88,7 @@ if [ -d "$TMP_DIR/Arrbit-main/universal/connectors" ]; then
 fi
 
 chmod -R 777 "$SERVICE_DIR"
-echo "Arrbit: modules, helpers, and connectors copied."
+echo "[Arrbit] modules, helpers, and connectors copied."
 
 # ----- Strip .bash from service scripts -----
 if [ -d "$SERVICE_DIR/services" ]; then
@@ -106,7 +105,7 @@ for setup_script in start.bash dependencies.bash; do
   if [ -f "$src" ]; then
     cp -f "$src" "$SETUP_DIR/"
     chmod 777 "$SETUP_DIR/$setup_script"
-    echo "Arrbit: $setup_script copied."
+    echo "[Arrbit] $setup_script copied."
   fi
 done
 
@@ -116,7 +115,7 @@ for cfg in arrbit-config.conf beets-config.yaml; do
   if [ -f "$src_cfg" ] && [ ! -f "$CONFIG_DIR/$cfg" ]; then
     cp "$src_cfg" "$CONFIG_DIR/"
     chmod 666 "$CONFIG_DIR/$cfg"
-    echo "Arrbit: $cfg saved to config directory."
+    echo "[Arrbit] $cfg saved to config directory."
   fi
 done
 
@@ -124,7 +123,7 @@ done
 rm -rf "$TMP_DIR"
 chmod -R 777 "$LOG_DIR" "$CONFIG_DIR" "$SERVICE_DIR" "$SETUP_DIR" || true
 echo "[Arrbit] setup complete."
-echo "[Arrbit] See your config settings to enable Arrbit, everything if off by default."
+echo "[Arrbit] See your config settings to enable Arrbit, everything is off by default."
 
 # ------------------ 10. HOLD CONTAINER ------------------
 sleep infinity
