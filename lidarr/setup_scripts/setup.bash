@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - setup
-# Version : v3.1
+# Version : v3.2
 # Purpose : Quietly installs all Arrbit files into /config/arrbit (flattened structure)
 # -------------------------------------------------------------------------------------------------------------
 
@@ -15,7 +15,7 @@ ARRBIT_CONF="$SERVICE_DIR/config/arrbit-config.conf"
 mkdir -p "$TMP_DIR" "$SERVICE_DIR"
 cd "$TMP_DIR"
 curl -fsSL -o arrbit.zip "$ZIP_URL"
-unzip -q arrbit.zip
+unzip -oq arrbit.zip
 
 # Copy universal folders
 cp -r "$TMP_DIR/Arrbit-main/universal/helpers"     "$SERVICE_DIR/helpers"
