@@ -15,7 +15,7 @@ CONFIG_FILE_LEGACY="$ARRBIT_ROOT/arrbit-config.conf"          # pre-v3.0 layout 
 LOG_DIR="/config/logs"
 LOG_FILE="$LOG_DIR/arrbit-run-$(date '+%Y_%m_%d-%H_%M').log"
 
-DEPENDENCIES_SCRIPT="/config/setup/dependencies.bash"
+DEPENDENCIES_SCRIPT="/config/arrbit/setup/dependencies.bash"
 REMOTE_SETUP_URL="https://raw.githubusercontent.com/prvctech/Arrbit/refs/heads/main/lidarr/setup_scripts/setup.bash"
 
 PLUGINS_SCRIPT_LOCAL="$ARRBIT_ROOT/services/plugins.bash"
