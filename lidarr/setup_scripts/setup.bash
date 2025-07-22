@@ -1,34 +1,35 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - setup
-# Version : v2.4
-# Purpose : Quietly install all core Arrbit folders into /config/arrbit (no logs, no colours).
+# Version : v2.3
+# Purpose : Quietly installs Arrbit files from GitHub zip to /config/arrbit
 # -------------------------------------------------------------------------------------------------------------
 
 set -euo pipefail
 
-DEST="/config/arrbit"
-TMP="/tmp/arrbit_dl_$$"
+DEST_DIR="/config/arrbit"
+TMP_DIR="/tmp/arrbit_dl_$$"
 ZIP_URL="https://github.com/prvctech/Arrbit/archive/refs/heads/main.zip"
-CONF_WARN="$DEST/config/arrbit-config.conf"
+ARRBIT_CONF="$DEST_DIR/config/arrbit-config.conf"
 
-mkdir -p "$DEST" "$TMP"
-curl -fsSL "$ZIP_URL" -o "$TMP/repo.zip"
-unzip -q "$TMP/repo.zip" -d "$TMP"
+mkdir -p "$TMP_DIR" "$DEST_DIR"
+cd "$TMP_DIR"
+curl -fsSL -o arrbit.zip "$ZIP_URL"
+unzip -q arrbit.zip
 
-SRC="$TMP/Arrbit-main/lidarr"
+# Copy top-level helpers and connectors from universal/
+cp -r "$TMP_DIR/Arrbit-main/universal/helpers"     "$DEST_DIR/helpers"
+cp -r "$TMP_DIR/Arrbit-main/universal/connectors"  "$DEST_DIR/connectors"
 
-cp -rf "$SRC/helpers"                    "$DEST/"
-cp -rf "$SRC/connectors"                 "$DEST/"
-cp -rf "$SRC/process_scripts/modules"    "$DEST/modules"
-cp -rf "$SRC/process_scripts/services"   "$DEST/services"
-cp -rf "$SRC/process_scripts/setup_scripts" "$DEST/setup"
-cp -rf "$SRC/config"                     "$DEST/config"
+# Copy lidarr scripts and config folders
+cp -r "$TMP_DIR/Arrbit-main/lidarr/process_scripts/modules"       "$DEST_DIR/process_scripts/modules"
+cp -r "$TMP_DIR/Arrbit-main/lidarr/process_scripts/services"      "$DEST_DIR/process_scripts/services"
+cp -r "$TMP_DIR/Arrbit-main/lidarr/process_scripts/setup_scripts" "$DEST_DIR/process_scripts/setup_scripts"
+cp -r "$TMP_DIR/Arrbit-main/lidarr/config"                        "$DEST_DIR/config"
 
-chmod -R 777 "$DEST"
-rm -rf "$TMP"
+chmod -R 777 "$DEST_DIR"
 
-[ -f "$CONF_WARN" ] || echo "[Arrbit] See config settings to enable Arrbit, everything is off by default."
+[[ -f "$ARRBIT_CONF" ]] || echo "[Arrbit] See config settings to enable Arrbit, everything is off by default."
 
 sleep infinity
 exit 0
