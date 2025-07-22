@@ -144,4 +144,4 @@ echo "[Arrbit] Setup complete – log saved in $LOG_DIR"
 echo "[Arrbit] See config settings to enable Arrbit, everything is off by default."
 
 # ------------------ HOLD CONTAINER ------------------
-sleep infinity
+exit 0
