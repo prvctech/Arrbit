@@ -1,1 +1,42 @@
-.
+#!/usr/bin/env bash
+# -------------------------------------------------------------------------------------------------------------
+# Arrbit - run (service orchestrator)
+# Version: v1.0
+# Purpose: Silent controller that conditionally launches plugins and autoconfig services based on config flags.
+# -------------------------------------------------------------------------------------------------------------
+
+set -euo pipefail
+
+CFG="/config/arrbit/arrbit-config.conf"
+SERVICES_DIR="/custom-services.d/services"
+
+# Helper: fetch flag value, return lower-case string or empty
+get_flag() {
+  grep -E "^$1=" "$CFG" 2>/dev/null | tail -n1 | cut -d '=' -f2 | tr '[:upper:]' '[:lower:]'
+}
+
+# 1. Check master switch
+if [[ "$(get_flag ENABLE_ARRBIT)" != "true" ]]; then
+  sleep infinity
+  exit 0
+fi
+
+# 2. Launch plugins service (if enabled)
+if [[ "$(get_flag ENABLE_PLUGINS)" == "true" ]]; then
+  if [[ -x "$SERVICES_DIR/plugins" ]]; then
+    "$SERVICES_DIR/plugins"
+  elif [[ -x "$SERVICES_DIR/plugins.bash" ]]; then
+    bash "$SERVICES_DIR/plugins.bash"
+  fi
+fi
+
+# 3. Launch autoconfig service (if enabled)
+if [[ "$(get_flag ENABLE_AUTOCONFIG)" == "true" ]]; then
+  if [[ -x "$SERVICES_DIR/autoconfig.bash" ]]; then
+    bash "$SERVICES_DIR/autoconfig.bash"
+  elif [[ -x "$SERVICES_DIR/autoconfig" ]]; then
+    "$SERVICES_DIR/autoconfig"
+  fi
+fi
+
+exit 0
