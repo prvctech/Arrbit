@@ -1,96 +1,103 @@
 #!/usr/bin/env bash
-#
-# Arrbit Module - Register tagger.bash as Lidarr custom script
-# Version: v2.0
-# Author: prvctech
-# ---------------------------------------------
+# -------------------------------------------------------------------------------------------------------------
+# Arrbit custom_scripts.bash
+# Version: v2.1
+# Purpose: Register tagger.bash as Lidarr custom script (Golden Standard compliant).
+# -------------------------------------------------------------------------------------------------------------
 
-set -euo pipefail
+# === ARRBIT "TRINITY" HELPERS ===
+source /etc/services.d/arrbit/helpers/helpers.bash
+source /etc/services.d/arrbit/helpers/logging_utils.bash
+source /etc/services.d/arrbit/helpers/error_utils.bash
 
-source /config/arrbit/process_scripts/functions.bash
+SCRIPT_NAME="custom_scripts"
+SCRIPT_VERSION="v2.1"
+LOG_DIR="/config/logs"
+log_file_path="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
+CYAN="\033[1;36m"
+RESET="\033[0m"
+MODULE_YELLOW="\033[1;33m"
 
-rawScriptName="$(basename "${BASH_SOURCE[0]}" .bash)"
-scriptName="${rawScriptName//_/ } module"
-scriptVersion="v2.0"
+mkdir -p "$LOG_DIR"
+find "$LOG_DIR" -type f -iname "arrbit-${SCRIPT_NAME}-*.log" -mtime +5 -delete
+touch "$log_file_path"
+chmod 777 "$log_file_path"
 
-logfileSetup() {
-  timestamp=$(date +"%Y_%m_%d-%H_%M")
-  logFileName="arrbit-${rawScriptName}-${timestamp}.log"
-  logFilePath="/config/logs/${logFileName}"
-  mkdir -p /config/logs
-  find "/config/logs" -type f -iname "arrbit-${rawScriptName}-*.log" -mtime +5 -delete
-  touch "$logFilePath"
-  chmod 666 "$logFilePath"
-}
+arrbitLog "🚀  ${ARRBIT_TAG} Starting ${MODULE_YELLOW}custom_scripts module${RESET} ${SCRIPT_VERSION}..."
 
-log() {
-  echo -e "$1"
-  logRaw "$1"
-}
+# ------------------------------------------------------------------------
+# Connect to arr_bridge.bash (waits for API)
+# ------------------------------------------------------------------------
+if ! source /etc/services.d/arrbit/connectors/arr_bridge.bash; then
+  arrbitErrorLog "❌  " \
+    "${CYAN}[Arrbit]${RESET} Could not source arr_bridge.bash" \
+    "arr_bridge.bash missing" \
+    "${SCRIPT_NAME}.bash" \
+    "${SCRIPT_NAME}:${LINENO}" \
+    "Required for API access" \
+    "Check Arrbit setup"
+  exit 1
+fi
 
-logRaw() {
-  local stripped
-  stripped=$(echo -e "$1" \
-    | sed -E 's/\x1B\[[0-9;]*[a-zA-Z]//g' \
-    | sed -E 's/\\033\[[0-9;]*m//g' \
-    | sed -E 's/[🔵🟢⚠️📥📄⏩🚀✅❌🔧🔴🟪🟦🟩🟥]//g' \
-    | sed -E 's/\\n/\n/g' \
-    | sed -E 's/^[[:space:]]+\[Arrbit\]/[Arrbit]/')
-  echo "$stripped" >> "$logFilePath"
-}
+# ------------------------------------------------------------------------
+# Check CONFIGURE_CUSTOM_SCRIPTS (always use flag helpers)
+# ------------------------------------------------------------------------
+CFG_FLAG=$(getFlag "CONFIGURE_CUSTOM_SCRIPTS")
+: "${CFG_FLAG:=true}"
 
-logfileSetup
-log "🚀  ${ARRBIT_TAG} Starting \033[1;33m${scriptName}\033[0m ${scriptVersion}..."
+if [[ "${CFG_FLAG,,}" != "true" ]]; then
+  arrbitLog "⏩  ${ARRBIT_TAG} Skipping custom_scripts module (flag disabled)"
+  exit 0
+fi
 
-# Connect to Lidarr
-getArrAppInfo
-verifyApiAccess
-
+# ------------------------------------------------------------------------
 # Check if already registered
-if ! curl -s "${arrUrl}/api/${arrApiVersion}/notification?apikey=${arrApiKey}" \
-  | jq -e '.[] | select(.name=="arrbit-tagger")' >/dev/null; then
+# ------------------------------------------------------------------------
+if ! curl -s "${arrUrl}/api/${arrApiVersion}/notification?apikey=${arrApiKey}" | jq -e '.[] | select(.name=="arrbit-tagger")' >/dev/null; then
+  arrbitLog "📥  ${ARRBIT_TAG} Registering arrbit-tagger script"
 
-  log "📥  ${ARRBIT_TAG} Registering arrbit-tagger script"
+  payload='{
+    "name": "arrbit-tagger",
+    "implementation": "CustomScript",
+    "configContract": "CustomScriptSettings",
+    "onReleaseImport": true,
+    "onUpgrade": true,
+    "fields": [
+      { "name": "path", "value": "/config/arrbit/process_scripts/tagger.bash" }
+    ]
+  }'
 
-  payload=$(cat <<EOF
-{
-  "name": "arrbit-tagger",
-  "implementation": "CustomScript",
-  "configContract": "CustomScriptSettings",
-  "onReleaseImport": true,
-  "onUpgrade": true,
-  "fields": [
-    { "name": "path", "value": "/config/arrbit/process_scripts/tagger.bash" }
-  ]
-}
-EOF
-)
-
-  logRaw "[Arrbit] Registering arrbit-tagger"
-  logRaw "[Payload] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-  echo "$payload" >> "$logFilePath"
-  logRaw "[/Payload] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+  # Log payload and response only to file
+  echo "[Arrbit] Registering arrbit-tagger" >> "$log_file_path"
+  echo "[Payload]" >> "$log_file_path"
+  echo "$payload" >> "$log_file_path"
+  echo "[/Payload]" >> "$log_file_path"
 
   response=$(curl -s -X POST "${arrUrl}/api/${arrApiVersion}/notification?apikey=${arrApiKey}" \
     -H "Content-Type: application/json" \
     --data-raw "$payload")
 
-  logRaw "[Response] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-  echo "$response" >> "$logFilePath"
-  logRaw "[/Response] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+  echo "[Response]" >> "$log_file_path"
+  echo "$response" >> "$log_file_path"
+  echo "[/Response]" >> "$log_file_path"
 
   if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
-    logRaw "[SUCCESS] arrbit-tagger registered"
+    echo "[SUCCESS] arrbit-tagger registered" >> "$log_file_path"
   else
-    log "⚠️  ${ARRBIT_TAG} Failed to register arrbit-tagger script"
-    logRaw "[ERROR] Failed to register arrbit-tagger"
+    arrbitErrorLog "⚠️  " \
+      "${CYAN}[Arrbit]${RESET} Failed to register arrbit-tagger script" \
+      "register arrbit-tagger POST failed" \
+      "${SCRIPT_NAME}.bash" \
+      "${SCRIPT_NAME}:${LINENO}" \
+      "Tagger script registration failed" \
+      "Check API connectivity and payload"
+    echo "[ERROR] Failed to register arrbit-tagger" >> "$log_file_path"
   fi
-
 else
-  log "⏩  ${ARRBIT_TAG} arrbit-tagger already registered; skipping"
-  logRaw "[SKIP] arrbit-tagger already exists"
+  arrbitLog "⏩  ${ARRBIT_TAG} arrbit-tagger already registered; skipping"
+  echo "[SKIP] arrbit-tagger already exists" >> "$log_file_path"
 fi
 
-log "📄  ${ARRBIT_TAG} Log saved to /config/logs/${logFileName}"
-log "✅  ${ARRBIT_TAG} Custom script has been registered successfully"
+arrbitLog "✅  ${ARRBIT_TAG} Done with custom_scripts module!"
 exit 0
