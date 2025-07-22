@@ -1,36 +1,113 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
-# Arrbit - run
-# Version : v1.0
-# Purpose : Orchestrates plugins/autoconfig by fetching remote scripts from GitHub.
+# Arrbit - run module
+# Version : v1.2
+# Purpose : Entry-point orchestrator – installs dependencies, runs remote setup.bash,
+#           then launches local services (plugins, autoconfig) according to config flags.
 # -------------------------------------------------------------------------------------------------------------
 
 set -euo pipefail
 
-# ---------------- paths ----------------
-CONFIG_FILE="/config/arrbit/arrbit-config.conf"
-GITHUB_RAW="https://raw.githubusercontent.com/prvctech/Arrbit/refs/heads/main/lidarr/process_scripts/services"
+# ----------------------------- constants / globals -----------------------------------------------------------
+ARRBIT_ROOT="/config/arrbit"
+CONFIG_FILE_PRIMARY="$ARRBIT_ROOT/config/arrbit-config.conf"
+CONFIG_FILE_LEGACY="$ARRBIT_ROOT/arrbit-config.conf"          # pre-v3.0 layout fallback
+LOG_DIR="/config/logs"
+LOG_FILE="$LOG_DIR/arrbit-run-$(date '+%Y_%m_%d-%H_%M').log"
 
-# ---------------- checks ----------------
-[[ ! -f "$CONFIG_FILE" ]] && sleep infinity && exit 0
+DEPENDENCIES_SCRIPT="/custom-services.d/setup/dependencies.bash"
+REMOTE_SETUP_URL="https://raw.githubusercontent.com/prvctech/Arrbit/refs/heads/main/lidarr/setup_scripts/setup.bash"
 
-get_flag() {
-  awk -F '=' -v k="$1" '$1 ~ k {gsub(/[[:space:]]/, "", $2); print tolower($2)}' "$CONFIG_FILE"
-}
+PLUGINS_SCRIPT_LOCAL="$ARRBIT_ROOT/services/plugins.bash"
+AUTOCONFIG_SCRIPT_LOCAL="$ARRBIT_ROOT/services/autoconfig.bash"
 
-# ---------------- logic ----------------
-if [[ "$(get_flag ENABLE_ARRBIT)" != "true" ]]; then
-  sleep infinity
-  exit 0
+# ANSI colours – only the very first echo is colourised
+CYAN='\033[0;36m'; YELLOW='\033[0;33m'; NC='\033[0m'
+
+# ----------------------------- logging setup -----------------------------------------------------------------
+mkdir -p "$LOG_DIR"
+# tee: everything (stdout & stderr) goes both to console and logfile
+exec > >(tee -a "$LOG_FILE") 2>&1
+
+printf "${CYAN}[Arrbit]${NC} ${YELLOW}run module${NC} v1.2 starting …\n"
+
+# ----------------------------- 0. install prerequisites ------------------------------------------------------
+if [[ -x "$DEPENDENCIES_SCRIPT" ]]; then
+  echo "[Arrbit] Running dependencies setup ..."
+  bash "$DEPENDENCIES_SCRIPT"
+  echo "[Arrbit] Dependencies completed."
+else
+  echo "[Arrbit] ERROR: dependencies script not found/executable at $DEPENDENCIES_SCRIPT" >&2
+  exit 1
 fi
 
+# ----------------------------- 1. fetch & execute remote setup ----------------------------------------------
+echo "[Arrbit] Fetching and executing remote setup.bash ..."
+if ! curl --fail --silent --show-error "$REMOTE_SETUP_URL" | bash; then
+  echo "[Arrbit] ERROR: remote setup.bash failed." >&2
+  exit 1
+fi
+echo "[Arrbit] Remote setup complete."
+
+# ----------------------------- 2. source helpers -------------------------------------------------------------
+HELPERS_PATH="$ARRBIT_ROOT/helpers/helpers.bash"
+LOGGING_UTILS_PATH="$ARRBIT_ROOT/helpers/logging_utils.bash"
+
+if [[ -f "$HELPERS_PATH" && -f "$LOGGING_UTILS_PATH" ]]; then
+  # shellcheck source=/dev/null
+  source "$LOGGING_UTILS_PATH"
+  # shellcheck source=/dev/null
+  source "$HELPERS_PATH"
+else
+  echo "[Arrbit] ERROR: helper libraries missing after setup." >&2
+  exit 1
+fi
+
+# ----------------------------- 3. locate config --------------------------------------------------------------
+if [[ -f "$CONFIG_FILE_PRIMARY" ]]; then
+  CONFIG_FILE="$CONFIG_FILE_PRIMARY"
+elif [[ -f "$CONFIG_FILE_LEGACY" ]]; then
+  CONFIG_FILE="$CONFIG_FILE_LEGACY"
+else
+  echo "[Arrbit] ERROR: arrbit-config.conf not found." >&2
+  exit 1
+fi
+
+# ----------------------------- 4. helper :: fallback get_flag -----------------------------------------------
+# (helpers.bash normally provides get_flag; if not present, define lightweight fallback)
+if ! command -v get_flag >/dev/null 2>&1; then
+  get_flag() {
+    local key="$1"
+    awk -F '=' -v k="$key" '$1 ~ k {gsub(/[[:space:]]/, "", $2); print tolower($2)}' "$CONFIG_FILE"
+  }
+fi
+
+# ----------------------------- 5. conditional service launches ----------------------------------------------
+echo "[Arrbit] Reading config flags from $CONFIG_FILE ..."
+
 if [[ "$(get_flag ENABLE_PLUGINS)" == "true" ]]; then
-  bash <(curl -fsSL "$GITHUB_RAW/plugins.bash")
+  if [[ -x "$PLUGINS_SCRIPT_LOCAL" ]]; then
+    echo "[Arrbit] ➜ Launching plugins.bash ..."
+    bash "$PLUGINS_SCRIPT_LOCAL"
+    echo "[Arrbit] plugins.bash finished."
+  else
+    echo "[Arrbit] WARNING: plugins.bash not found at $PLUGINS_SCRIPT_LOCAL"
+  fi
 fi
 
 if [[ "$(get_flag ENABLE_AUTOCONFIG)" == "true" ]]; then
-  curl -fsSL "$GITHUB_RAW/autoconfig.bash" | bash >/dev/null 2>&1
+  if [[ -x "$AUTOCONFIG_SCRIPT_LOCAL" ]]; then
+    echo "[Arrbit] ➜ Launching autoconfig.bash ..."
+    bash "$AUTOCONFIG_SCRIPT_LOCAL"
+    echo "[Arrbit] autoconfig.bash finished."
+  else
+    echo "[Arrbit] WARNING: autoconfig.bash not found at $AUTOCONFIG_SCRIPT_LOCAL"
+  fi
 fi
 
+# ---- future flags placeholder -------------------------------------------------------------------------------
+# Add more service blocks here as new flags are introduced.
+
+# ----------------------------- end ---------------------------------------------------------------------------
+echo "[Arrbit] All requested services executed. Sleeping indefinitely."
 sleep infinity
-exit 0
