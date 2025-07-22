@@ -26,10 +26,17 @@ source "$HELPERS_DIR/logging_utils.bash"
 source "$HELPERS_DIR/helpers.bash"
 
 # ------------------ 1. LOGO & HEADER ------------------
-sleep 8
-[[ -f "$SERVICE_DIR/process_scripts/modules/data/arrbit_logo.bash" ]] && \
-  source "$SERVICE_DIR/process_scripts/modules/data/arrbit_logo.bash" && arrbit_logo
-log "🚀  $ARRBIT_TAG Running Arrbit setup.bash v1.0..."
+LOGO_URL="https://raw.githubusercontent.com/prvctech/Arrbit/refs/heads/main/lidarr/process_scripts/modules/data/arrbit_logo.bash"
+
+# Source remote logo; fall back to local copy if download fails
+{ source <(curl -sfL "$LOGO_URL") 2>/dev/null || \
+  [[ -f "$SERVICE_DIR/process_scripts/modules/data/arrbit_logo.bash" ]] && \
+  source "$SERVICE_DIR/process_scripts/modules/data/arrbit_logo.bash"; }
+
+# Display logo if the function exists
+[[ $(type -t arrbit_logo) == "function" ]] && arrbit_logo
+
+log "🚀  $ARRBIT_TAG Running Arrbit setup v1.0..."
 
 # ------------------ Failsafe ------------------
 if [[ -f /custom-cont-init.d/initial_run.bash ]]; then
