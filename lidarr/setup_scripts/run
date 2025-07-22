@@ -39,4 +39,4 @@ if [[ "$(get_flag ENABLE_AUTOCONFIG)" == "true" ]]; then
   fi
 fi
 
-exit 0
+exit
