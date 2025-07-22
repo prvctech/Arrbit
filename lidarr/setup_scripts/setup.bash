@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-scriptVersion="1.4"                       # bump this whenever the dependency list changes
+scriptVersion="1.5"                       # bump this whenever the dependency list changes
 
 # ------------------ ENV & PATHS ------------------
 GITHUB_REPO="https://github.com/prvctech/Arrbit"
