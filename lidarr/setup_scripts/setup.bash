@@ -1,33 +1,33 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - setup
-# Version : v2.3
-# Purpose : Quietly installs Arrbit files from GitHub zip to /config/arrbit
+# Version : v3.1
+# Purpose : Quietly installs all Arrbit files into /config/arrbit (flattened structure)
 # -------------------------------------------------------------------------------------------------------------
 
 set -euo pipefail
 
-DEST_DIR="/config/arrbit"
+SERVICE_DIR="/config/arrbit"
 TMP_DIR="/tmp/arrbit_dl_$$"
 ZIP_URL="https://github.com/prvctech/Arrbit/archive/refs/heads/main.zip"
-ARRBIT_CONF="$DEST_DIR/config/arrbit-config.conf"
+ARRBIT_CONF="$SERVICE_DIR/config/arrbit-config.conf"
 
-mkdir -p "$TMP_DIR" "$DEST_DIR"
+mkdir -p "$TMP_DIR" "$SERVICE_DIR"
 cd "$TMP_DIR"
 curl -fsSL -o arrbit.zip "$ZIP_URL"
 unzip -q arrbit.zip
 
-# Copy top-level helpers and connectors from universal/
-cp -r "$TMP_DIR/Arrbit-main/universal/helpers"     "$DEST_DIR/helpers"
-cp -r "$TMP_DIR/Arrbit-main/universal/connectors"  "$DEST_DIR/connectors"
+# Copy universal folders
+cp -r "$TMP_DIR/Arrbit-main/universal/helpers"     "$SERVICE_DIR/helpers"
+cp -r "$TMP_DIR/Arrbit-main/universal/connectors"  "$SERVICE_DIR/connectors"
 
-# Copy lidarr scripts and config folders
-cp -r "$TMP_DIR/Arrbit-main/lidarr/process_scripts/modules"       "$DEST_DIR/modules"
-cp -r "$TMP_DIR/Arrbit-main/lidarr/process_scripts/services"      "$DEST_DIR/services"
-cp -r "$TMP_DIR/Arrbit-main/lidarr/process_scripts/setup_scripts" "$DEST_DIR/setup_scripts"
-cp -r "$TMP_DIR/Arrbit-main/lidarr/config"                        "$DEST_DIR/config"
+# Copy lidarr folders into flattened structure
+cp -r "$TMP_DIR/Arrbit-main/lidarr/config"                         "$SERVICE_DIR/config"
+cp -r "$TMP_DIR/Arrbit-main/lidarr/process_scripts/modules"        "$SERVICE_DIR/modules"
+cp -r "$TMP_DIR/Arrbit-main/lidarr/process_scripts/services"       "$SERVICE_DIR/services"
+cp -r "$TMP_DIR/Arrbit-main/lidarr/process_scripts/setup_scripts"  "$SERVICE_DIR/setup"
 
-chmod -R 777 "$DEST_DIR"
+chmod -R 777 "$SERVICE_DIR"
 
 [[ -f "$ARRBIT_CONF" ]] || echo "[Arrbit] See config settings to enable Arrbit, everything is off by default."
 
