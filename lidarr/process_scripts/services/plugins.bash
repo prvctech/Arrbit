@@ -1,107 +1,81 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
-# Arrbit [plugins]
-# Version: v2.6
-# Purpose: Install community plugins for Lidarr (Tidal, Deezer, Tubifarry)
+# Arrbit - plugins
+# Version : v3.3
+# Purpose : Install / update Deezer, Tidal and Tubifarry plug-ins for Lidarr.
 # -------------------------------------------------------------------------------------------------------------
 
-# === ARRBIT "TRINITY" HELPERS ===
-source /etc/services.d/arrbit/helpers/helpers.bash
-source /etc/services.d/arrbit/helpers/logging_utils.bash
-source /etc/services.d/arrbit/helpers/error_utils.bash
+set -euo pipefail
 
-SCRIPT_NAME="plugins"
-SCRIPT_VERSION="v2.6"
-SERVICE_DIR="/etc/services.d/arrbit"
-CONFIG_DIR="/config/arrbit"
-LOG_DIR="/config/logs"
+# -------- paths & constants ---------------------------------------------------------
+SERVICE_DIR="/custom-services.d"
+HELPERS_DIR="$SERVICE_DIR/helpers"
 PLUGINS_DIR="/config/plugins"
-log_file_path="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+LOG_DIR="/config/logs"
+SCRIPT_NAME="plugins"
+SCRIPT_VERSION="v3.3"
+LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
-ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
-SERVICE_YELLOW="\033[1;33m"
-PLUGIN_PURPLE="\033[1;35m"
-
-# ----------------------------------------------------------------------------
-# 1. INIT: Prepare directories and permissions
-# ----------------------------------------------------------------------------
+# -------- helpers & colours ---------------------------------------------------------
 mkdir -p "$LOG_DIR" "$PLUGINS_DIR"
-# Ensure plugin and service scripts are executable
-find "/etc/services.d/arrbit/services" -type f -name "*.bash" -exec chmod +x {} \;
+touch "$LOG_FILE" ; chmod 777 "$LOG_FILE"
 
-touch "$log_file_path"
-chmod 777 "$log_file_path"
+# shellcheck source=/dev/null
+source "$HELPERS_DIR/logging_utils.bash"
 
-# ----------------------------------------------------------------------------
-# 2. STARTUP & MASTER FLAG
-# ----------------------------------------------------------------------------
-arrbitLog "🚀  ${ARRBIT_TAG} Starting ${SERVICE_YELLOW}${SCRIPT_NAME} service\033[0m ${SCRIPT_VERSION}"
-if [ ! -r "$CONFIG_DIR/arrbit-config.conf" ]; then
-  arrbitLog "⚠️   ${ARRBIT_TAG} Config file missing; skipping ${SERVICE_YELLOW}${SCRIPT_NAME}\033[0m."
-  exit 0
-fi
+arrbitPurgeOldLogs 2
 
-ENABLE_PLUGINS=$(getFlag "ENABLE_PLUGINS")
-: "${ENABLE_PLUGINS:=true}"
-if [[ "${ENABLE_PLUGINS,,}" != "true" ]]; then
-  arrbitLog "⏩  ${ARRBIT_TAG} Plugin install is disabled; skipping ${SERVICE_YELLOW}${SCRIPT_NAME}\033[0m."
-  exit 0
-fi
+CYAN='\033[36m'
+PURPLE='\033[35m'
+YELLOW='\033[33m'
+NC='\033[0m'
 
-# ----------------------------------------------------------------------------
-# 3. HELPER FUNCTIONS
-# ----------------------------------------------------------------------------
-has_dll() {
-  shopt -s nullglob
-  local files=("$1"/*.dll)
-  (( ${#files[@]} > 0 ))
+log() {                             # $1 terminal text (may contain colour)
+  local plain="[Arrbit] ${2:-${1//\033\[[0-9;]*[mK]}}"   # strip colour for log if alt plain not given
+  echo -e "${CYAN}[Arrbit]${NC} $1"
+  printf '%s\n' "$plain" | arrbitLogClean >> "$LOG_FILE"
 }
 
-print_unzip_clean() {
-  while IFS= read -r line; do
-    [[ "$line" =~ ^Archive:\ (.*) ]]   && arrbitLog "📦  ${ARRBIT_TAG} Archive:    ${BASH_REMATCH[1]}"
-    [[ "$line" =~ ^\ +inflating:\ (.*) ]] && arrbitLog "📁  ${ARRBIT_TAG} Inflating:  ${BASH_REMATCH[1]}"
-  done
-}
+# -------- startup banner ------------------------------------------------------------
+log "Starting ${YELLOW}plugins service${NC} ${SCRIPT_VERSION}"
 
-# ----------------------------------------------------------------------------
-# 4. INSTALL FUNCTION
-# ----------------------------------------------------------------------------
-install_plugin() {
+# util: already contains any .dll?
+has_dll() { shopt -s nullglob; local f=("$1"/*.dll); (( ${#f[@]} )); }
+
+install_plugin() {            # $1 name  $2 dir  $3 url
   local name="$1" target="$2" url="$3"
+  local coloured="${PURPLE}${name}${NC}"
+  local plain="$name"
+
+  # first status line (coloured once)
   if has_dll "$target"; then
-    arrbitLog "⏩  ${ARRBIT_TAG} ${PLUGIN_PURPLE}${name}\033[0m plugin already installed; skipping"
+    log "$coloured already present – skipping" "[Arrbit] $plain already present – skipping"
     return
   fi
 
-  arrbitLog "🌐  ${ARRBIT_TAG} Downloading ${PLUGIN_PURPLE}${name}\033[0m plugin..."
-  tmpdir=$(mktemp -d)
-  if ! curl -fsSL -o "$tmpdir/${name}.zip" "$url"; then
-    arrbitErrorLog "❌" "[Arrbit] Failed to download ${name}" "download ${name}" "$name" "plugins:${LINENO}" "curl error" "Check URL/network"
-    return
-  fi
+  log "Downloading $coloured …" "[Arrbit] Downloading $plain …"
 
-  arrbitLog "📦  ${ARRBIT_TAG} ${name} archive downloaded."
-  unzip -q "$tmpdir/${name}.zip" -d "$tmpdir" | print_unzip_clean
-  arrbitLog "📥  ${ARRBIT_TAG} Installing ${PLUGIN_PURPLE}${name}\033[0m plugin..."
-  mkdir -p "$target"
-  mv "$tmpdir"/* "$target/"
-  chmod -R 777 "$target"
-  rm -rf "$tmpdir"
-  arrbitLog "✅  ${ARRBIT_TAG} ${PLUGIN_PURPLE}${name}\033[0m plugin installed"
+  tmp=$(mktemp -d)
+  if curl -fsSL -o "$tmp/p.zip" "$url" >>"$LOG_FILE" 2>&1; then
+    unzip -q "$tmp/p.zip" -d "$tmp" >>"$LOG_FILE" 2>&1
+    mkdir -p "$target"
+    mv "$tmp"/* "$target/" && chmod -R 777 "$target"
+    log "$plain installed"
+  else
+    log "Failed to download $plain – skipped"
+  fi
+  rm -rf "$tmp"
 }
 
-# ----------------------------------------------------------------------------
-# 5. PLUGINS INSTALLATION
-# ----------------------------------------------------------------------------
-install_plugin "Deezer"    "$PLUGINS_DIR/TrevTV/Lidarr.Plugin.Deezer"   "https://github.com/TrevTV/Lidarr.Plugin.Deezer/releases/latest/download/Lidarr.Plugin.Deezer.net6.0.zip"
-install_plugin "Tidal"     "$PLUGINS_DIR/TrevTV/Lidarr.Plugin.Tidal"    "https://github.com/TrevTV/Lidarr.Plugin.Tidal/releases/latest/download/Lidarr.Plugin.Tidal.net6.0.zip"
-install_plugin "Tubifarry" "$PLUGINS_DIR/TypNull/Tubifarry"          "https://github.com/TypNull/Tubifarry/releases/download/v1.8.1.1/Tubifarry-v1.8.1.1.net6.0-develop.zip"
+# -------- install list --------------------------------------------------------------
+install_plugin "Deezer"    "$PLUGINS_DIR/TrevTV/Lidarr.Plugin.Deezer" \
+  "https://github.com/TrevTV/Lidarr.Plugin.Deezer/releases/latest/download/Lidarr.Plugin.Deezer.net6.0.zip"
 
-# ----------------------------------------------------------------------------
-# 6. WRAP UP
-# ----------------------------------------------------------------------------
-arrbitLog "📄  ${ARRBIT_TAG} Log saved to $log_file_path"
-arrbitLog "✅  ${ARRBIT_TAG} Done with ${SCRIPT_NAME} service"
+install_plugin "Tidal"     "$PLUGINS_DIR/TrevTV/Lidarr.Plugin.Tidal"  \
+  "https://github.com/TrevTV/Lidarr.Plugin.Tidal/releases/latest/download/Lidarr.Plugin.Tidal.net6.0.zip"
 
+install_plugin "Tubifarry" "$PLUGINS_DIR/TypNull/Tubifarry" \
+  "https://github.com/TypNull/Tubifarry/releases/download/v1.8.1.1/Tubifarry-v1.8.1.1.net6.0-develop.zip"
+
+log "Log saved to $LOG_FILE"
 exit 0
