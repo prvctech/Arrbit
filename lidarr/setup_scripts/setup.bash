@@ -28,12 +28,6 @@ touch "$LOG_FILE"
 # ------------------ HEADER ------------------
 echo "[Arrbit] running setup v${scriptVersion}" | tee -a "$LOG_FILE"
 
-# ------------------ FAILSAFE ------------------
-if [ -f /custom-cont-init.d/initial_run.bash ]; then
-  echo "[Arrbit] initial_run.bash detected in /custom-cont-init.d – halting to avoid conflict." | tee -a "$LOG_FILE"
-  sleep infinity
-fi
-
 # ------------------ CREATE FOLDERS ------------------
 mkdir -p "$SERVICE_DIR" "$HELPERS_DIR" "$CONNECTORS_DIR" "$CONFIG_DIR" "$TMP_DIR"
 chmod -R 777 "$SERVICE_DIR" "$CONFIG_DIR"
