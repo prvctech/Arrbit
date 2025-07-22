@@ -1,53 +1,53 @@
 #!/usr/bin/env bash
-#
-# Arrbit Module - Configure UI Settings
-# Version: v2.0
-# Author: prvctech
-# ---------------------------------------------
+# -------------------------------------------------------------------------------------------------------------
+# Arrbit ui_settings.bash
+# Version: v2.1
+# Purpose: Configure Lidarr UI Settings via API (Golden Standard).
+# -------------------------------------------------------------------------------------------------------------
 
-set -euo pipefail
+# === ARRBIT "TRINITY" HELPERS ===
+source /etc/services.d/arrbit/helpers/helpers.bash
+source /etc/services.d/arrbit/helpers/logging_utils.bash
+source /etc/services.d/arrbit/helpers/error_utils.bash
 
-source /config/arrbit/process_scripts/functions.bash
+SCRIPT_NAME="ui_settings"
+SCRIPT_VERSION="v2.1"
+LOG_DIR="/config/logs"
+log_file_path="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
+CYAN="\033[1;36m"
+RESET="\033[0m"
+MODULE_YELLOW="\033[1;33m"
 
-rawScriptName="$(basename "${BASH_SOURCE[0]}" .bash)"
-scriptName="${rawScriptName//_/ } module"
-scriptVersion="v2.0"
+mkdir -p "$LOG_DIR"
+find "$LOG_DIR" -type f -iname "arrbit-${SCRIPT_NAME}-*.log" -mtime +5 -delete
+touch "$log_file_path"
+chmod 777 "$log_file_path"
 
-logfileSetup() {
-  timestamp=$(date +"%Y_%m_%d-%H_%M")
-  logFileName="arrbit-${rawScriptName}-${timestamp}.log"
-  logFilePath="/config/logs/${logFileName}"
-  mkdir -p /config/logs
-  find "/config/logs" -type f -iname "arrbit-${rawScriptName}-*.log" -mtime +5 -delete
-  touch "$logFilePath"
-  chmod 666 "$logFilePath"
-}
+arrbitLog "🚀  ${ARRBIT_TAG} Starting ${MODULE_YELLOW}ui_settings module${RESET} ${SCRIPT_VERSION}..."
 
-log() {
-  echo -e "$1"
-  logRaw "$1"
-}
+# ------------------------------------------------------------------------
+# Connect to arr_bridge.bash (waits for API)
+# ------------------------------------------------------------------------
+if ! source /etc/services.d/arrbit/connectors/arr_bridge.bash; then
+  arrbitErrorLog "❌  " \
+    "${CYAN}[Arrbit]${RESET} Could not source arr_bridge.bash" \
+    "arr_bridge.bash missing" \
+    "${SCRIPT_NAME}.bash" \
+    "${SCRIPT_NAME}:${LINENO}" \
+    "Required for API access" \
+    "Check Arrbit setup"
+  exit 1
+fi
 
-logRaw() {
-  local stripped
-  stripped=$(echo -e "$1" \
-    | sed -E 's/\x1B\[[0-9;]*[a-zA-Z]//g' \
-    | sed -E 's/\\033\[[0-9;]*m//g' \
-    | sed -E 's/[🔵🟢⚠️📥📄⏩🚀✅❌🔧🔴🟪🟦🟩🟥]//g' \
-    | sed -E 's/\\n/\n/g' \
-    | sed -E 's/^[[:space:]]+\[Arrbit\]/[Arrbit]/')
-  echo "$stripped" >> "$logFilePath"
-}
+# ------------------------------------------------------------------------
+# Check CONFIGURE_UI_SETTINGS (always use flag helpers)
+# ------------------------------------------------------------------------
+CFG_FLAG=$(getFlag "CONFIGURE_UI_SETTINGS")
+: "${CFG_FLAG:=true}"
 
-logfileSetup
-log "🚀  ${ARRBIT_TAG} Starting \033[1;33m${scriptName}\033[0m ${scriptVersion}..."
-
-getArrAppInfo
-verifyApiAccess
-
-if [[ "${CONFIGURE_UI_SETTINGS,,}" == "true" ]]; then
-  log "📥  ${ARRBIT_TAG} Configuring UI Settings..."
-  logRaw "[Arrbit] Configuring UI Settings..."
+if [[ "${CFG_FLAG,,}" == "true" ]]; then
+  arrbitLog "📥  ${ARRBIT_TAG} Configuring UI Settings..."
 
   payload='{
     "firstDayOfWeek": 0,
@@ -67,31 +67,32 @@ if [[ "${CONFIGURE_UI_SETTINGS,,}" == "true" ]]; then
     "id": 1
   }'
 
-  logRaw "[Payload] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-  echo "$payload" >> "$logFilePath"
-  logRaw "[/Payload] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+  # Log payload and response to file ONLY
+  echo "[Arrbit] UI Settings payload:" >> "$log_file_path"
+  echo "$payload" >> "$log_file_path"
 
   response=$(curl -s --fail --retry 3 --retry-delay 2 \
     -X PUT "${arrUrl}/api/${arrApiVersion}/config/ui?apikey=${arrApiKey}" \
     -H "Content-Type: application/json" \
     --data-raw "$payload")
 
-  logRaw "[Response] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-  echo "$response" >> "$logFilePath"
-  logRaw "[/Response] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+  echo "[Arrbit] API Response:" >> "$log_file_path"
+  echo "$response" >> "$log_file_path"
 
   if echo "$response" | jq -e '.theme' >/dev/null 2>&1; then
-    logRaw "[SUCCESS] UI Settings updated"
-    log "✅  ${ARRBIT_TAG} UI Settings have been configured successfully"
+    arrbitLog "✅  ${ARRBIT_TAG} UI Settings have been configured successfully"
   else
-    log "⚠️  ${ARRBIT_TAG} UI Settings API call failed"
-    logRaw "[ERROR] Failed to apply UI Settings"
+    arrbitErrorLog "⚠️  " \
+      "${CYAN}[Arrbit]${RESET} UI Settings API call failed" \
+      "UI Settings API failure" \
+      "${SCRIPT_NAME}.bash" \
+      "${SCRIPT_NAME}:${LINENO}" \
+      "UI Settings response did not validate" \
+      "Check ARR API connectivity and payload"
   fi
 else
-  log "⏩  ${ARRBIT_TAG} Skipping UI Settings"
-  logRaw "[SKIP] CONFIGURE_UI_SETTINGS=false; skipping"
+  arrbitLog "⏩  ${ARRBIT_TAG} Skipping ui_settings module (flag disabled)"
 fi
 
-log "📄  ${ARRBIT_TAG} Log saved to /config/logs/${logFileName}"
-log "✅  ${ARRBIT_TAG} Done with ${rawScriptName}.bash!"
+arrbitLog "✅  ${ARRBIT_TAG} Done with ui_settings module!"
 exit 0
