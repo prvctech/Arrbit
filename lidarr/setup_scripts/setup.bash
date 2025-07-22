@@ -21,9 +21,20 @@ SCRIPT_NAME="setup"
 log_file_path="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 
-# --- Source universal helpers (must exist from previous image/build) ---
-source "$HELPERS_DIR/logging_utils.bash"
-source "$HELPERS_DIR/helpers.bash"
+# --- Source helpers & logging utils -------------------------------------------------
+REMOTE_LOG_UTILS="https://raw.githubusercontent.com/prvctech/Arrbit/refs/heads/main/universal/helpers/logging_utils.bash"
+REMOTE_HELPERS="https://raw.githubusercontent.com/prvctech/Arrbit/refs/heads/main/universal/helpers/helpers.bash"
+
+# Source remote versions first; fall back to local copies after repo download
+if ! source <(curl -sfL "$REMOTE_LOG_UTILS") 2>/dev/null; then
+  source "$HELPERS_DIR/logging_utils.bash" 2>/dev/null || {
+    echo "❌  [Arrbit] Unable to load logging_utils.bash"; exit 1; }
+fi
+
+if ! source <(curl -sfL "$REMOTE_HELPERS") 2>/dev/null; then
+  source "$HELPERS_DIR/helpers.bash" 2>/dev/null || {
+    echo "❌  [Arrbit] Unable to load helpers.bash"; exit 1; }
+fi
 
 # ------------------ 1. LOGO & HEADER ------------------
 LOGO_URL="https://raw.githubusercontent.com/prvctech/Arrbit/refs/heads/main/lidarr/process_scripts/modules/data/arrbit_logo.bash"
