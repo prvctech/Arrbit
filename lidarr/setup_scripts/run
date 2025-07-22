@@ -39,4 +39,5 @@ if [[ "$(get_flag ENABLE_AUTOCONFIG)" == "true" ]]; then
   fi
 fi
 
+sleep infinity
 exit
