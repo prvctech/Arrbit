@@ -139,4 +139,4 @@ if [ "$enable_flag" != "true" ]; then
 fi
 
 sleep infinity
-exit 0
+exit
