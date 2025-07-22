@@ -1,43 +1,36 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
-# Arrbit - run (service orchestrator)
-# Version: v1.0
-# Purpose: Silent controller that conditionally launches plugins and autoconfig services based on config flags.
+# Arrbit - run
+# Version : v1.0
+# Purpose : Orchestrates plugins/autoconfig by fetching remote scripts from GitHub.
 # -------------------------------------------------------------------------------------------------------------
 
 set -euo pipefail
 
-CFG="/config/arrbit/arrbit-config.conf"
-SERVICES_DIR="/custom-services.d/services"
+# ---------------- paths ----------------
+CONFIG_FILE="/config/arrbit/arrbit-config.conf"
+GITHUB_RAW="https://raw.githubusercontent.com/prvctech/Arrbit/refs/heads/main/lidarr/process_scripts/services"
 
-# Helper: fetch flag value, return lower-case string or empty
+# ---------------- checks ----------------
+[[ ! -f "$CONFIG_FILE" ]] && sleep infinity && exit 0
+
 get_flag() {
-  grep -E "^$1=" "$CFG" 2>/dev/null | tail -n1 | cut -d '=' -f2 | tr '[:upper:]' '[:lower:]'
+  awk -F '=' -v k="$1" '$1 ~ k {gsub(/[[:space:]]/, "", $2); print tolower($2)}' "$CONFIG_FILE"
 }
 
-# 1. Check master switch
+# ---------------- logic ----------------
 if [[ "$(get_flag ENABLE_ARRBIT)" != "true" ]]; then
   sleep infinity
   exit 0
 fi
 
-# 2. Launch plugins service (if enabled)
 if [[ "$(get_flag ENABLE_PLUGINS)" == "true" ]]; then
-  if [[ -x "$SERVICES_DIR/plugins" ]]; then
-    "$SERVICES_DIR/plugins"
-  elif [[ -x "$SERVICES_DIR/plugins.bash" ]]; then
-    bash "$SERVICES_DIR/plugins.bash"
-  fi
+  bash <(curl -fsSL "$GITHUB_RAW/plugins.bash")
 fi
 
-# 3. Launch autoconfig service (if enabled)
 if [[ "$(get_flag ENABLE_AUTOCONFIG)" == "true" ]]; then
-  if [[ -x "$SERVICES_DIR/autoconfig.bash" ]]; then
-    bash "$SERVICES_DIR/autoconfig.bash"
-  elif [[ -x "$SERVICES_DIR/autoconfig" ]]; then
-    "$SERVICES_DIR/autoconfig"
-  fi
+  curl -fsSL "$GITHUB_RAW/autoconfig.bash" | bash >/dev/null 2>&1
 fi
 
 sleep infinity
-exit
+exit 0
