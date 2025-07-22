@@ -25,12 +25,6 @@ LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 # ------------------ 1. BASIC OUTPUT HEADER ------------------
 echo "[Arrbit] running setup v1.1"
 
-# ------------------ 2. FAILSAFE ------------------
-if [ -f /custom-cont-init.d/initial_run.bash ]; then
-  echo "[Arrbit] initial_run.bash present in /custom-cont-init.d – halting to avoid conflict."
-  sleep infinity
-fi
-
 # ------------------ 3. CREATE FOLDERS ------------------
 mkdir -p "$SERVICE_DIR" "$HELPERS_DIR" "$CONNECTORS_DIR" "$CONFIG_DIR" "$LOG_DIR" "$TMP_DIR" "$SETUP_DIR"
 chmod -R 777 "$SERVICE_DIR" "$CONFIG_DIR" "$LOG_DIR" "$SETUP_DIR"
