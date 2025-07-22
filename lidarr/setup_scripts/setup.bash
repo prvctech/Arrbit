@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - setup
-# Version: v1.3
-# Purpose: Prepare folder structure, install dependencies once, download/refresh Arrbit scripts, and manage config files.
+# Version: v1.4
+# Purpose: Prepare folder structure, install/upgrade dependencies once, download/refresh Arrbit scripts,
+#          and manage config files. All verbose installer output is kept only in the log file.
 # -------------------------------------------------------------------------------------------------------------
 
 set -euo pipefail
 
-scriptVersion="1.3"                       # bump when dependency list changes
+scriptVersion="1.4"                       # bump this whenever the dependency list changes
 
 # ------------------ ENV & PATHS ------------------
 GITHUB_REPO="https://github.com/prvctech/Arrbit"
@@ -20,7 +21,7 @@ CONFIG_DIR="/config/arrbit"
 LOG_DIR="/config/logs"
 TMP_DIR="/tmp/arrbit_update_$$"
 
-# Ensure log dir exists and create log file
+# Ensure log dir exists and create a run-time log file
 mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/arrbit-setup-$(date +%Y_%m_%d-%H_%M).log"
 touch "$LOG_FILE"
@@ -28,22 +29,42 @@ touch "$LOG_FILE"
 # ------------------ HEADER ------------------
 echo "[Arrbit] running setup v${scriptVersion}" | tee -a "$LOG_FILE"
 
+# ------------------ FAILSAFE ------------------
+if [ -f /custom-cont-init.d/initial_run.bash ]; then
+  echo "[Arrbit] initial_run.bash detected – halting to avoid conflict." | tee -a "$LOG_FILE"
+  sleep infinity
+fi
+
 # ------------------ CREATE FOLDERS ------------------
 mkdir -p "$SERVICE_DIR" "$HELPERS_DIR" "$CONNECTORS_DIR" "$CONFIG_DIR" "$TMP_DIR"
 chmod -R 777 "$SERVICE_DIR" "$CONFIG_DIR"
 echo "[Arrbit] folder structure ready" | tee -a "$LOG_FILE"
 
-# ------------------ DEPENDENCY CHECK ------------------
-deps_marker="/config/deps_version.txt"
+# ------------------ DEPENDENCY LOGIC ------------------
+# deps marker now lives under /custom-services/helpers
+deps_marker="/custom-services/helpers/deps_version.txt"
+mkdir -p "$(dirname "$deps_marker")"
+
 if [ -f "$deps_marker" ]; then
   # shellcheck source=/dev/null
   source "$deps_marker"
 fi
 
-if [ "${depsversion:-}" = "$scriptVersion" ] && command -v atomicparsley >/dev/null 2>&1; then
-  echo "[Arrbit] dependencies already installed – skipping" | tee -a "$LOG_FILE"
+needs_install=false
+if ! command -v atomicparsley >/dev/null 2>&1; then
+  needs_install=true
+fi
+
+if [ "${depsversion:-}" = "$scriptVersion" ] && [ "$needs_install" = false ]; then
+  echo "[Arrbit] dependencies already installed - skipping" | tee -a "$LOG_FILE"
 else
-  echo "[Arrbit] installing Alpine packages (details in log file) ..." | tee -a "$LOG_FILE"
+  if [ -n "${depsversion:-}" ] && [ "$depsversion" != "$scriptVersion" ]; then
+    echo "[Arrbit] upgrading dependencies (details in log file)" | tee -a "$LOG_FILE"
+  else
+    echo "[Arrbit] installing dependencies (details in log file)" | tee -a "$LOG_FILE"
+  fi
+
+  # --- Alpine / system packages ---
   apk add -U --upgrade --no-cache \
     tidyhtml \
     musl-locales \
@@ -62,10 +83,11 @@ else
     parallel \
     npm \
     ripgrep >> "$LOG_FILE" 2>&1
-  
+
+  # AtomicParsley (edge)
   apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/testing atomicparsley >> "$LOG_FILE" 2>&1
 
-  echo "[Arrbit] installing Python packages (uv) ..." | tee -a "$LOG_FILE"
+  # --- Python packages ---
   uv pip install --system --upgrade --no-cache-dir --break-system-packages \
     jellyfish \
     beautifulsoup4 \
@@ -82,8 +104,9 @@ else
     r128gain \
     tidal-dl >> "$LOG_FILE" 2>&1
 
+  # Record the installed dependency version
   echo "depsversion=$scriptVersion" > "$deps_marker"
-  echo "[Arrbit] dependency installation complete" | tee -a "$LOG_FILE"
+  echo "[Arrbit] dependency installation/upgrade complete" | tee -a "$LOG_FILE"
 fi
 
 # ------------------ DOWNLOAD & EXTRACT REPO ------------------
@@ -94,8 +117,10 @@ unzip -q "$TMP_DIR/arrbit.zip" -d "$TMP_DIR" >> "$LOG_FILE" 2>&1
 
 # ------------------ COPY CODE ------------------
 cp -rf "$TMP_DIR/Arrbit-main/lidarr/process_scripts/"* "$SERVICE_DIR/"
+
 [ -d "$TMP_DIR/Arrbit-main/universal/helpers" ]    && cp -rf "$TMP_DIR/Arrbit-main/universal/helpers/"*    "$HELPERS_DIR/"
 [ -d "$TMP_DIR/Arrbit-main/universal/connectors" ] && cp -rf "$TMP_DIR/Arrbit-main/universal/connectors/"* "$CONNECTORS_DIR/"
+
 chmod -R 777 "$SERVICE_DIR"
 echo "[Arrbit] modules, helpers, connectors copied" | tee -a "$LOG_FILE"
 
@@ -124,5 +149,5 @@ chmod -R 777 "$LOG_DIR" "$CONFIG_DIR" "$SERVICE_DIR" || true
 echo "[Arrbit] Setup complete – log saved in $LOG_DIR"
 echo "[Arrbit] See config settings to enable Arrbit, everything is off by default."
 
-# ------------------ 10. HOLD CONTAINER ------------------
+# ------------------ HOLD CONTAINER ------------------
 sleep infinity
