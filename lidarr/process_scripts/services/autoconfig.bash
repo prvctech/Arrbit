@@ -5,7 +5,6 @@
 # Purpose: Orchestrates Arrbit modules based on config flags in arrbit-config.conf (Golden Standard enforced)
 # -------------------------------------------------------------------------------------------------------------
 
-# Source helpers
 source /config/arrbit/helpers/helpers.bash
 source /config/arrbit/helpers/logging_utils.bash
 
@@ -23,7 +22,7 @@ CYAN='\033[36m'
 YELLOW='\033[33m'
 NC='\033[0m'
 
-# Override log_info/log_error for Golden Standard color
+# Golden Standard log_info/log_error: color in terminal, plain in log
 log_info() {
   echo -e "${CYAN}[Arrbit]${NC} $*"
   printf '[Arrbit] %s\n' "$*" >> "$LOG_FILE"
@@ -33,7 +32,7 @@ log_error() {
   printf '[Arrbit] ERROR: %s\n' "$*" >> "$LOG_FILE"
 }
 
-# Banner: Only this line with extra color
+# Banner (yellow module name for terminal, plain for log)
 log_info "${YELLOW}${SCRIPT_NAME} service${NC} ${SCRIPT_VERSION} ..."
 
 # ----------------------------------------------------------------------------
@@ -93,17 +92,21 @@ for name in "${MODULES[@]}"; do
   flag="CONFIGURE_$(echo "$name" | tr '[:lower:]' '[:upper:]')"
   val=$(getFlag "$flag")
   if [[ -z "${val}" || "${val,,}" != "true" ]]; then
-    log_info "${YELLOW}${name} module${NC} is disabled by config; skipping."
+    # Color for terminal, plain for log
+    echo -e "${CYAN}[Arrbit]${NC} ${YELLOW}${name} module${NC} is disabled by config; skipping."
+    printf '[Arrbit] %s module is disabled by config; skipping.\n' "$name" >> "$LOG_FILE"
     continue
   fi
 
   script="$MODULES_DIR/${name}.bash"
   if [ -x "$script" ]; then
     if ! bash "$script"; then
-      log_error "${YELLOW}${name} module${NC} failed. See log for details."
+      echo -e "${CYAN}[Arrbit]${NC} ${YELLOW}${name} module${NC} failed. See log for details."
+      printf '[Arrbit] %s module failed. See log for details.\n' "$name" >> "$LOG_FILE"
     fi
   else
-    log_error "${YELLOW}${name} module${NC} not found or not executable; skipped."
+    echo -e "${CYAN}[Arrbit]${NC} ${YELLOW}${name} module${NC} not found or not executable; skipped."
+    printf '[Arrbit] %s module not found or not executable; skipped.\n' "$name" >> "$LOG_FILE"
   fi
 done
 
