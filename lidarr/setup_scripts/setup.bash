@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - setup
-# Version : v4.0
+# Version : v4.1
 # Purpose : Dynamically installs all Arrbit modules, services, setup scripts, and config to /config/arrbit.
 #           Excludes itself (setup.bash) and run from setup/. Preserves user config if already present.
 # -------------------------------------------------------------------------------------------------------------
@@ -20,9 +20,9 @@ cd "$TMP_DIR"
 
 # --- 1. Download and extract full repo ------------------------------------------
 curl -fsSL "$ZIP_URL" -o arrbit.zip
-unzip -qq arrbit.zip
+unzip -qqo arrbit.zip   # <- overwrite always, never prompts
 
-# --- 2. Dynamically copy modules and services (deep copy, any new files auto-included) ----
+# --- 2. Dynamically copy modules and services (deep copy, new files auto-included) ----
 rsync -a "$REPO_MAIN/process_scripts/modules/"   "$ARRBIT_ROOT/modules/"
 rsync -a "$REPO_MAIN/process_scripts/services/"  "$ARRBIT_ROOT/services/"
 
