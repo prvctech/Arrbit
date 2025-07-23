@@ -14,28 +14,31 @@ SCRIPT_NAME="track_naming"
 SCRIPT_VERSION="v2.10"
 LOG_DIR="/config/logs"
 LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
-ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
-MODULE_YELLOW="\033[1;33m"
-RESET="\033[0m"
 
-mkdir -p "$LOG_DIR"
-touch "$LOG_FILE"
-chmod 777 "$LOG_FILE"
+CYAN='\033[36m'
+YELLOW='\033[33m'
+NC='\033[0m'
 
-log_info "${ARRBIT_TAG} Starting ${MODULE_YELLOW}track_naming module${RESET} ${SCRIPT_VERSION}..."
+# Golden Standard: override log_info/log_error
+log_info() {
+  echo -e "${CYAN}[Arrbit]${NC} $*"
+  printf '[Arrbit] %s\n' "$*" >> "$LOG_FILE"
+}
+log_error() {
+  echo -e "${CYAN}[Arrbit]${NC} ERROR: $*" >&2
+  printf '[Arrbit] ERROR: %s\n' "$*" >> "$LOG_FILE"
+}
+
+# Banner (module/script names in yellow for the first log only)
+log_info "${YELLOW}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
 
 # Connect to arr_bridge.bash (includes wait for API, sets arr_api)
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
-  log_error "${ARRBIT_TAG} Could not source arr_bridge.bash" \
-    "arr_bridge.bash missing" \
-    "track_naming.bash" \
-    "${SCRIPT_NAME}:${LINENO}" \
-    "Required for API access" \
-    "Check Arrbit setup"
+  log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup)"
   exit 1
 fi
 
-log_info "${ARRBIT_TAG} Configuring Track Naming..."
+log_info "Configuring Track Naming..."
 
 payload='{
   "renameTracks": true,
@@ -50,28 +53,21 @@ payload='{
   "id": 1
 }'
 
-# Log payload and response to file ONLY
-echo "[Arrbit] Track Naming payload:" >> "$LOG_FILE"
-echo "$payload" >> "$LOG_FILE"
+# Log payload and response to file ONLY (no color codes)
+printf '[Arrbit] Track Naming payload:\n%s\n' "$payload" >> "$LOG_FILE"
 
 response=$(
   arr_api -X PUT --data-raw "$payload" \
     "${arrUrl}/api/${arrApiVersion}/config/naming?apikey=${arrApiKey}"
 )
 
-echo "[Arrbit] API Response:" >> "$LOG_FILE"
-echo "$response" >> "$LOG_FILE"
+printf '[Arrbit] API Response:\n%s\n' "$response" >> "$LOG_FILE"
 
 if echo "$response" | jq -e '.renameTracks' >/dev/null 2>&1; then
-  log_info "${ARRBIT_TAG} Track Naming has been configured successfully"
+  log_info "Track Naming has been configured successfully"
 else
-  log_error "${ARRBIT_TAG} Track Naming API call failed" \
-    "Track Naming API failure" \
-    "track_naming.bash" \
-    "${SCRIPT_NAME}:${LINENO}" \
-    "Track Naming response did not validate" \
-    "Check ARR API connectivity and payload"
+  log_error "Track Naming API call failed (response did not validate, check ARR API connectivity and payload)"
 fi
 
-log_info "${ARRBIT_TAG} Done with track_naming module!"
+log_info "Done with ${SCRIPT_NAME} module!"
 exit 0
