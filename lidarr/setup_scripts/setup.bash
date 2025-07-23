@@ -61,7 +61,6 @@ chmod -R 777 "$ARRBIT_ROOT"
 
 # --- Logging to file ---
 LOG_FILE="/config/logs/arrbit-setup-$(date +'%Y_%m_%d-%H_%M').log"
-log_info "Arrbit setup completed successfully." | tee -a "$LOG_FILE"
 
 [[ -f "$ARRBIT_CONF" ]] || echo -e "$LOG_PREFIX See config settings to enable individual services, everything is off by default."
 
