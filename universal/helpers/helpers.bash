@@ -14,7 +14,7 @@ if [[ -z "${ARRBIT_HELPERS_INCLUDED:-}" ]]; then
   # -------------------------------------------------------
   getFlag() {
     local flag_name="$1"
-    local config_file="${CONFIG_DIR:-/config/arrbit}/arrbit-config.conf"
+    local config_file="${CONFIG_DIR:-/config/arrbit/config}/arrbit-config.conf"
     # Convert flag_name to uppercase for case-insensitive search
     local flag_upper
     flag_upper=$(echo "$flag_name" | tr '[:lower:]' '[:upper:]')
