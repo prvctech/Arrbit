@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
-# Arrbit autoconfig.bash
+# Arrbit - autoconfig.bash
 # Version: v4.6
 # Purpose: Orchestrates Arrbit modules to configure services based on config flags.
 # -------------------------------------------------------------------------------------------------------------
 
 # === ARRBIT "TRINITY" HELPERS ===
-source /etc/services.d/arrbit/helpers/helpers.bash
-source /etc/services.d/arrbit/helpers/logging_utils.bash
-source /etc/services.d/arrbit/helpers/error_utils.bash
+source /config/arrbit/helpers/helpers.bash
+source /config/arrbit/helpers/logging_utils.bash
+source /config/arrbit/helpers/error_utils.bash
 
 SCRIPT_NAME="autoconfig"
 SCRIPT_VERSION="v4.6"
-SERVICE_DIR="/etc/services.d/arrbit"
-CONFIG_FILE="/config/arrbit/arrbit-config.conf"
-MODULES_DIR="$SERVICE_DIR/modules"
+ARRBIT_ROOT="/config/arrbit"
+CONFIG_FILE="$ARRBIT_ROOT/config/arrbit-config.conf"
+MODULES_DIR="$ARRBIT_ROOT/modules"
 LOG_DIR="/config/logs"
-log_file_path="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
 CYAN="\033[1;36m"
 RESET="\033[0m"
@@ -27,10 +27,10 @@ MODULE_YELLOW="\033[1;33m"
 # 1. INIT: Ensure log directory and file
 # ----------------------------------------------------------------------------
 mkdir -p "$LOG_DIR"
-touch "$log_file_path"
-chmod 777 "$log_file_path"
+touch "$LOG_FILE"
+chmod 777 "$LOG_FILE"
 
-arrbitLog "🚀  ${ARRBIT_TAG} Starting ${SERVICE_YELLOW}${SCRIPT_NAME} service${RESET} service ${SCRIPT_VERSION}..."
+arrbitLog "${ARRBIT_TAG} Starting ${SERVICE_YELLOW}${SCRIPT_NAME} service${RESET} ${SCRIPT_VERSION}..."
 
 # ----------------------------------------------------------------------------
 # 2. MASTER FLAG: ENABLE_AUTOCONFIG
@@ -38,8 +38,7 @@ arrbitLog "🚀  ${ARRBIT_TAG} Starting ${SERVICE_YELLOW}${SCRIPT_NAME} service$
 ENABLE_AUTOCONFIG=$(getFlag "ENABLE_AUTOCONFIG")
 : "${ENABLE_AUTOCONFIG:=true}"
 if [[ "$(echo "$ENABLE_AUTOCONFIG" | tr '[:upper:]' '[:lower:]')" != "true" ]]; then
-  arrbitErrorLog "⚠️   " \
-    "${CYAN}[Arrbit]${RESET} Autoconfig is off; check config settings." \
+  arrbitErrorLog "${ARRBIT_TAG} Autoconfig is off; check config settings." \
     "ENABLE_AUTOCONFIG=false" \
     "autoconfig.bash" \
     "${SCRIPT_NAME}:${LINENO}" \
@@ -51,11 +50,10 @@ fi
 # ----------------------------------------------------------------------------
 # 3. CONNECT TO ARRBRIDGE
 # ----------------------------------------------------------------------------
-if ! source "$SERVICE_DIR/connectors/arr_bridge.bash"; then
-  arrbitErrorLog "❌   " \
-    "${CYAN}[Arrbit]${RESET} Failed to source arr_bridge.bash" \
+if ! source "$ARRBIT_ROOT/connectors/arr_bridge.bash"; then
+  arrbitErrorLog "${ARRBIT_TAG} Failed to source arr_bridge.bash" \
     "arr_bridge.bash source" \
-    "$SERVICE_DIR/connectors/arr_bridge.bash" \
+    "$ARRBIT_ROOT/connectors/arr_bridge.bash" \
     "${SCRIPT_NAME}:${LINENO}" \
     "file missing or error" \
     "Ensure file exists and is valid"
@@ -92,8 +90,7 @@ for name in "${MODULES[@]}"; do
   fi
 done
 if (( enabledCount == 0 )); then
-  arrbitErrorLog "⚠️   " \
-    "${CYAN}[Arrbit]${RESET} Autoconfig disabled - all modules are off; check your config settings." \
+  arrbitErrorLog "${ARRBIT_TAG} Autoconfig disabled - all modules are off; check your config settings." \
     "no modules enabled" \
     "autoconfig.bash" \
     "${SCRIPT_NAME}:${LINENO}" \
@@ -103,7 +100,7 @@ if (( enabledCount == 0 )); then
 fi
 
 # ----------------------------------------------------------------------------
-# 5. RUN MODULES BASED ON FLAGS (NO running log here!)
+# 5. RUN MODULES BASED ON FLAGS
 # ----------------------------------------------------------------------------
 for name in "${MODULES[@]}"; do
   flag="CONFIGURE_$(echo "$name" | tr '[:lower:]' '[:upper:]')"
@@ -117,8 +114,7 @@ for name in "${MODULES[@]}"; do
   if [ -x "$script" ]; then
     # No running log here! Module prints its own "Starting ..." line.
     if ! bash "$script"; then
-      arrbitErrorLog "❌   " \
-        "${CYAN}[Arrbit]${RESET} ${name} module failed" \
+      arrbitErrorLog "${ARRBIT_TAG} ${name} module failed" \
         "${name}.bash execution" \
         "$script" \
         "${SCRIPT_NAME}:${LINENO}" \
@@ -126,14 +122,14 @@ for name in "${MODULES[@]}"; do
         "Check module script"
     fi
   else
-    arrbitLog "⚠️   ${CYAN}[Arrbit]${RESET} ${MODULE_YELLOW}${name}module${RESET}  missing; skipping"
+    arrbitLog "${ARRBIT_TAG} ${MODULE_YELLOW}${name} module${RESET} missing; skipping"
   fi
 done
 
 # ----------------------------------------------------------------------------
 # 6. WRAP UP
 # ----------------------------------------------------------------------------
-arrbitLog "📄  ${ARRBIT_TAG} Log saved to $log_file_path"
-arrbitLog "✅  ${ARRBIT_TAG} Done with ${SCRIPT_NAME} service"
+arrbitLog "${ARRBIT_TAG} Log saved to $LOG_FILE"
+arrbitLog "${ARRBIT_TAG} Done with ${SCRIPT_NAME} service"
 
 exit 0
