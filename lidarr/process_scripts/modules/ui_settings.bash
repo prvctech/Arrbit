@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - ui_settings.bash
-# Version: v2.2
+# Version: v2.3
 # Purpose: Configure Lidarr UI Settings via API (Golden Standard, no internal flag check, uses arr_api).
 # -------------------------------------------------------------------------------------------------------------
 
@@ -11,25 +11,22 @@ source /config/arrbit/helpers/logging_utils.bash
 arrbitPurgeOldLogs 5
 
 SCRIPT_NAME="ui_settings"
-SCRIPT_VERSION="v2.2"
+SCRIPT_VERSION="v2.3"
 LOG_DIR="/config/logs"
 LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
-CYAN="\033[1;36m"
-RESET="\033[0m"
 MODULE_YELLOW="\033[1;33m"
+RESET="\033[0m"
 
 mkdir -p "$LOG_DIR"
 touch "$LOG_FILE"
 chmod 777 "$LOG_FILE"
 
-arrbitLog "${ARRBIT_TAG} Starting ${MODULE_YELLOW}ui_settings module${RESET} ${SCRIPT_VERSION}..."
+log_info "${ARRBIT_TAG} Starting ${MODULE_YELLOW}ui_settings module${RESET} ${SCRIPT_VERSION}..."
 
-# ------------------------------------------------------------------------
 # Connect to arr_bridge.bash (waits for API, sets arr_api)
-# ------------------------------------------------------------------------
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
-  arrbitErrorLog "${ARRBIT_TAG} Could not source arr_bridge.bash" \
+  log_error "${ARRBIT_TAG} Could not source arr_bridge.bash" \
     "arr_bridge.bash missing" \
     "${SCRIPT_NAME}.bash" \
     "${SCRIPT_NAME}:${LINENO}" \
@@ -38,10 +35,7 @@ if ! source /config/arrbit/connectors/arr_bridge.bash; then
   exit 1
 fi
 
-# ------------------------------------------------------------------------
-# UI Settings Configuration (assume should run)
-# ------------------------------------------------------------------------
-arrbitLog "${ARRBIT_TAG} Configuring UI Settings..."
+log_info "${ARRBIT_TAG} Configuring UI Settings..."
 
 payload='{
   "firstDayOfWeek": 0,
@@ -74,9 +68,9 @@ echo "[Arrbit] API Response:" >> "$LOG_FILE"
 echo "$response" >> "$LOG_FILE"
 
 if echo "$response" | jq -e '.theme' >/dev/null 2>&1; then
-  arrbitLog "${ARRBIT_TAG} UI Settings have been configured successfully"
+  log_info "${ARRBIT_TAG} UI Settings have been configured successfully"
 else
-  arrbitErrorLog "${ARRBIT_TAG} UI Settings API call failed" \
+  log_error "${ARRBIT_TAG} UI Settings API call failed" \
     "UI Settings API failure" \
     "${SCRIPT_NAME}.bash" \
     "${SCRIPT_NAME}:${LINENO}" \
@@ -84,5 +78,5 @@ else
     "Check ARR API connectivity and payload"
 fi
 
-arrbitLog "${ARRBIT_TAG} Done with ui_settings module!"
+log_info "${ARRBIT_TAG} Done with ui_settings module!"
 exit 0
