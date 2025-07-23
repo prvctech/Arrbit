@@ -3,8 +3,6 @@
 # Arrbit - setup
 # Version : v4.2
 # Purpose : Dynamically installs all Arrbit modules, services, setup scripts, and config to /config/arrbit.
-#           Excludes itself (setup.bash) and run from setup/. Preserves user config if already present.
-#           Pure bash/cp; does not require rsync.
 # -------------------------------------------------------------------------------------------------------------
 
 set -euo pipefail
