@@ -5,10 +5,8 @@
 # Purpose: Orchestrates Arrbit modules to configure services based on config flags.
 # -------------------------------------------------------------------------------------------------------------
 
-# === ARRBIT "TRINITY" HELPERS ===
 source /config/arrbit/helpers/helpers.bash
 source /config/arrbit/helpers/logging_utils.bash
-source /config/arrbit/helpers/error_utils.bash
 
 SCRIPT_NAME="autoconfig"
 SCRIPT_VERSION="v4.6"
