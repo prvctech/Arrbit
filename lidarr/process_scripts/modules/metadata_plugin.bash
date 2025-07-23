@@ -1,44 +1,62 @@
-# Module: Tubifarry + Lyrics‑Enhancer Plugin Metadata
-if [ "${CONFIGURE_METADATA_PLUGIN,,}" = "true" ]; then
-  log "Configuring Tubifarry metadata consumer (Lidarr Custom)…"
-  # 1) Tubifarry consumer (“Lidarr Custom”)
-  endpoint="https://api.musicinfo.pro"
-  cid=$(curl -s "${arrUrl}/api/${arrApiVersion}/metadata" "${HEADER[@]}" \
-         | jq -r '.[] | select(.name=="Lidarr Custom") | .id')
-  if [[ -n "$cid" && "$cid" != "null" ]]; then
-    cfg=$(curl -s "${arrUrl}/api/${arrApiVersion}/metadata/${cid}" "${HEADER[@]}")
-    new=$(echo "$cfg" | jq --arg url "$endpoint" '
-      .enable = true
-      | (.fields[] |= (if .name=="metadataSource" then .value=$url else . end))
-    ')
-    curl -s "${arrUrl}/api/${arrApiVersion}/metadata/${cid}" \
-         -X PUT "${HEADER[@]}" \
-         --data-raw "$new" \
-      && log " → Tubifarry metadata consumer set to $endpoint" \
-      || log " ⚠ Failed to configure Tubifarry consumer"
-  else
-    log " ⚠ Could not find metadata consumer 'Lidarr Custom'"
-  fi
+#!/usr/bin/env bash
+# -------------------------------------------------------------------------------------------------------------
+# Arrbit - metadata_plugin.bash
+# Version: v2.2
+# Purpose: Configure Lyrics Enhancer metadata provider only (Golden Standard, Tubifarry block removed).
+# -------------------------------------------------------------------------------------------------------------
 
-  # 2) Lyrics Enhancer (id=11)
-  log "Configuring Lyrics Enhancer consumer…"
-  lid=11
-  le=$(curl -s "${arrUrl}/api/${arrApiVersion}/metadata/${lid}" "${HEADER[@]}")
-  upd=$(echo "$le" | jq '
-    .enable = true
-    | (.fields[] |=
-        if .name=="createLrcFiles" then .value=true
-        elif .name=="lrcLibEnabled" then .value=true
-        elif .name=="lrcLibInstanceUrl" then .value="https://lrclib.net"
-        else . end
-      )
-  ')
-  curl -s "${arrUrl}/api/${arrApiVersion}/metadata/${lid}" \
-       -X PUT "${HEADER[@]}" \
-       --data-raw "$upd" \
-    && log " → Lyrics Enhancer configured" \
-    || log " ⚠ Failed to configure Lyrics Enhancer"
+source /config/arrbit/helpers/helpers.bash
+source /config/arrbit/helpers/logging_utils.bash
 
-else
-  log "Skipping Tubifarry & Lyrics‑Enhancer metadata"
+arrbitPurgeOldLogs 5
+
+SCRIPT_NAME="metadata_plugin"
+SCRIPT_VERSION="v2.2"
+LOG_DIR="/config/logs"
+LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
+MODULE_YELLOW="\033[1;33m"
+RESET="\033[0m"
+
+mkdir -p "$LOG_DIR"
+touch "$LOG_FILE"
+chmod 777 "$LOG_FILE"
+
+arrbitLog "${ARRBIT_TAG} Starting ${MODULE_YELLOW}metadata_plugin module${RESET} ${SCRIPT_VERSION}..."
+
+# ------------------------------------------------------------------------
+# Connect to arr_bridge.bash (sets arr_api, arrUrl, arrApiVersion)
+# ------------------------------------------------------------------------
+if ! source /config/arrbit/connectors/arr_bridge.bash; then
+  arrbitErrorLog "${ARRBIT_TAG} Could not source arr_bridge.bash" \
+    "arr_bridge.bash missing" \
+    "${SCRIPT_NAME}.bash" \
+    "${SCRIPT_NAME}:${LINENO}" \
+    "Required for API access" \
+    "Check Arrbit setup"
+  exit 1
 fi
+
+# ------------------------------------------------------------------------
+# Only Lyrics Enhancer (id=11)
+# ------------------------------------------------------------------------
+arrbitLog "${ARRBIT_TAG} Configuring Lyrics Enhancer consumer..."
+lid=11
+le=$(arr_api "${arrUrl}/api/${arrApiVersion}/metadata/${lid}")
+upd=$(echo "$le" | jq '
+  .enable = true
+  | (.fields[] |=
+      if .name=="createLrcFiles" then .value=true
+      elif .name=="lrcLibEnabled" then .value=true
+      elif .name=="lrcLibInstanceUrl" then .value="https://lrclib.net"
+      else . end
+    )
+')
+if arr_api -X PUT --data-raw "$upd" "${arrUrl}/api/${arrApiVersion}/metadata/${lid}" >/dev/null; then
+  arrbitLog "${ARRBIT_TAG} Lyrics Enhancer configured"
+else
+  arrbitLog "${ARRBIT_TAG} Failed to configure Lyrics Enhancer"
+fi
+
+arrbitLog "${ARRBIT_TAG} Done with metadata_plugin module!"
+exit 0
