@@ -19,10 +19,10 @@ MODULES_DIR="$ARRBIT_ROOT/modules"
 LOG_DIR="/config/logs"
 LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
-ARRBIT_TAG_TTY="\033[1;36m[Arrbit]\033[0m"
+ARRBIT_TAG_TTY="\033[36m[Arrbit]\033[0m"
 ARRBIT_TAG_LOG="[Arrbit]"
-SERVICE_YELLOW="\033[1;33m"
-MODULE_YELLOW="\033[1;33m"
+SERVICE_YELLOW="\033[33m"
+MODULE_YELLOW="\033[33m"
 RESET="\033[0m"
 
 mkdir -p "$LOG_DIR"
