@@ -1,89 +1,50 @@
-#!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
-# Arrbit arr_bridge.bash
-# Version: v2.1
-# Purpose: Sets up API variables for Arrbit modules and ensures API is reachable before proceeding.
+# Arrbit - arr_bridge.bash
+# Version: v1.2
+# Purpose: Connects to Lidarr/Sonarr/Radarr instance, extracts API key/version/URL, exports for modules,
+#          and provides a universal API call wrapper for all downstream modules.
 # -------------------------------------------------------------------------------------------------------------
 
-# === ARRBIT "TRINITY" HELPERS ===
-source /etc/services.d/arrbit/helpers/helpers.bash
-source /etc/services.d/arrbit/helpers/logging_utils.bash
-source /etc/services.d/arrbit/helpers/error_utils.bash
+# --- Source helpers (for logging, etc) ---
+source /config/arrbit/helpers/helpers.bash
+source /config/arrbit/helpers/logging_utils.bash
 
-ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
+# --- Find and extract required config values ---
+CONFIG_XML="/config/Lidarr/config.xml"
 
-CONFIG_XML="/config/config.xml"
-
-# -------------------------------------------------------
-# Extract arrApiKey and arrApiVersion from config file or env
-# -------------------------------------------------------
-if [[ -f "$CONFIG_XML" ]]; then
-  if command -v xmlstarlet &>/dev/null; then
-    arrApiKey=$(xmlstarlet sel -t -v "//ApiKey" "$CONFIG_XML" 2>/dev/null)
-    arrPort=$(xmlstarlet sel -t -v "//Port" "$CONFIG_XML" 2>/dev/null)
-    arrSsl=$(xmlstarlet sel -t -v "//SslPort" "$CONFIG_XML" 2>/dev/null)
-    arrUseSsl=$(xmlstarlet sel -t -v "//EnableSsl" "$CONFIG_XML" 2>/dev/null)
-  else
-    arrApiKey=$(grep -oPm1 "(?<=<ApiKey>)[^<]+" "$CONFIG_XML" 2>/dev/null)
-    arrPort=$(grep -oPm1 "(?<=<Port>)[^<]+" "$CONFIG_XML" 2>/dev/null)
-    arrSsl=$(grep -oPm1 "(?<=<SslPort>)[^<]+" "$CONFIG_XML" 2>/dev/null)
-    arrUseSsl=$(grep -oPm1 "(?<=<EnableSsl>)[^<]+" "$CONFIG_XML" 2>/dev/null)
-  fi
-
-  if [[ "$arrUseSsl" == "true" ]]; then
-    arrUrl="https://127.0.0.1:${arrSsl:-8686}"
-  else
-    arrUrl="http://127.0.0.1:${arrPort:-8686}"
-  fi
-else
-  arrbitErrorLog "❌   " \
-    "[Arrbit] $CONFIG_XML missing! Can't set API URL or key." \
-    "config.xml missing" \
-    "arr_bridge.bash" \
-    "arr_bridge.bash:$LINENO" \
-    "Required config missing" \
-    "Check your container or bind mount."
+if [[ ! -f "$CONFIG_XML" ]]; then
+  echo -e "\033[36m[Arrbit]\033[0m ERROR: Lidarr config.xml not found at $CONFIG_XML"
   exit 1
 fi
 
-arrApiVersion=$(getFlag "API_VERSION")
-: "${arrApiVersion:=v1}"
+arrApiKey=$(awk -F'[<>]' '/<ApiKey>/ {print $3}' "$CONFIG_XML" | head -n1)
+arrUrl="http://localhost:8686"  # You might want to extract this if dynamic, otherwise keep default
+arrApiVersion="v1"              # Default, can be made dynamic if needed
 
-# -------------------------------------------------------
-# Log found value (minimal: only Found and Connected)
-# -------------------------------------------------------
-arrbitLog "🔵  ${ARRBIT_TAG} Found Lidarr instance at $arrUrl"
+export arrApiKey arrUrl arrApiVersion
 
-# -------------------------------------------------------
-# Wait for API (minimal: only logs when connected or on fatal error)
-# -------------------------------------------------------
+# --- Wait for API to become available (Golden Standard logic) ---
 waitForArrApi() {
-  local url="$1"
-  local key="$2"
-  local version="$3"
-  local tries=0
-  local endpoint="system/status"
-  local statusName
-
-  while true; do
-    statusName=$(curl -s --max-time 3 "$url/api/$version/$endpoint?apikey=$key" | jq -r .instanceName 2>/dev/null)
-    if [ -n "$statusName" ] && [ "$statusName" != "null" ]; then
-      arrbitLog "🟢  ${ARRBIT_TAG} Connected to Lidarr at $url (API $version)"
-      break
+  local retries=12
+  local url="${arrUrl}/api/${arrApiVersion}/system/status?apikey=${arrApiKey}"
+  for ((i=1; i<=retries; i++)); do
+    if curl -s --fail "$url" >/dev/null; then
+      return 0
     fi
-    tries=$((tries+1))
-    if (( tries >= 20 )); then
-      arrbitErrorLog "❌   " \
-        "[Arrbit] API at $url not available after 20 tries" \
-        "API wait failed" \
-        "waitForArrApi" \
-        "arr_bridge.bash:$LINENO" \
-        "No response from API" \
-        "Check if server is up and config is correct"
-      exit 1
-    fi
-    sleep 2
+    sleep 5
   done
+  echo -e "\033[36m[Arrbit]\033[0m ERROR: Could not connect to Arr API after $retries attempts."
+  exit 1
 }
+waitForArrApi
 
-waitForArrApi "$arrUrl" "$arrApiKey" "$arrApiVersion"
+# --- Universal Arrbit API call wrapper ---
+#   Usage: arr_api [curl options] <URL>
+#   Example: arr_api -X GET "${arrUrl}/api/${arrApiVersion}/qualityprofile"
+arr_api() {
+  curl -s --fail --retry 3 --retry-delay 2 \
+    -H "X-Api-Key: $arrApiKey" \
+    -H "Content-Type: application/json" \
+    "$@"
+}
+export -f arr_api
