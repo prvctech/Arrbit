@@ -30,7 +30,7 @@ YELLOW='\033[33m'
 NC='\033[0m'
 
 # ------------------ BANNER LOG (COLOR ONLY HERE) --------------------------
-log_info "${CYAN}[Arrbit]${NC} ${YELLOW}${SCRIPT_NAME}${NC} service ${PURPLE}Deezer, Tidal, Tubifarry${NC} ${SCRIPT_VERSION}"
+echo -e "${CYAN}[Arrbit]${NC} ${YELLOW}${SCRIPT_NAME}${NC} service ${PURPLE}Deezer, Tidal, Tubifarry${NC} ${SCRIPT_VERSION}"
 
 # ------------------ FUNCTIONS --------------------------
 # Check if a directory contains any .dll file
