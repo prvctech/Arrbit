@@ -11,13 +11,12 @@
 #   Usage: some_command | arrbitLogClean >> "$LOG_FILE"
 # ------------------------------------------------
 arrbitLogClean() {
-  sed -r 's/\x1B\[[0-9;]*[JKmsu]//g' \           # remove ANSI colour codes
-  | sed -r 's/^[[:space:]]+//' \                  # trim leading spaces
-  | sed -r 's/\]\s+/] /' \                        # ensure one space after any ]
-  | sed -r 's/[[:space:]]{2,}/ /g' \              # collapse multiple spaces
-  | sed -r 's/[[:space:]]+$//'                    # trim trailing spaces
+  sed -r 's/\x1B\[[0-9;]*[JKmsu]//g' | \
+  sed -r 's/^[[:space:]]+//' | \
+  sed -r 's/\]\s+/] /' | \
+  sed -r 's/[[:space:]]{2,}/ /g' | \
+  sed -r 's/[[:space:]]+$//'
 }
-
 # ------------------------------------------------
 # arrbitPurgeOldLogs  [days]
 #   Silent cleanup of /config/logs/arrbit-* older than N days (default 2).
