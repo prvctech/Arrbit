@@ -1,110 +1,95 @@
 #!/usr/bin/env bash
-#
-# Arrbit Module - Import metadata profiles from JSON into Lidarr
-# Version: v2.0
-# Author: prvctech
-# ---------------------------------------------
+# -------------------------------------------------------------------------------------------------------------
+# Arrbit - metadata_profiles.bash
+# Version: v2.1
+# Purpose: Import metadata profiles from JSON into Lidarr via API (Golden Standard, no internal flag check).
+# -------------------------------------------------------------------------------------------------------------
 
-set -euo pipefail
+source /config/arrbit/helpers/helpers.bash
+source /config/arrbit/helpers/logging_utils.bash
 
-source /config/arrbit/process_scripts/functions.bash
+arrbitPurgeOldLogs 5
 
-rawScriptName="$(basename "${BASH_SOURCE[0]}" .bash)"
-scriptName="${rawScriptName//_/ } module"
-scriptVersion="v2.0"
+SCRIPT_NAME="metadata_profiles"
+SCRIPT_VERSION="v2.1"
+LOG_DIR="/config/logs"
+LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
+CYAN="\033[1;36m"
+RESET="\033[0m"
+MODULE_YELLOW="\033[1;33m"
 
-logfileSetup() {
-  timestamp=$(date +"%Y_%m_%d-%H_%M")
-  logFileName="arrbit-${rawScriptName}-${timestamp}.log"
-  logFilePath="/config/logs/${logFileName}"
-  mkdir -p /config/logs
-  find "/config/logs" -type f -iname "arrbit-${rawScriptName}-*.log" -mtime +5 -delete
-  touch "$logFilePath"
-  chmod 666 "$logFilePath"
-}
+mkdir -p "$LOG_DIR"
+touch "$LOG_FILE"
+chmod 777 "$LOG_FILE"
 
-log() {
-  echo -e "$1"
-  logRaw "$1"
-}
+arrbitLog "${ARRBIT_TAG} Starting ${MODULE_YELLOW}metadata_profiles module${RESET} ${SCRIPT_VERSION}..."
 
-logRaw() {
-  local stripped
-  stripped=$(echo -e "$1" \
-    | sed -E 's/\x1B\[[0-9;]*[a-zA-Z]//g' \
-    | sed -E 's/\\033\[[0-9;]*m//g' \
-    | sed -E 's/[🔵🟢⚠️📥📄⏩🚀✅❌🔧🔴🟪🟦🟩🟥]//g' \
-    | sed -E 's/\\n/\n/g' \
-    | sed -E 's/^[[:space:]]+\[Arrbit\]/[Arrbit]/')
-  echo "$stripped" >> "$logFilePath"
-}
-
-logfileSetup
-log "🚀  ${ARRBIT_TAG} Starting \033[1;33m${scriptName}\033[0m ${scriptVersion}..."
-
-if [[ "${CONFIGURE_METADATA_PROFILES,,}" != "true" ]]; then
-  log "⏩  ${ARRBIT_TAG} Skipping metadata profile import (flag disabled)"
-  exit 0
-fi
-
-getArrAppInfo
-verifyApiAccess
-
-JSON_PATH="/config/arrbit/process_scripts/modules/json_values/metadata_profiles_master.json"
-
-if [[ ! -f "$JSON_PATH" ]]; then
-  log "⚠️  ${ARRBIT_TAG} File not found: ${JSON_PATH}"
-  logRaw "[ERROR] metadata_profiles_master.json not found at ${JSON_PATH}"
+# ------------------------------------------------------------------------
+# Connect to arr_bridge.bash (waits for API, sets arr_api)
+# ------------------------------------------------------------------------
+if ! source /config/arrbit/connectors/arr_bridge.bash; then
+  arrbitErrorLog "${ARRBIT_TAG} Could not source arr_bridge.bash" \
+    "arr_bridge.bash missing" \
+    "${SCRIPT_NAME}.bash" \
+    "${SCRIPT_NAME}:${LINENO}" \
+    "Required for API access" \
+    "Check Arrbit setup"
   exit 1
 fi
 
-log "📄  ${ARRBIT_TAG} Reading metadata profiles from: ${JSON_PATH}"
-logRaw "[INFO] Reading JSON from: ${JSON_PATH}"
+JSON_PATH="/config/arrbit/modules/json_values/metadata_profiles_master.json"
 
-existing_names=$(curl -s "${arrUrl}/api/${arrApiVersion}/metadataprofile?apikey=${arrApiKey}" \
-  | jq -r '.[].name' | tr '[:upper:]' '[:lower:]')
+if [[ ! -f "$JSON_PATH" ]]; then
+  arrbitLog "${ARRBIT_TAG} File not found: ${JSON_PATH}"
+  echo "[ERROR] metadata_profiles_master.json not found at ${JSON_PATH}" >> "$LOG_FILE"
+  exit 1
+fi
+
+arrbitLog "${ARRBIT_TAG} Reading metadata profiles from: ${JSON_PATH}"
+echo "[INFO] Reading JSON from: ${JSON_PATH}" >> "$LOG_FILE"
+
+existing_names=$(arr_api "${arrUrl}/api/${arrApiVersion}/metadataprofile" | jq -r '.[].name' | tr '[:upper:]' '[:lower:]')
 
 jq -c '.[]' "$JSON_PATH" | while IFS= read -r profile; do
   profile_name=$(echo "$profile" | jq -r '.name')
-  profile_id=$(echo "$profile" | jq -r '.id')
   payload=$(echo "$profile" | jq 'del(.id)')
   lowercase_name=$(echo "$profile_name" | tr '[:upper:]' '[:lower:]')
 
-  logRaw "\n[START] Profile: $profile_name (ID: $profile_id)"
-  logRaw "[ACTION] Checking if profile name already exists in Lidarr"
+  echo "[START] Profile: $profile_name" >> "$LOG_FILE"
+  echo "[ACTION] Checking if profile name already exists in Lidarr" >> "$LOG_FILE"
 
   if echo "$existing_names" | grep -Fxq "$lowercase_name"; then
-    log "⏩  ${ARRBIT_TAG} Metadata profile already exists, skipping: ${profile_name}"
-    logRaw "[SKIP] Profile already exists in Lidarr: $profile_name"
+    arrbitLog "${ARRBIT_TAG} Metadata profile already exists, skipping: ${profile_name}"
+    echo "[SKIP] Profile already exists in Lidarr: $profile_name" >> "$LOG_FILE"
     continue
   fi
 
-  log "📥  ${ARRBIT_TAG} Importing metadata profile: ${profile_name}"
-  logRaw "[Arrbit] Importing metadata profile: $profile_name"
-  logRaw "[CREATE] Sending POST to: ${arrUrl}/api/${arrApiVersion}/metadataprofile"
+  arrbitLog "${ARRBIT_TAG} Importing metadata profile: ${profile_name}"
+  echo "[Arrbit] Importing metadata profile: $profile_name" >> "$LOG_FILE"
+  echo "[CREATE] Sending POST to: ${arrUrl}/api/${arrApiVersion}/metadataprofile" >> "$LOG_FILE"
+  echo "[Payload] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" >> "$LOG_FILE"
+  echo "$payload" >> "$LOG_FILE"
+  echo "[/Payload] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" >> "$LOG_FILE"
 
-  logRaw "[Payload] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-  echo "$payload" >> "$logFilePath"
-  logRaw "[/Payload] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+  response=$(
+    arr_api -X POST --data-raw "$payload" \
+      "${arrUrl}/api/${arrApiVersion}/metadataprofile?apikey=${arrApiKey}"
+  )
 
-  response=$(curl -s --fail --retry 3 --retry-delay 2 \
-    -X POST "${arrUrl}/api/${arrApiVersion}/metadataprofile?apikey=${arrApiKey}" \
-    -H "Content-Type: application/json" \
-    --data-raw "$payload")
-
-  logRaw "[Response] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-  echo "$response" >> "$logFilePath"
-  logRaw "[/Response] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+  echo "[Response] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" >> "$LOG_FILE"
+  echo "$response" >> "$LOG_FILE"
+  echo "[/Response] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" >> "$LOG_FILE"
 
   if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
-    logRaw "[SUCCESS] Metadata profile created: $profile_name"
+    echo "[SUCCESS] Metadata profile created: $profile_name" >> "$LOG_FILE"
   else
-    log "⚠️  ${ARRBIT_TAG} Failed to create metadata profile: ${profile_name}"
-    logRaw "[ERROR] Failed to create profile: $profile_name"
+    arrbitLog "${ARRBIT_TAG} Failed to create metadata profile: ${profile_name}"
+    echo "[ERROR] Failed to create profile: $profile_name" >> "$LOG_FILE"
   fi
 done
 
-log "📄  ${ARRBIT_TAG} Log saved to /config/logs/${logFileName}"
-log "✅  ${ARRBIT_TAG} All metadata profiles have been imported successfully"
-log "✅  ${ARRBIT_TAG} Done with ${rawScriptName}.bash!"
+arrbitLog "${ARRBIT_TAG} Log saved to $LOG_FILE"
+arrbitLog "${ARRBIT_TAG} All metadata profiles have been imported successfully"
+arrbitLog "${ARRBIT_TAG} Done with ${SCRIPT_NAME} module!"
 exit 0
