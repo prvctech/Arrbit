@@ -17,7 +17,7 @@ ARRBIT_CONF="$ARRBIT_ROOT/config/arrbit-config.conf"
 mkdir -p "$TMP_DIR" "$ARRBIT_ROOT"
 
 # --- Start Process ---
-echo -e "\033[36m[Arrbit]\033[0m \033[33msetup setup\033[0m v4.2 ...."
+echo -e "\033[36m[Arrbit]\033[0m \033[33msetup install\033[0m v4.2 ...."
 echo "[Arrbit] Downloading Arrbit repository to temporary folder ..."
 cd "$TMP_DIR"
 
