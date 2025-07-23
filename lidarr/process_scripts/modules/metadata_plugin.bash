@@ -14,33 +14,31 @@ SCRIPT_NAME="metadata_plugin"
 SCRIPT_VERSION="v2.3"
 LOG_DIR="/config/logs"
 LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
-ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
-MODULE_YELLOW="\033[1;33m"
-RESET="\033[0m"
 
-mkdir -p "$LOG_DIR"
-touch "$LOG_FILE"
-chmod 777 "$LOG_FILE"
+CYAN='\033[36m'
+YELLOW='\033[33m'
+NC='\033[0m'
 
-log_info "${ARRBIT_TAG} Starting ${MODULE_YELLOW}metadata_plugin module${RESET} ${SCRIPT_VERSION}..."
+log_info() {
+  echo -e "${CYAN}[Arrbit]${NC} $*"
+  printf '[Arrbit] %s\n' "$*" >> "$LOG_FILE"
+}
+log_error() {
+  echo -e "${CYAN}[Arrbit]${NC} ERROR: $*" >&2
+  printf '[Arrbit] ERROR: %s\n' "$*" >> "$LOG_FILE"
+}
 
-# ------------------------------------------------------------------------
+# Banner (yellow for module name, first log only)
+log_info "${YELLOW}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
+
 # Connect to arr_bridge.bash (sets arr_api, arrUrl, arrApiVersion)
-# ------------------------------------------------------------------------
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
-  log_error "${ARRBIT_TAG} Could not source arr_bridge.bash" \
-    "arr_bridge.bash missing" \
-    "${SCRIPT_NAME}.bash" \
-    "${SCRIPT_NAME}:${LINENO}" \
-    "Required for API access" \
-    "Check Arrbit setup"
+  log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup)"
   exit 1
 fi
 
-# ------------------------------------------------------------------------
 # Only Lyrics Enhancer (id=11)
-# ------------------------------------------------------------------------
-log_info "[Arrbit] Configuring Lyrics Enhancer consumer..."
+log_info "Configuring Lyrics Enhancer consumer..."
 lid=11
 le=$(arr_api "${arrUrl}/api/${arrApiVersion}/metadata/${lid}")
 upd=$(echo "$le" | jq '
@@ -53,10 +51,10 @@ upd=$(echo "$le" | jq '
     )
 ')
 if arr_api -X PUT --data-raw "$upd" "${arrUrl}/api/${arrApiVersion}/metadata/${lid}" >/dev/null; then
-  log_info "[Arrbit] Lyrics Enhancer configured"
+  log_info "Lyrics Enhancer configured"
 else
-  log_error "[Arrbit] Failed to configure Lyrics Enhancer"
+  log_error "Failed to configure Lyrics Enhancer"
 fi
 
-log_info "[Arrbit] Done with metadata_plugin module!"
+log_info "Done with ${SCRIPT_NAME} module!"
 exit 0
