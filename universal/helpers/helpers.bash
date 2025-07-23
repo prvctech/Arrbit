@@ -1,13 +1,12 @@
 # -------------------------------------------------------------------------------------------------------------
-# Arrbit helpers.bash
+# Arrbit - helpers.bash
 # Version: v1.1
 # Purpose: Reusable helper functions for Arrbit scripts (flag reading, source guard, joinBy, etc)
 # -------------------------------------------------------------------------------------------------------------
 
 if [[ -z "${ARRBIT_HELPERS_INCLUDED:-}" ]]; then
   ARRBIT_HELPERS_INCLUDED=1
-  # ...rest of code...
-fi
+
   # -------------------------------------------------------
   # Safely get a flag value from the config file (case-insensitive, ignores comments/spaces)
   # Usage: getFlag "ENABLE_PLUGINS"
@@ -41,7 +40,7 @@ fi
   # -------------------------------------------------------
   .sourceGuard() {
     local guard_var="SOURCE_GUARD_$(echo "$1" | md5sum | awk '{print $1}')"
-    [[ -n "${!guard_var}" ]] && return 1
+    [[ -n "${!guard_var:-}" ]] && return 1
     declare -g "$guard_var=1"
     return 0
   }
@@ -55,4 +54,5 @@ fi
     shift
     echo "$*"
   }
+
 fi
