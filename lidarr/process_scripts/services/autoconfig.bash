@@ -30,7 +30,7 @@ mkdir -p "$LOG_DIR"
 touch "$LOG_FILE"
 chmod 777 "$LOG_FILE"
 
-arrbitLog "${ARRBIT_TAG} Starting ${SERVICE_YELLOW}${SCRIPT_NAME} service${RESET} ${SCRIPT_VERSION}..."
+log_info "${ARRBIT_TAG} Starting ${SERVICE_YELLOW}${SCRIPT_NAME} service${RESET} ${SCRIPT_VERSION}..."
 
 # ----------------------------------------------------------------------------
 # 2. MASTER FLAG: ENABLE_AUTOCONFIG
@@ -38,7 +38,7 @@ arrbitLog "${ARRBIT_TAG} Starting ${SERVICE_YELLOW}${SCRIPT_NAME} service${RESET
 ENABLE_AUTOCONFIG=$(getFlag "ENABLE_AUTOCONFIG")
 : "${ENABLE_AUTOCONFIG:=true}"
 if [[ "${ENABLE_AUTOCONFIG,,}" != "true" ]]; then
-  arrbitErrorLog "${ARRBIT_TAG} Autoconfig is off; check config settings." \
+  log_error "${ARRBIT_TAG} Autoconfig is off; check config settings." \
     "ENABLE_AUTOCONFIG=false" \
     "autoconfig.bash" \
     "${SCRIPT_NAME}:${LINENO}" \
@@ -51,7 +51,7 @@ fi
 # 3. CONNECT TO ARRBRIDGE (Exports arrApiKey, arrApiVersion, arrUrl, arr_api())
 # ----------------------------------------------------------------------------
 if ! source "$ARRBIT_ROOT/connectors/arr_bridge.bash"; then
-  arrbitErrorLog "${ARRBIT_TAG} Failed to source arr_bridge.bash" \
+  log_error "${ARRBIT_TAG} Failed to source arr_bridge.bash" \
     "arr_bridge.bash source" \
     "$ARRBIT_ROOT/connectors/arr_bridge.bash" \
     "${SCRIPT_NAME}:${LINENO}" \
@@ -90,7 +90,7 @@ for name in "${MODULES[@]}"; do
   fi
 done
 if (( enabledCount == 0 )); then
-  arrbitErrorLog "${ARRBIT_TAG} Autoconfig disabled - all modules are off; check your config settings." \
+  log_error "${ARRBIT_TAG} Autoconfig disabled - all modules are off; check your config settings." \
     "no modules enabled" \
     "autoconfig.bash" \
     "${SCRIPT_NAME}:${LINENO}" \
@@ -114,7 +114,7 @@ for name in "${MODULES[@]}"; do
   if [ -x "$script" ]; then
     # No running log here! Module prints its own "Starting ..." line.
     if ! bash "$script"; then
-      arrbitErrorLog "${ARRBIT_TAG} ${name} module failed" \
+      log_error "${ARRBIT_TAG} ${name} module failed" \
         "${name}.bash execution" \
         "$script" \
         "${SCRIPT_NAME}:${LINENO}" \
@@ -122,15 +122,14 @@ for name in "${MODULES[@]}"; do
         "Check module script"
     fi
   else
-    arrbitLog "${ARRBIT_TAG} ${MODULE_YELLOW}${name} module${RESET} missing; skipping"
+    log_info "${ARRBIT_TAG} ${MODULE_YELLOW}${name} module${RESET} missing; skipping"
   fi
 done
 
 # ----------------------------------------------------------------------------
 # 6. WRAP UP
 # ----------------------------------------------------------------------------
-arrbitLog "${ARRBIT_TAG} Log saved to $LOG_FILE"
-arrbitLog "${ARRBIT_TAG} Done with ${SCRIPT_NAME} service"
+log_info "${ARRBIT_TAG} Log saved to $LOG_FILE"
+log_info "${ARRBIT_TAG} Done with ${SCRIPT_NAME} service"
 
 exit 0
-`
