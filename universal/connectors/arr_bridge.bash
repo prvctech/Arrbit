@@ -10,7 +10,7 @@ source /config/arrbit/helpers/helpers.bash
 source /config/arrbit/helpers/logging_utils.bash
 
 # --- Find and extract required config values ---
-CONFIG_XML="/config/Lidarr/config.xml"
+CONFIG_XML="/config/config.xml"
 
 if [[ ! -f "$CONFIG_XML" ]]; then
   echo -e "\033[36m[Arrbit]\033[0m ERROR: Lidarr config.xml not found at $CONFIG_XML"
