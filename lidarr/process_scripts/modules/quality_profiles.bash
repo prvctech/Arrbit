@@ -14,28 +14,30 @@ SCRIPT_NAME="quality_profiles"
 SCRIPT_VERSION="v1.5"
 LOG_DIR="/config/logs"
 LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
-ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
-MODULE_YELLOW="\033[1;33m"
-RESET="\033[0m"
 
-mkdir -p "$LOG_DIR"
-touch "$LOG_FILE"
-chmod 777 "$LOG_FILE"
+CYAN='\033[36m'
+YELLOW='\033[33m'
+NC='\033[0m'
 
-log_info "${ARRBIT_TAG} Starting ${MODULE_YELLOW}quality_profiles module${RESET} ${SCRIPT_VERSION}..."
+log_info() {
+  echo -e "${CYAN}[Arrbit]${NC} $*"
+  printf '[Arrbit] %s\n' "$*" >> "$LOG_FILE"
+}
+log_error() {
+  echo -e "${CYAN}[Arrbit]${NC} ERROR: $*" >&2
+  printf '[Arrbit] ERROR: %s\n' "$*" >> "$LOG_FILE"
+}
+
+# Banner (script/module name in yellow, first log only)
+log_info "${YELLOW}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
 
 # Connect to arr_bridge.bash (waits for API, sets arr_api)
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
-  log_error "${ARRBIT_TAG} Could not source arr_bridge.bash" \
-    "arr_bridge.bash missing" \
-    "${SCRIPT_NAME}.bash" \
-    "${SCRIPT_NAME}:${LINENO}" \
-    "Required for API access" \
-    "Check Arrbit setup"
+  log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup)"
   exit 1
 fi
 
-log_info "${ARRBIT_TAG} Configuring Quality Profile..."
+log_info "Configuring Quality Profile..."
 
 # 1) Delete default profiles if JSON exists
 remove_file="/config/arrbit/modules/json_values/quality_profiles-default_values-remove.json"
@@ -44,16 +46,16 @@ if [[ -f "$remove_file" ]] && default_profiles_json=$(jq -c . "$remove_file" 2>/
     ids_json=$(arr_api "${arrUrl}/api/${arrApiVersion}/qualityprofile")
     id=$(jq -r ".[] | select(.name==\"$name\") | .id" <<<"$ids_json")
     if [[ -n "$id" && "$id" != "null" ]]; then
-      log_info "${ARRBIT_TAG} Deleting default profile '$name' (ID: $id)..."
+      log_info "Deleting default profile '$name' (ID: $id)..."
       if arr_api -X DELETE "${arrUrl}/api/${arrApiVersion}/qualityprofile/$id"; then
-        log_info "${ARRBIT_TAG} Deleted profile '$name'"
+        log_info "Deleted profile '$name'"
       else
-        log_error "${ARRBIT_TAG} Failed deleting profile '$name'"
+        log_error "Failed deleting profile '$name'"
       fi
     fi
   done
 else
-  log_info "${ARRBIT_TAG} Could not parse default-values JSON; skipping deletion"
+  log_info "Could not parse default-values JSON; skipping deletion"
 fi
 
 # 2) Build JSON for HQ profile
@@ -103,15 +105,10 @@ EOF
 # 3) Update profile via API
 if arr_api -X PUT --data "${hq_profile}" \
      "${arrUrl}/api/${arrApiVersion}/qualityprofile/4" >/dev/null; then
-  log_info "${ARRBIT_TAG} Quality profile 'hq' updated."
+  log_info "Quality profile 'hq' updated."
 else
-  log_error "${ARRBIT_TAG} Failed to update quality profile 'hq'" \
-    "quality profile PUT failed" \
-    "${SCRIPT_NAME}.bash" \
-    "${SCRIPT_NAME}:${LINENO}" \
-    "Quality profile update failed" \
-    "Check API connectivity and payload"
+  log_error "Failed to update quality profile 'hq' (Check API connectivity and payload)"
 fi
 
-log_info "${ARRBIT_TAG} Done with quality_profiles module!"
+log_info "Done with ${SCRIPT_NAME} module!"
 exit 0
