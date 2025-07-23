@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - autoconfig.bash
-# Version: v4.6
-# Purpose: Orchestrates Arrbit modules to configure services based on config flags.
+# Version: v4.7
+# Purpose: Orchestrates Arrbit modules to configure services based on config flags. (Golden Standard)
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/helpers.bash
 source /config/arrbit/helpers/logging_utils.bash
 
+arrbitPurgeOldLogs 5
+
 SCRIPT_NAME="autoconfig"
-SCRIPT_VERSION="v4.6"
+SCRIPT_VERSION="v4.7"
 ARRBIT_ROOT="/config/arrbit"
 CONFIG_FILE="$ARRBIT_ROOT/config/arrbit-config.conf"
 MODULES_DIR="$ARRBIT_ROOT/modules"
@@ -35,7 +37,7 @@ arrbitLog "${ARRBIT_TAG} Starting ${SERVICE_YELLOW}${SCRIPT_NAME} service${RESET
 # ----------------------------------------------------------------------------
 ENABLE_AUTOCONFIG=$(getFlag "ENABLE_AUTOCONFIG")
 : "${ENABLE_AUTOCONFIG:=true}"
-if [[ "$(echo "$ENABLE_AUTOCONFIG" | tr '[:upper:]' '[:lower:]')" != "true" ]]; then
+if [[ "${ENABLE_AUTOCONFIG,,}" != "true" ]]; then
   arrbitErrorLog "${ARRBIT_TAG} Autoconfig is off; check config settings." \
     "ENABLE_AUTOCONFIG=false" \
     "autoconfig.bash" \
@@ -46,7 +48,7 @@ if [[ "$(echo "$ENABLE_AUTOCONFIG" | tr '[:upper:]' '[:lower:]')" != "true" ]]; 
 fi
 
 # ----------------------------------------------------------------------------
-# 3. CONNECT TO ARRBRIDGE
+# 3. CONNECT TO ARRBRIDGE (Exports arrApiKey, arrApiVersion, arrUrl, arr_api())
 # ----------------------------------------------------------------------------
 if ! source "$ARRBIT_ROOT/connectors/arr_bridge.bash"; then
   arrbitErrorLog "${ARRBIT_TAG} Failed to source arr_bridge.bash" \
@@ -83,7 +85,7 @@ for name in "${MODULES[@]}"; do
   flag="CONFIGURE_$(echo "$name" | tr '[:lower:]' '[:upper:]')"
   val=$(getFlag "$flag")
   : "${val:=true}"
-  if [[ "$(echo "$val" | tr '[:upper:]' '[:lower:]')" == "true" ]]; then
+  if [[ "${val,,}" == "true" ]]; then
     ((enabledCount++))
   fi
 done
@@ -98,13 +100,13 @@ if (( enabledCount == 0 )); then
 fi
 
 # ----------------------------------------------------------------------------
-# 5. RUN MODULES BASED ON FLAGS
+# 5. RUN MODULES BASED ON FLAGS (No flag check inside modules)
 # ----------------------------------------------------------------------------
 for name in "${MODULES[@]}"; do
   flag="CONFIGURE_$(echo "$name" | tr '[:lower:]' '[:upper:]')"
   val=$(getFlag "$flag")
   : "${val:=true}"
-  if [[ "$(echo "$val" | tr '[:upper:]' '[:lower:]')" != "true" ]]; then
+  if [[ "${val,,}" != "true" ]]; then
     continue
   fi
 
@@ -131,3 +133,4 @@ arrbitLog "${ARRBIT_TAG} Log saved to $LOG_FILE"
 arrbitLog "${ARRBIT_TAG} Done with ${SCRIPT_NAME} service"
 
 exit 0
+`
