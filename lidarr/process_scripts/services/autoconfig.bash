@@ -19,28 +19,29 @@ MODULES_DIR="$ARRBIT_ROOT/modules"
 LOG_DIR="/config/logs"
 LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
-ARRBIT_TAG_TTY="\033[36m[Arrbit]\033[0m"
-ARRBIT_TAG_LOG="[Arrbit]"
-SERVICE_YELLOW="\033[33m"
-MODULE_YELLOW="\033[33m"
-RESET="\033[0m"
+CYAN='\033[36m'
+YELLOW='\033[33m'
+NC='\033[0m'
 
-mkdir -p "$LOG_DIR"
-touch "$LOG_FILE"
-chmod 777 "$LOG_FILE"
+# Override log_info/log_error for Golden Standard color
+log_info() {
+  echo -e "${CYAN}[Arrbit]${NC} $*"
+  printf '[Arrbit] %s\n' "$*" >> "$LOG_FILE"
+}
+log_error() {
+  echo -e "${CYAN}[Arrbit]${NC} ERROR: $*" >&2
+  printf '[Arrbit] ERROR: %s\n' "$*" >> "$LOG_FILE"
+}
 
-# Terminal: colorized
-echo -e "${ARRBIT_TAG_TTY} ${SERVICE_YELLOW}${SCRIPT_NAME} service${RESET} ${SCRIPT_VERSION} ..."
-# Log: clean
-echo "${ARRBIT_TAG_LOG} ${SCRIPT_NAME} service ${SCRIPT_VERSION} started." | arrbitLogClean >> "$LOG_FILE"
+# Banner: Only this line with extra color
+log_info "${YELLOW}${SCRIPT_NAME} service${NC} ${SCRIPT_VERSION} ..."
 
 # ----------------------------------------------------------------------------
 # 1. MASTER FLAG: ENABLE_AUTOCONFIG (Always enforce)
 # ----------------------------------------------------------------------------
 ENABLE_AUTOCONFIG=$(getFlag "ENABLE_AUTOCONFIG")
 if [[ -z "${ENABLE_AUTOCONFIG}" || "${ENABLE_AUTOCONFIG,,}" != "true" ]]; then
-  echo -e "${ARRBIT_TAG_TTY} Autoconfig is off; check config settings."
-  log_error "${ARRBIT_TAG_LOG} Autoconfig is off; check config settings. ENABLE_AUTOCONFIG=false (Set ENABLE_AUTOCONFIG=\"true\" in ${CONFIG_FILE})"
+  log_error "Autoconfig is off; check config settings. ENABLE_AUTOCONFIG=false (Set ENABLE_AUTOCONFIG=\"true\" in ${CONFIG_FILE})"
   exit 0
 fi
 
@@ -48,8 +49,7 @@ fi
 # 2. CONNECT TO ARRBRIDGE (exports arr_api)
 # ----------------------------------------------------------------------------
 if ! source "$ARRBIT_ROOT/connectors/arr_bridge.bash"; then
-  echo -e "${ARRBIT_TAG_TTY} arr_bridge.bash not found or failed; exiting."
-  log_error "${ARRBIT_TAG_LOG} arr_bridge.bash not found or failed; exiting."
+  log_error "arr_bridge.bash not found or failed; exiting."
   exit 1
 fi
 
@@ -82,8 +82,7 @@ for name in "${MODULES[@]}"; do
   fi
 done
 if (( enabled_count == 0 )); then
-  echo -e "${ARRBIT_TAG_TTY} All modules disabled; nothing to do."
-  log_error "${ARRBIT_TAG_LOG} Autoconfig disabled - all modules are off. ENABLE_AUTOCONFIG is true but all CONFIGURE_* flags are false."
+  log_error "Autoconfig disabled - all modules are off. ENABLE_AUTOCONFIG is true but all CONFIGURE_* flags are false."
   exit 0
 fi
 
@@ -94,31 +93,24 @@ for name in "${MODULES[@]}"; do
   flag="CONFIGURE_$(echo "$name" | tr '[:lower:]' '[:upper:]')"
   val=$(getFlag "$flag")
   if [[ -z "${val}" || "${val,,}" != "true" ]]; then
-    # Terminal
-    echo -e "${ARRBIT_TAG_TTY} ${MODULE_YELLOW}${name} module${RESET} is disabled by config; skipping."
-    # Log
-    echo "${ARRBIT_TAG_LOG} ${name} module is disabled by config; skipping." | arrbitLogClean >> "$LOG_FILE"
+    log_info "${YELLOW}${name} module${NC} is disabled by config; skipping."
     continue
   fi
 
   script="$MODULES_DIR/${name}.bash"
   if [ -x "$script" ]; then
     if ! bash "$script"; then
-      echo -e "${ARRBIT_TAG_TTY} ${MODULE_YELLOW}${name} module${RESET} failed. See log for details."
-      log_error "${ARRBIT_TAG_LOG} ${name} module failed. (${script})"
+      log_error "${YELLOW}${name} module${NC} failed. See log for details."
     fi
   else
-    echo -e "${ARRBIT_TAG_TTY} ${MODULE_YELLOW}${name} module${RESET} not found or not executable; skipped."
-    echo "${ARRBIT_TAG_LOG} ${name} module not found or not executable; skipped." | arrbitLogClean >> "$LOG_FILE"
+    log_error "${YELLOW}${name} module${NC} not found or not executable; skipped."
   fi
 done
 
 # ----------------------------------------------------------------------------
 # 6. WRAP UP
 # ----------------------------------------------------------------------------
-echo -e "${ARRBIT_TAG_TTY} Log saved to $LOG_FILE"
-echo -e "${ARRBIT_TAG_TTY} Done with ${SCRIPT_NAME} service"
-echo "${ARRBIT_TAG_LOG} Log saved to $LOG_FILE" | arrbitLogClean >> "$LOG_FILE"
-echo "${ARRBIT_TAG_LOG} Done with ${SCRIPT_NAME} service" | arrbitLogClean >> "$LOG_FILE"
+log_info "Log saved to $LOG_FILE"
+log_info "Done with ${SCRIPT_NAME} service"
 
 exit 0
