@@ -38,7 +38,7 @@ log() { # $1 = message with color, $2 = plain version for file (optional)
   printf '%s\n' "$plain" | arrbitLogClean >> "$LOG_FILE"
 }
 
-log_error() { # $1 = message
+log_error() { # $1 = message, $2 = plain version for file (optional)
   local plain="[Arrbit] ERROR: ${2:-${1//\033\[[0-9;]*[mK]}}"
   echo -e "${CYAN}[Arrbit]${NC} ${RED}ERROR:${NC} $1" >&2
   printf '%s\n' "$plain" | arrbitLogClean >> "$LOG_FILE"
@@ -48,34 +48,38 @@ log_error() { # $1 = message
 log "Starting ${YELLOW}plugins service${NC} ${SCRIPT_VERSION}"
 
 # util: already contains any .dll?
-has_dll() { shopt -s nullglob; local f=("$1"/*.dll); (( \${#f[@]} )); }
+has_dll() {
+  shopt -s nullglob
+  local f=("$1"/*.dll)
+  (( ${#f[@]} ))
+}
 
 install_plugin() {            # $1 name  $2 dir  $3 url
-  local name="\$1" target="\$2" url="\$3"
-  local coloured="\${PURPLE}\${name}\${NC}"
-  local plain="\$name"
+  local name="$1" target="$2" url="$3"
+  local coloured="${PURPLE}${name}${NC}"
+  local plain="$name"
 
   # first status line (coloured once)
-  if has_dll "\$target"; then
-    log "\$coloured already present – skipping" "[Arrbit] \$plain already present – skipping"
+  if has_dll "$target"; then
+    log "$coloured already present – skipping" "[Arrbit] $plain already present – skipping"
     return
   fi
 
-  log "Downloading \$coloured …" "[Arrbit] Downloading \$plain …"
+  log "Downloading $coloured …" "[Arrbit] Downloading $plain …"
 
-  tmp="\$(mktemp -d)"
-  if curl -fsSL -o "\$tmp/p.zip" "\$url" >>"\$LOG_FILE" 2>&1; then
-    if unzip -q "\$tmp/p.zip" -d "\$tmp" >>"\$LOG_FILE" 2>&1; then
-      mkdir -p "\$target"
-      mv "\$tmp"/* "\$target/" && chmod -R 777 "\$target"
-      log "\$plain installed"
+  tmp=$(mktemp -d)
+  if curl -fsSL -o "$tmp/p.zip" "$url" >>"$LOG_FILE" 2>&1; then
+    if unzip -q "$tmp/p.zip" -d "$tmp" >>"$LOG_FILE" 2>&1; then
+      mkdir -p "$target"
+      mv "$tmp"/* "$target/" && chmod -R 777 "$target"
+      log "$plain installed"
     else
-      log_error "Failed to unzip \$plain – skipped"
+      log_error "Failed to unzip $plain – skipped"
     fi
   else
-    log_error "Failed to download \$plain – skipped"
+    log_error "Failed to download $plain – skipped"
   fi
-  rm -rf "\$tmp"
+  rm -rf "$tmp"
 }
 
 # -------- install list --------------------------------------------------------------
