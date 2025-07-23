@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - metadata_write.bash
-# Version: v2.2
+# Version: v2.3
 # Purpose: Configure Lidarr Metadata Write Provider via API (Golden Standard, no internal flag check).
 # -------------------------------------------------------------------------------------------------------------
 
@@ -11,25 +11,22 @@ source /config/arrbit/helpers/logging_utils.bash
 arrbitPurgeOldLogs 5
 
 SCRIPT_NAME="metadata_write"
-SCRIPT_VERSION="v2.2"
+SCRIPT_VERSION="v2.3"
 LOG_DIR="/config/logs"
 LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
-CYAN="\033[1;36m"
-RESET="\033[0m"
 MODULE_YELLOW="\033[1;33m"
+RESET="\033[0m"
 
 mkdir -p "$LOG_DIR"
 touch "$LOG_FILE"
 chmod 777 "$LOG_FILE"
 
-arrbitLog "${ARRBIT_TAG} Starting ${MODULE_YELLOW}metadata_write module${RESET} ${SCRIPT_VERSION}..."
+log_info "${ARRBIT_TAG} Starting ${MODULE_YELLOW}metadata_write module${RESET} ${SCRIPT_VERSION}..."
 
-# ------------------------------------------------------------------------
 # Connect to arr_bridge.bash (waits for API, sets arr_api)
-# ------------------------------------------------------------------------
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
-  arrbitErrorLog "${ARRBIT_TAG} Could not source arr_bridge.bash" \
+  log_error "${ARRBIT_TAG} Could not source arr_bridge.bash" \
     "arr_bridge.bash missing" \
     "${SCRIPT_NAME}.bash" \
     "${SCRIPT_NAME}:${LINENO}" \
@@ -38,7 +35,7 @@ if ! source /config/arrbit/connectors/arr_bridge.bash; then
   exit 1
 fi
 
-arrbitLog "${ARRBIT_TAG} Configuring Metadata Write Provider..."
+log_info "[Arrbit] Configuring Metadata Write Provider..."
 
 payload='{
   "writeAudioTags": "newFiles",
@@ -59,9 +56,9 @@ echo "[Arrbit] API Response:" >> "$LOG_FILE"
 echo "$response" >> "$LOG_FILE"
 
 if echo "$response" | jq -e '.writeAudioTags' >/dev/null 2>&1; then
-  arrbitLog "${ARRBIT_TAG} Metadata Write Provider has been configured successfully"
+  log_info "[Arrbit] Metadata Write Provider has been configured successfully"
 else
-  arrbitErrorLog "${ARRBIT_TAG} Metadata Write API call failed" \
+  log_error "[Arrbit] Metadata Write API call failed" \
     "Metadata Write API failure" \
     "${SCRIPT_NAME}.bash" \
     "${SCRIPT_NAME}:${LINENO}" \
@@ -69,5 +66,5 @@ else
     "Check ARR API connectivity and payload"
 fi
 
-arrbitLog "${ARRBIT_TAG} Done with metadata_write module!"
+log_info "[Arrbit] Done with metadata_write module!"
 exit 0
