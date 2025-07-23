@@ -48,7 +48,7 @@ if ! arr_api "${arrUrl}/api/${arrApiVersion}/notification" | jq -e '.[] | select
     "onReleaseImport": true,
     "onUpgrade": true,
     "fields": [
-      { "name": "path", "value": "/config/arrbit/process_scripts/tagger.bash" }
+      { "name": "path", "value": "/config/arrbit/tagger.bash" }
     ]
   }'
 
