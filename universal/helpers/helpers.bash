@@ -4,9 +4,10 @@
 # Purpose: Reusable helper functions for Arrbit scripts (flag reading, source guard, joinBy, etc)
 # -------------------------------------------------------------------------------------------------------------
 
-if [[ -z "${ARRBIT_HELPERS_INCLUDED}" ]]; then
+if [[ -z "${ARRBIT_HELPERS_INCLUDED:-}" ]]; then
   ARRBIT_HELPERS_INCLUDED=1
-
+  # ...rest of code...
+fi
   # -------------------------------------------------------
   # Safely get a flag value from the config file (case-insensitive, ignores comments/spaces)
   # Usage: getFlag "ENABLE_PLUGINS"
