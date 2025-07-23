@@ -23,17 +23,26 @@ SCRIPT_NAME="plugins"
 SCRIPT_VERSION="v3.3"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
-# Color codes (only use for the banner, not for subsequent logs)
+# Color codes (Golden Standard)
 CYAN='\033[36m'
 PURPLE='\033[35m'
 YELLOW='\033[33m'
 NC='\033[0m'
 
-# ------------------ BANNER LOG (COLOR ONLY HERE) --------------------------
+# ------------------ ARRBIT LOGGING (OVERRIDE FOR CYAN TAG) --------------------------
+log_info() {
+  echo -e "${CYAN}[Arrbit]${NC} $*"
+  printf '[Arrbit] %s\n' "$*" >> "$LOG_FILE"
+}
+log_error() {
+  echo -e "${CYAN}[Arrbit]${NC} ${RED}ERROR:${NC} $*" >&2
+  printf '[Arrbit] ERROR: %s\n' "$*" >> "$LOG_FILE"
+}
+
+# ------------------ BANNER LOG (ONLY THIS LINE ADDS EXTRA COLOR) --------------------------
 echo -e "${CYAN}[Arrbit]${NC} ${YELLOW}${SCRIPT_NAME}${NC} service ${PURPLE}Deezer, Tidal, Tubifarry${NC} ${SCRIPT_VERSION}"
 
 # ------------------ FUNCTIONS --------------------------
-# Check if a directory contains any .dll file
 has_dll() {
   # One-line comment: enable nullglob for empty glob expansion
   shopt -s nullglob
@@ -41,7 +50,6 @@ has_dll() {
   (( ${#dll_files[@]} ))
 }
 
-# Install a plugin if not already present
 install_plugin() {  # $1 = plugin_name, $2 = plugin_dir, $3 = plugin_url
   local plugin_name="$1"
   local plugin_dir="$2"
@@ -49,11 +57,11 @@ install_plugin() {  # $1 = plugin_name, $2 = plugin_dir, $3 = plugin_url
 
   # One-line comment: Check if DLL already exists
   if has_dll "$plugin_dir"; then
-    log_info "[Arrbit] $plugin_name already present – skipping"
+    log_info "$plugin_name already present – skipping"
     return
   fi
 
-  log_info "[Arrbit] Downloading $plugin_name …"
+  log_info "Downloading $plugin_name …"
 
   # One-line comment: Create temporary download directory
   local tmp_dir
@@ -65,12 +73,12 @@ install_plugin() {  # $1 = plugin_name, $2 = plugin_dir, $3 = plugin_url
       # Only move allowed plugin files
       find "$tmp_dir" -type f \( -iname "*.dll" -o -iname "*.json" -o -iname "*.pdb" \) -exec mv {} "$plugin_dir/" \;
       chmod -R 777 "$plugin_dir"
-      log_info "[Arrbit] $plugin_name installed"
+      log_info "$plugin_name installed"
     else
-      log_error "[Arrbit] Failed to unzip $plugin_name – skipped"
+      log_error "Failed to unzip $plugin_name – skipped"
     fi
   else
-    log_error "[Arrbit] Failed to download $plugin_name – skipped"
+    log_error "Failed to download $plugin_name – skipped"
   fi
 
   # Cleanup temporary directory
@@ -88,6 +96,6 @@ install_plugin "Tubifarry" "$PLUGINS_DIR/TypNull/Tubifarry" \
   "https://github.com/TypNull/Tubifarry/releases/download/v1.8.1.1/Tubifarry-v1.8.1.1.net6.0-develop.zip"
 
 # ------------------ LOG LOCATION (PLAIN) --------------------------
-log_info "[Arrbit] Log saved to $LOG_FILE"
+log_info "Log saved to $LOG_FILE"
 
 exit 0
