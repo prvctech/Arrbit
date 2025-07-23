@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - track_naming.bash
-# Version: v2.8
-# Purpose: Configure Lidarr Track Naming profile via API (assume invoked by autoconfig, no internal flag check).
+# Version: v2.9
+# Purpose: Configure Lidarr Track Naming profile via API (no internal flag check, uses arr_api).
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/helpers.bash
 source /config/arrbit/helpers/logging_utils.bash
 
+arrbitPurgeOldLogs 5
+
 SCRIPT_NAME="track_naming"
-SCRIPT_VERSION="v2.8"
+SCRIPT_VERSION="v2.9"
 LOG_DIR="/config/logs"
 LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
@@ -18,14 +20,13 @@ RESET="\033[0m"
 MODULE_YELLOW="\033[1;33m"
 
 mkdir -p "$LOG_DIR"
-find "$LOG_DIR" -type f -iname "arrbit-${SCRIPT_NAME}-*.log" -mtime +5 -delete
 touch "$LOG_FILE"
 chmod 777 "$LOG_FILE"
 
 arrbitLog "${ARRBIT_TAG} Starting ${MODULE_YELLOW}track_naming module${RESET} ${SCRIPT_VERSION}..."
 
 # ------------------------------------------------------------------------
-# Connect to arr_bridge.bash (includes wait for API)
+# Connect to arr_bridge.bash (includes wait for API, sets arr_api)
 # ------------------------------------------------------------------------
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
   arrbitErrorLog "${ARRBIT_TAG} Could not source arr_bridge.bash" \
@@ -59,10 +60,10 @@ payload='{
 echo "[Arrbit] Track Naming payload:" >> "$LOG_FILE"
 echo "$payload" >> "$LOG_FILE"
 
-response=$(curl -s --fail --retry 3 --retry-delay 2 -m 10 \
-  -X PUT "${arrUrl}/api/${arrApiVersion}/config/naming?apikey=${arrApiKey}" \
-  -H "Content-Type: application/json" \
-  --data-raw "$payload")
+response=$(
+  arr_api -X PUT --data-raw "$payload" \
+    "${arrUrl}/api/${arrApiVersion}/config/naming?apikey=${arrApiKey}"
+)
 
 echo "[Arrbit] API Response:" >> "$LOG_FILE"
 echo "$response" >> "$LOG_FILE"
@@ -79,5 +80,4 @@ else
 fi
 
 arrbitLog "${ARRBIT_TAG} Done with track_naming module!"
-
 exit 0
