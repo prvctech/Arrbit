@@ -1,39 +1,42 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - setup
-# Version : v3.4
-# Purpose : Installs all Arrbit files into /config/arrbit using GitHub ZIP (flattened structure, quiet mode)
+# Version : v4.0
+# Purpose : Dynamically installs all Arrbit modules, services, setup scripts, and config to /config/arrbit.
+#           Excludes itself (setup.bash) and run from setup/. Preserves user config if already present.
 # -------------------------------------------------------------------------------------------------------------
 
 set -euo pipefail
 
-SERVICE_DIR="/config/arrbit"
+ARRBIT_ROOT="/config/arrbit"
 TMP_DIR="/tmp/arrbit_dl_$$"
 ZIP_URL="https://github.com/prvctech/Arrbit/archive/refs/heads/main.zip"
-ARRBIT_CONF="$SERVICE_DIR/config/arrbit-config.conf"
+REPO_MAIN="Arrbit-main/lidarr"
 
-mkdir -p "$TMP_DIR" "$SERVICE_DIR"
+ARRBIT_CONF="$ARRBIT_ROOT/config/arrbit-config.conf"
+
+mkdir -p "$TMP_DIR" "$ARRBIT_ROOT"
 cd "$TMP_DIR"
-curl -fsSL -o arrbit.zip "$ZIP_URL"
-unzip -oq arrbit.zip
 
-# Copy helpers and connectors from universal/
-cp -r Arrbit-main/universal/helpers     "$SERVICE_DIR/helpers"
-cp -r Arrbit-main/universal/connectors  "$SERVICE_DIR/connectors"
+# --- 1. Download and extract full repo ------------------------------------------
+curl -fsSL "$ZIP_URL" -o arrbit.zip
+unzip -qq arrbit.zip
 
-# Copy modules and services from process_scripts
-cp -r Arrbit-main/lidarr/process_scripts/modules   "$SERVICE_DIR/modules"
-cp -r Arrbit-main/lidarr/process_scripts/services  "$SERVICE_DIR/services"
+# --- 2. Dynamically copy modules and services (deep copy, any new files auto-included) ----
+rsync -a "$REPO_MAIN/process_scripts/modules/"   "$ARRBIT_ROOT/modules/"
+rsync -a "$REPO_MAIN/process_scripts/services/"  "$ARRBIT_ROOT/services/"
 
-# Copy setup scripts except 'run'
-mkdir -p "$SERVICE_DIR/setup"
-find Arrbit-main/lidarr/setup_scripts -type f ! -name "run" -exec cp {} "$SERVICE_DIR/setup/" \;
+# --- 3. Dynamically copy setup scripts, except setup.bash and run --------------------------
+mkdir -p "$ARRBIT_ROOT/setup/"
+rsync -a --exclude='setup.bash' --exclude='run' "$REPO_MAIN/setup_scripts/" "$ARRBIT_ROOT/setup/"
 
-# Copy config folder only if it doesn't already exist
-[[ -d "$SERVICE_DIR/config" ]] || cp -r Arrbit-main/lidarr/config "$SERVICE_DIR/config"
+# --- 4. Copy config directory only if it does not already exist ----------------------------
+if [[ ! -d "$ARRBIT_ROOT/config" ]]; then
+    rsync -a "$REPO_MAIN/config/" "$ARRBIT_ROOT/config/"
+fi
 
-chmod -R 777 "$SERVICE_DIR"
+chmod -R 777 "$ARRBIT_ROOT"
 
-[[ -f "$ARRBIT_CONF" ]] || echo "[Arrbit] See config settings to enable Arrbit, everything is off by default."
+[[ -f "$ARRBIT_CONF" ]] || echo "[Arrbit] See config settings to enable individual services, everything is off by default."
 
 exit 0
