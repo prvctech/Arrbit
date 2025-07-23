@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - setup
-# Version : v4.1
+# Version : v4.2
 # Purpose : Dynamically installs all Arrbit modules, services, setup scripts, and config to /config/arrbit.
 #           Excludes itself (setup.bash) and run from setup/. Preserves user config if already present.
+#           Pure bash/cp; does not require rsync.
 # -------------------------------------------------------------------------------------------------------------
 
 set -euo pipefail
@@ -22,17 +23,18 @@ cd "$TMP_DIR"
 curl -fsSL "$ZIP_URL" -o arrbit.zip
 unzip -qqo arrbit.zip   # <- overwrite always, never prompts
 
-# --- 2. Dynamically copy modules and services (deep copy, new files auto-included) ----
-rsync -a "$REPO_MAIN/process_scripts/modules/"   "$ARRBIT_ROOT/modules/"
-rsync -a "$REPO_MAIN/process_scripts/services/"  "$ARRBIT_ROOT/services/"
+# --- 2. Copy modules and services (deep copy, new files auto-included) ----
+mkdir -p "$ARRBIT_ROOT/modules" "$ARRBIT_ROOT/services"
+cp -rf "$REPO_MAIN/process_scripts/modules/."   "$ARRBIT_ROOT/modules/"
+cp -rf "$REPO_MAIN/process_scripts/services/."  "$ARRBIT_ROOT/services/"
 
-# --- 3. Dynamically copy setup scripts, except setup.bash and run --------------------------
-mkdir -p "$ARRBIT_ROOT/setup/"
-rsync -a --exclude='setup.bash' --exclude='run' "$REPO_MAIN/setup_scripts/" "$ARRBIT_ROOT/setup/"
+# --- 3. Copy setup scripts except setup.bash and run -----------------------------
+mkdir -p "$ARRBIT_ROOT/setup"
+find "$REPO_MAIN/setup_scripts" -type f ! -name "setup.bash" ! -name "run" -exec cp -f {} "$ARRBIT_ROOT/setup/" \;
 
-# --- 4. Copy config directory only if it does not already exist ----------------------------
+# --- 4. Copy config directory only if it does not already exist ------------------
 if [[ ! -d "$ARRBIT_ROOT/config" ]]; then
-    rsync -a "$REPO_MAIN/config/" "$ARRBIT_ROOT/config/"
+    cp -r "$REPO_MAIN/config" "$ARRBIT_ROOT/"
 fi
 
 chmod -R 777 "$ARRBIT_ROOT"
