@@ -36,5 +36,4 @@ chmod -R 777 "$SERVICE_DIR"
 
 [[ -f "$ARRBIT_CONF" ]] || echo "[Arrbit] See config settings to enable Arrbit, everything is off by default."
 
-sleep infinity
 exit 0
