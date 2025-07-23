@@ -25,7 +25,7 @@ if [[ -z "${ARRBIT_HELPERS_INCLUDED:-}" ]]; then
         # Trim value (leading/trailing whitespace)
         gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2);
         if (toupper($1) == key) {
-          # Remove trailing inline comments (e.g., # or ;)
+          # Remove trailing inline comments (e.g., # or ; )
           gsub(/[#;].*$/, "", $2);
           print $2;
           exit
@@ -54,3 +54,5 @@ if [[ -z "${ARRBIT_HELPERS_INCLUDED:-}" ]]; then
     shift
     echo "$*"
   }
+
+fi
