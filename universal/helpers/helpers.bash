@@ -54,5 +54,3 @@ if [[ -z "${ARRBIT_HELPERS_INCLUDED:-}" ]]; then
     shift
     echo "$*"
   }
-
-fi
