@@ -14,34 +14,32 @@ SCRIPT_NAME="custom_scripts"
 SCRIPT_VERSION="v2.2"
 LOG_DIR="/config/logs"
 LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
-ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
-MODULE_YELLOW="\033[1;33m"
-RESET="\033[0m"
 
-mkdir -p "$LOG_DIR"
-touch "$LOG_FILE"
-chmod 777 "$LOG_FILE"
+CYAN='\033[36m'
+YELLOW='\033[33m'
+NC='\033[0m'
 
-log_info "${ARRBIT_TAG} Starting ${MODULE_YELLOW}custom_scripts module${RESET} ${SCRIPT_VERSION}..."
+log_info() {
+  echo -e "${CYAN}[Arrbit]${NC} $*"
+  printf '[Arrbit] %s\n' "$*" >> "$LOG_FILE"
+}
+log_error() {
+  echo -e "${CYAN}[Arrbit]${NC} ERROR: $*" >&2
+  printf '[Arrbit] ERROR: %s\n' "$*" >> "$LOG_FILE"
+}
 
-# ------------------------------------------------------------------------
+# Banner log (yellow for module name, only first log)
+log_info "${YELLOW}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
+
 # Connect to arr_bridge.bash (waits for API, sets arr_api)
-# ------------------------------------------------------------------------
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
-  log_error "${ARRBIT_TAG} Could not source arr_bridge.bash" \
-    "arr_bridge.bash missing" \
-    "${SCRIPT_NAME}.bash" \
-    "${SCRIPT_NAME}:${LINENO}" \
-    "Required for API access" \
-    "Check Arrbit setup"
+  log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup)"
   exit 1
 fi
 
-# ------------------------------------------------------------------------
 # Register arrbit-tagger as Lidarr custom script if not present
-# ------------------------------------------------------------------------
 if ! arr_api "${arrUrl}/api/${arrApiVersion}/notification" | jq -e '.[] | select(.name=="arrbit-tagger")' >/dev/null; then
-  log_info "${ARRBIT_TAG} Registering arrbit-tagger script"
+  log_info "Registering arrbit-tagger script"
 
   payload='{
     "name": "arrbit-tagger",
@@ -55,32 +53,22 @@ if ! arr_api "${arrUrl}/api/${arrApiVersion}/notification" | jq -e '.[] | select
   }'
 
   # Log payload and response only to file
-  echo "[Arrbit] Registering arrbit-tagger" >> "$LOG_FILE"
-  echo "[Payload]" >> "$LOG_FILE"
-  echo "$payload" >> "$LOG_FILE"
-  echo "[/Payload]" >> "$LOG_FILE"
+  printf '[Arrbit] Registering arrbit-tagger\n[Payload]\n%s\n[/Payload]\n' "$payload" >> "$LOG_FILE"
 
   response=$(arr_api -X POST --data-raw "$payload" "${arrUrl}/api/${arrApiVersion}/notification?apikey=${arrApiKey}")
 
-  echo "[Response]" >> "$LOG_FILE"
-  echo "$response" >> "$LOG_FILE"
-  echo "[/Response]" >> "$LOG_FILE"
+  printf '[Response]\n%s\n[/Response]\n' "$response" >> "$LOG_FILE"
 
   if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
-    echo "[SUCCESS] arrbit-tagger registered" >> "$LOG_FILE"
+    printf '[Arrbit] SUCCESS arrbit-tagger registered\n' >> "$LOG_FILE"
   else
-    log_error "${ARRBIT_TAG} Failed to register arrbit-tagger script" \
-      "register arrbit-tagger POST failed" \
-      "${SCRIPT_NAME}.bash" \
-      "${SCRIPT_NAME}:${LINENO}" \
-      "Tagger script registration failed" \
-      "Check API connectivity and payload"
-    echo "[ERROR] Failed to register arrbit-tagger" >> "$LOG_FILE"
+    log_error "Failed to register arrbit-tagger script"
+    printf '[Arrbit] ERROR Failed to register arrbit-tagger\n' >> "$LOG_FILE"
   fi
 else
-  log_info "${ARRBIT_TAG} arrbit-tagger already registered; skipping"
-  echo "[SKIP] arrbit-tagger already exists" >> "$LOG_FILE"
+  log_info "arrbit-tagger already registered; skipping"
+  printf '[Arrbit] SKIP arrbit-tagger already exists\n' >> "$LOG_FILE"
 fi
 
-log_info "${ARRBIT_TAG} Done with custom_scripts module!"
+log_info "Done with ${SCRIPT_NAME} module!"
 exit 0
