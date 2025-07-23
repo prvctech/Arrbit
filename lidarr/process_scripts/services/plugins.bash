@@ -59,7 +59,6 @@ install_plugin() {            # $1 name  $2 dir  $3 url
   local coloured="${PURPLE}${name}${NC}"
   local plain="$name"
 
-  # first status line (coloured once)
   if has_dll "$target"; then
     log "$coloured already present – skipping" "[Arrbit] $plain already present – skipping"
     return
@@ -71,7 +70,9 @@ install_plugin() {            # $1 name  $2 dir  $3 url
   if curl -fsSL -o "$tmp/p.zip" "$url" >>"$LOG_FILE" 2>&1; then
     if unzip -q "$tmp/p.zip" -d "$tmp" >>"$LOG_FILE" 2>&1; then
       mkdir -p "$target"
-      mv "$tmp"/* "$target/" && chmod -R 777 "$target"
+      # Only move .dll, .json, .pdb, .deps.json
+      find "$tmp" -type f \( -iname "*.dll" -o -iname "*.json" -o -iname "*.pdb" \) -exec mv {} "$target/" \;
+      chmod -R 777 "$target"
       log "$plain installed"
     else
       log_error "Failed to unzip $plain – skipped"
