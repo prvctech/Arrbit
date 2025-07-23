@@ -2,13 +2,27 @@
 # Arrbit - logging_utils.bash
 # Version : v2.2
 # Purpose :
+#   • log_info, log_error   : Standardized logging for Arrbit scripts.
 #   • arrbitLogClean       : strip ANSI colours and normalise spacing.
 #   • arrbitPurgeOldLogs   : delete old Arrbit logs (default >2 days).
 # -------------------------------------------------------------------------------------------------------------
 
 # ------------------------------------------------
+# log_info: Standard info logger for Arrbit scripts
+# ------------------------------------------------
+log_info() {
+  echo "[Arrbit] $*"
+}
+
+# ------------------------------------------------
+# log_error: Standard error logger for Arrbit scripts
+# ------------------------------------------------
+log_error() {
+  echo "[Arrbit] ERROR: $*" >&2
+}
+
+# ------------------------------------------------
 # arrbitLogClean
-#   Usage: some_command | arrbitLogClean >> "$LOG_FILE"
 # ------------------------------------------------
 arrbitLogClean() {
   sed -r 's/\x1B\[[0-9;]*[JKmsu]//g' | \
@@ -17,9 +31,9 @@ arrbitLogClean() {
   sed -r 's/[[:space:]]{2,}/ /g' | \
   sed -r 's/[[:space:]]+$//'
 }
+
 # ------------------------------------------------
 # arrbitPurgeOldLogs  [days]
-#   Silent cleanup of /config/logs/arrbit-* older than N days (default 2).
 # ------------------------------------------------
 arrbitPurgeOldLogs() {
   local days="${1:-2}"
