@@ -8,6 +8,8 @@
 
 set -euo pipefail
 
+sleep 8
+
 # ----------------------------- constants / globals -----------------------------------------------------------
 ARRBIT_ROOT="/config/arrbit"
 CONFIG_FILE_PRIMARY="$ARRBIT_ROOT/config/arrbit-config.conf"
