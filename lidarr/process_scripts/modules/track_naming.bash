@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - track_naming.bash
-# Version: v2.9
-# Purpose: Configure Lidarr Track Naming profile via API (no internal flag check, uses arr_api).
+# Version: v2.10
+# Purpose: Configure Lidarr Track Naming profile via API (Golden Standard, no internal flag check).
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/helpers.bash
@@ -11,25 +11,22 @@ source /config/arrbit/helpers/logging_utils.bash
 arrbitPurgeOldLogs 5
 
 SCRIPT_NAME="track_naming"
-SCRIPT_VERSION="v2.9"
+SCRIPT_VERSION="v2.10"
 LOG_DIR="/config/logs"
 LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 ARRBIT_TAG="\033[1;36m[Arrbit]\033[0m"
-CYAN="\033[1;36m"
-RESET="\033[0m"
 MODULE_YELLOW="\033[1;33m"
+RESET="\033[0m"
 
 mkdir -p "$LOG_DIR"
 touch "$LOG_FILE"
 chmod 777 "$LOG_FILE"
 
-arrbitLog "${ARRBIT_TAG} Starting ${MODULE_YELLOW}track_naming module${RESET} ${SCRIPT_VERSION}..."
+log_info "${ARRBIT_TAG} Starting ${MODULE_YELLOW}track_naming module${RESET} ${SCRIPT_VERSION}..."
 
-# ------------------------------------------------------------------------
 # Connect to arr_bridge.bash (includes wait for API, sets arr_api)
-# ------------------------------------------------------------------------
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
-  arrbitErrorLog "${ARRBIT_TAG} Could not source arr_bridge.bash" \
+  log_error "${ARRBIT_TAG} Could not source arr_bridge.bash" \
     "arr_bridge.bash missing" \
     "track_naming.bash" \
     "${SCRIPT_NAME}:${LINENO}" \
@@ -38,10 +35,7 @@ if ! source /config/arrbit/connectors/arr_bridge.bash; then
   exit 1
 fi
 
-# ------------------------------------------------------------------------
-# Track Naming Configuration (assume should run)
-# ------------------------------------------------------------------------
-arrbitLog "${ARRBIT_TAG} Configuring Track Naming..."
+log_info "${ARRBIT_TAG} Configuring Track Naming..."
 
 payload='{
   "renameTracks": true,
@@ -69,9 +63,9 @@ echo "[Arrbit] API Response:" >> "$LOG_FILE"
 echo "$response" >> "$LOG_FILE"
 
 if echo "$response" | jq -e '.renameTracks' >/dev/null 2>&1; then
-  arrbitLog "${ARRBIT_TAG} Track Naming has been configured successfully"
+  log_info "${ARRBIT_TAG} Track Naming has been configured successfully"
 else
-  arrbitErrorLog "${ARRBIT_TAG} Track Naming API call failed" \
+  log_error "${ARRBIT_TAG} Track Naming API call failed" \
     "Track Naming API failure" \
     "track_naming.bash" \
     "${SCRIPT_NAME}:${LINENO}" \
@@ -79,5 +73,5 @@ else
     "Check ARR API connectivity and payload"
 fi
 
-arrbitLog "${ARRBIT_TAG} Done with track_naming module!"
+log_info "${ARRBIT_TAG} Done with track_naming module!"
 exit 0
