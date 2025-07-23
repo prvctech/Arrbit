@@ -13,7 +13,7 @@ PLUGINS_DIR="/config/plugins"
 LOG_DIR="/config/logs"
 SCRIPT_NAME="plugins"
 SCRIPT_VERSION="v3.3"
-LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M').log"
+LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 # -------- helpers & colours ---------------------------------------------------------
 mkdir -p "$LOG_DIR" "$PLUGINS_DIR"
