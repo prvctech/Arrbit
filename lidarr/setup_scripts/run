@@ -15,96 +15,99 @@ CONFIG_FILE_LEGACY="$ARRBIT_ROOT/arrbit-config.conf"          # pre-v3.0 layout 
 LOG_DIR="/config/logs"
 LOG_FILE="$LOG_DIR/arrbit-run-$(date '+%Y_%m_%d-%H_%M').log"
 
-DEPENDENCIES_SCRIPT="/custom-services.d/setup/dependencies.bash"
-REMOTE_SETUP_URL="https://raw.githubusercontent.com/prvctech/Arrbit/refs/heads/main/lidarr/setup_scripts/setup.bash"
+DEPENDENCIES_SCRIPT="$ARRBIT_ROOT/setup/dependencies.bash"
+REMOTE_SETUP_URL="https://raw.githubusercontent.com/prvctech/Arrbit/main/lidarr/setup_scripts/setup.bash"
 
 PLUGINS_SCRIPT_LOCAL="$ARRBIT_ROOT/services/plugins.bash"
 AUTOCONFIG_SCRIPT_LOCAL="$ARRBIT_ROOT/services/autoconfig.bash"
 LOGO_SCRIPT_LOCAL="$ARRBIT_ROOT/modules/data/arrbit_logo.bash"
 
-# ANSI colours – used **only** for first banner line
-CYAN='\033[0;36m'; YELLOW='\033[0;33m'; NC='\033[0m'
+# ANSI colours
+CYAN='\033[0;36m'
+YELLOW='\033[0;33m'
+NC='\033[0m'
 
-LOG_PREFIX="-[Arrbit]"
+LOG_PREFIX="${CYAN}[Arrbit]${NC}"
 
 # ----------------------------- logging setup -----------------------------------------------------------------
 mkdir -p "$LOG_DIR"
+# Purge old logs older than 2 days (before logging)
+find "$LOG_DIR" -type f -name 'arrbit-*' -mtime +2 -delete || true
 exec > >(tee -a "$LOG_FILE") 2>&1   # mirror stdout+stderr to logfile
 
 # ---- 0. coloured banner (+ logo) ---------------------------------------------------------------------------
-printf "-${CYAN}[Arrbit]${NC} ${YELLOW}run module${NC} v1.5 starting …\n"
+printf "%b" "${CYAN}[Arrbit]${NC} ${YELLOW}run module${NC} v1.5 starting …\n"
 
 if [[ -f "$LOGO_SCRIPT_LOCAL" ]]; then
   bash "$LOGO_SCRIPT_LOCAL"
 fi
 
 # ----------------------------- 1. fetch & execute remote setup ----------------------------------------------
-echo "$LOG_PREFIX Fetching and executing remote setup.bash ..."
+echo -e "$LOG_PREFIX Fetching and executing remote setup.bash ..."
 if ! curl --fail --silent --show-error "$REMOTE_SETUP_URL" | bash; then
-  echo "$LOG_PREFIX ERROR: remote setup.bash failed." >&2
+  echo -e "$LOG_PREFIX ERROR: remote setup.bash failed." >&2
   exit 1
 fi
-echo "$LOG_PREFIX Remote setup complete."
+echo -e "$LOG_PREFIX Remote setup complete."
 
 # ----------------------------- 2. install prerequisites ------------------------------------------------------
 if [[ -x "$DEPENDENCIES_SCRIPT" ]]; then
-  echo "$LOG_PREFIX Running dependencies setup ..."
+  echo -e "$LOG_PREFIX Running dependencies setup ..."
   bash "$DEPENDENCIES_SCRIPT"
-  echo "$LOG_PREFIX Dependencies completed."
+  echo -e "$LOG_PREFIX Dependencies completed."
 else
-  echo "$LOG_PREFIX ERROR: dependencies script not found/executable at $DEPENDENCIES_SCRIPT" >&2
+  echo -e "$LOG_PREFIX ERROR: dependencies script not found/executable at $DEPENDENCIES_SCRIPT" >&2
   exit 1
 fi
 
-# ----------------------------- 3. source helpers -------------------------------------------------------------
-HELPERS_PATH="$ARRBIT_ROOT/helpers/helpers.bash"
-LOGGING_UTILS_PATH="$ARRBIT_ROOT/helpers/logging_utils.bash"
-
-if [[ -f "$HELPERS_PATH" && -f "$LOGGING_UTILS_PATH" ]]; then
-  # shellcheck source=/dev/null
-  source "$LOGGING_UTILS_PATH"
-  # shellcheck source=/dev/null
-  source "$HELPERS_PATH"
-else
-  echo "$LOG_PREFIX ERROR: helper libraries missing after setup." >&2
-  exit 1
-fi
-
-# ----------------------------- 4. locate config --------------------------------------------------------------
+# ----------------------------- 3. locate config --------------------------------------------------------------
 if [[ -f "$CONFIG_FILE_PRIMARY" ]]; then
   CONFIG_FILE="$CONFIG_FILE_PRIMARY"
 elif [[ -f "$CONFIG_FILE_LEGACY" ]]; then
   CONFIG_FILE="$CONFIG_FILE_LEGACY"
 else
-  echo "$LOG_PREFIX ERROR: arrbit-config.conf not found." >&2
+  echo -e "$LOG_PREFIX ERROR: arrbit-config.conf not found." >&2
   exit 1
 fi
 
-# lightweight fallback if helpers didn’t provide get_flag
-if ! command -v get_flag >/dev/null 2>&1; then
-  get_flag() { awk -F '=' -v k="$1" '$1 ~ k {gsub(/[[:space:]]/, "", $2); print tolower($2)}' "$CONFIG_FILE"; }
-fi
+# Robust fallback for getFlag if helpers are missing
+getFlag() {
+  local flag_name="$1"
+  local flag_upper
+  flag_upper=$(echo "$flag_name" | tr '[:lower:]' '[:upper:]')
+  awk -F '=' -v key="$flag_upper" '
+    $0 !~ /^[[:space:]]*#/ && NF >= 2 {
+      gsub(/[[:space:]]+/, "", $1);
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2);
+      if (toupper($1) == key) {
+        gsub(/[#;].*$/, "", $2);
+        print tolower($2);
+        exit
+      }
+    }
+  ' "$CONFIG_FILE" 2>/dev/null | tr -d '"\r'
+}
 
-echo "$LOG_PREFIX Reading config flags from $CONFIG_FILE ..."
+echo -e "$LOG_PREFIX Reading config flags from $CONFIG_FILE ..."
 
-# ----------------------------- 5. conditional service launches ----------------------------------------------
-if [[ "$(get_flag ENABLE_PLUGINS)" == "true" ]]; then
+# ----------------------------- 4. conditional service launches ----------------------------------------------
+if [[ "$(getFlag ENABLE_PLUGINS)" == "true" ]]; then
   if [[ -x "$PLUGINS_SCRIPT_LOCAL" ]]; then
-    echo "$LOG_PREFIX ➜ Launching plugins.bash ..."
+    echo -e "$LOG_PREFIX ➜ Launching plugins.bash ..."
     bash "$PLUGINS_SCRIPT_LOCAL"
-    echo "$LOG_PREFIX plugins.bash finished."
+    echo -e "$LOG_PREFIX plugins.bash finished."
   else
-    echo "$LOG_PREFIX WARNING: plugins.bash not found at $PLUGINS_SCRIPT_LOCAL"
+    echo -e "$LOG_PREFIX WARNING: plugins.bash not found at $PLUGINS_SCRIPT_LOCAL"
   fi
 fi
 
-if [[ "$(get_flag ENABLE_AUTOCONFIG)" == "true" ]]; then
+if [[ "$(getFlag ENABLE_AUTOCONFIG)" == "true" ]]; then
   if [[ -x "$AUTOCONFIG_SCRIPT_LOCAL" ]]; then
-    echo "$LOG_PREFIX ➜ Launching autoconfig.bash ..."
+    echo -e "$LOG_PREFIX ➜ Launching autoconfig.bash ..."
     bash "$AUTOCONFIG_SCRIPT_LOCAL"
-    echo "$LOG_PREFIX autoconfig.bash finished."
+    echo -e "$LOG_PREFIX autoconfig.bash finished."
   else
-    echo "$LOG_PREFIX WARNING: autoconfig.bash not found at $AUTOCONFIG_SCRIPT_LOCAL"
+    echo -e "$LOG_PREFIX WARNING: autoconfig.bash not found at $AUTOCONFIG_SCRIPT_LOCAL"
   fi
 fi
 
@@ -112,5 +115,5 @@ fi
 # Add more service blocks here as new flags are introduced.
 
 # ----------------------------- end ---------------------------------------------------------------------------
-echo "$LOG_PREFIX All requested services executed. Sleeping indefinitely."
+echo -e "$LOG_PREFIX All requested services executed. Sleeping indefinitely."
 sleep infinity
