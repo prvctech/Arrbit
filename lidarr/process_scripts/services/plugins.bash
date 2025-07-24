@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - plugins
-# Version: v3.5-gs2.6
+# Version: v3.7-gs2.6
 # Purpose: Install or update Deezer, Tidal, Tubifarry plug-ins for Lidarr (Golden Standard v2.6 compliant).
 # -------------------------------------------------------------------------------------------------------------
 
@@ -9,23 +9,31 @@
 source /config/arrbit/helpers/logging_utils.bash
 source /config/arrbit/helpers/helpers.bash
 
-arrbitPurgeOldLogs 
+arrbitPurgeOldLogs 2
 
-# Recursively set full permissions (Arrbit GS requirement)
 chmod -R 777 /config/arrbit/
 chmod -R 777 /config/plugins/
 chmod -R 777 /config/logs/
 
 PLUGINS_DIR="/config/plugins"
 SCRIPT_NAME="plugins"
-SCRIPT_VERSION="v3.5-gs2.6"
+SCRIPT_VERSION="v3.7-gs2.6"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+CONFIG_FILE="/config/arrbit/config/arrbit-config.conf"
 
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-# --- Banner (one colored line, as per GS2.6) ---
-echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} service${NC} ${MAGENTA}Deezer, Tidal, Tubifarry${NC} ${SCRIPT_VERSION}"
+# --- Banner (color allowed on first line) ---
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME}${NC} service ${MAGENTA}Deezer, Tidal, Tubifarry${NC} ${SCRIPT_VERSION}"
 echo
+
+# --- Check ENABLE_PLUGINS flag (Golden Standard: fail fast) ---
+ENABLE_PLUGINS=$(getFlag ENABLE_PLUGINS)
+if [[ "${ENABLE_PLUGINS,,}" != "true" ]]; then
+  log_warning "Plugins service is OFF. Update ENABLE_PLUGINS to 'true' in arrbit-config.conf."
+  log_info "Log saved to $LOG_FILE"
+  exit 0
+fi
 
 # --- FUNCTIONS ---
 has_dll() {
@@ -74,7 +82,6 @@ install_plugin "Tidal"     "$PLUGINS_DIR/TrevTV/Lidarr.Plugin.Tidal"  \
 install_plugin "Tubifarry" "$PLUGINS_DIR/TypNull/Tubifarry" \
   "https://github.com/TypNull/Tubifarry/releases/download/v1.8.1.1/Tubifarry-v1.8.1.1.net6.0-develop.zip"
 
-# --- FINAL LOG ---
 log_info "Log saved to $LOG_FILE"
 log_info "Done with ${SCRIPT_NAME} service"
 
