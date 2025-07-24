@@ -1,38 +1,36 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - ui_settings.bash
-# Version: v1.0-gs2.5
+# Version: v1.1-gs2.5
 # Purpose: Configure Lidarr UI Settings via API (Golden Standard 2.5 compliant).
 # -------------------------------------------------------------------------------------------------------------
 
-# Source logging and helpers (must be first, per GS)
+# Source logging and helpers (Golden Standard order)
 source /config/arrbit/helpers/logging_utils.bash
 source /config/arrbit/helpers/helpers.bash
 
-# Purge old logs before anything else
+# Always purge old logs before anything else
 arrbitPurgeOldLogs
 
 # Set script constants
 SCRIPT_NAME="ui_settings"
-SCRIPT_VERSION="v1.0-gs2.5"
+SCRIPT_VERSION="v1.1-gs2.5"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 # Ensure log directory exists and file is writable
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-# Banner (first line only, GREEN in terminal, plain in log file)
+# Banner (first line only; GREEN in terminal, plain in log file)
 echo -e "${GREEN}[Arrbit] Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
 
-# Source arr_bridge.bash (provides arr_api, arrUrl, arrApiKey, arrApiVersion)
+# Connect to arr_bridge.bash (provides arr_api, arrUrl, arrApiKey, arrApiVersion)
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
   log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup)"
   exit 1
 fi
 
-# Log module start
 log_info "Configuring UI Settings..."
 
-# Prepare the payload for UI settings
 payload='{
   "firstDayOfWeek": 0,
   "calendarWeekColumnHeader": "ddd M/D",
@@ -55,10 +53,10 @@ payload='{
 log_info "UI Settings payload written to log file (sanitized)"
 printf '[Arrbit] UI Settings payload:\n%s\n' "$payload" | arrbitLogClean >> "$LOG_FILE"
 
-# Make API call via arr_api (always use wrapper, never show API key in log)
+# Make API call via arr_api (use real API key in the call)
 response=$(
   arr_api -X PUT --data-raw "$payload" \
-    "${arrUrl}/api/${arrApiVersion}/config/ui?apikey=REDACTED"
+    "${arrUrl}/api/${arrApiVersion}/config/ui?apikey=${arrApiKey}"
 )
 
 # Log sanitized API response to file only
@@ -72,6 +70,5 @@ else
   log_error "UI Settings API call failed (response did not validate, check ARR API connectivity and payload)"
 fi
 
-# Module done
 log_info "Done with ${SCRIPT_NAME} module!"
 exit 0
