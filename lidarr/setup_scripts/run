@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - run module
-# Version : v2.0-gs2.6
+# Version : v2.1-gs2.6
 # Purpose : Orchestrator – shows Arrbit logo, runs setup only if ENABLE_ARRBIT is true, then proceeds.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -25,7 +25,7 @@ LOGO_SCRIPT_LOCAL="$ARRBIT_ROOT/modules/data/arrbit_logo.bash"
 CYAN='\033[96m'
 GREEN='\033[92m'
 YELLOW='\033[93m'
-NC='\033[0m'
+NC='\033[0m]'
 
 # Show logo if present (source and call function!)
 if [[ -f "$LOGO_SCRIPT_LOCAL" ]]; then
@@ -34,15 +34,15 @@ if [[ -f "$LOGO_SCRIPT_LOCAL" ]]; then
   echo
 fi 
 
-echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting run module${NC} v2.0-gs2.6"
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting run module${NC} v2.1-gs2.6"
 
-# --- 0. Find config, check ENABLE_ARRBIT master switch (ultra-minimal, no functions) ---
+# --- 0. Find config, check ENABLE_ARRBIT master switch ---
 if [[ -f "$CONFIG_FILE_PRIMARY" ]]; then
   CONFIG_FILE="$CONFIG_FILE_PRIMARY"
 elif [[ -f "$CONFIG_FILE_LEGACY" ]]; then
   CONFIG_FILE="$CONFIG_FILE_LEGACY"
 else
-  echo -e "${CYAN}[Arrbit]${NC} ERROR: arrbit-config.conf not found. Exiting."
+  echo -e "${CYAN}[Arrbit]${NC} ${YELLOW}ERROR:${NC} arrbit-config.conf not found. Exiting."
   exit 1
 fi
 
@@ -58,7 +58,7 @@ fi
 # --- 1. Fetch & execute remote setup (brings helpers into existence) ---
 echo -e "${CYAN}[Arrbit]${NC} Fetching and executing remote setup.bash ..."
 if ! curl --fail --silent --show-error "$REMOTE_SETUP_URL" | bash; then
-  echo -e "${CYAN}[Arrbit]${NC} ERROR: remote setup.bash failed."
+  echo -e "${CYAN}[Arrbit]${NC} ${YELLOW}ERROR:${NC} remote setup.bash failed."
   exit 1
 fi
 echo -e "${CYAN}[Arrbit]${NC} Remote setup complete."
@@ -69,11 +69,11 @@ if [[ -f "$HELPERS_DIR/logging_utils.bash" && -f "$HELPERS_DIR/helpers.bash" ]];
   source "$HELPERS_DIR/helpers.bash"
   arrbitPurgeOldLogs 2
   SCRIPT_NAME="run"
-  SCRIPT_VERSION="v2.0-gs2.6"
+  SCRIPT_VERSION="v2.1-gs2.6"
   LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date '+%Y_%m_%d-%H_%M').log"
   touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 else
-  echo -e "${CYAN}[Arrbit]${NC} ERROR: Arrbit helpers missing after setup. Cannot continue."
+  echo -e "${CYAN}[Arrbit]${NC} ${YELLOW}ERROR:${NC} Arrbit helpers missing after setup. Cannot continue."
   exit 1
 fi
 
@@ -87,36 +87,14 @@ else
   exit 1
 fi
 
-# --- 4. Check ENABLE_AUTOCONFIG flag before running autoconfig service ---
-ENABLE_AUTOCONFIG=$(getFlag ENABLE_AUTOCONFIG)
-if [[ "${ENABLE_AUTOCONFIG,,}" != "true" ]]; then
-  log_warning "Arrbit auto-configuration is OFF. Update ENABLE_AUTOCONFIG to 'true' in arrbit-config.conf to enable automatic configuration."
-  log_info "Log saved to $LOG_FILE"
-  sleep infinity
+# --- 4. Run plugins service (if present) ---
+if [[ -x "$PLUGINS_SCRIPT_LOCAL" ]]; then
+  bash "$PLUGINS_SCRIPT_LOCAL"
 fi
 
-# --- 5. Read config flags using helpers.getFlag ---
-log_info "Reading config flags from $CONFIG_FILE ..."
-
-# --- 6. Conditional service launches ---
-if [[ "$(getFlag ENABLE_PLUGINS)" == "true" ]]; then
-  if [[ -x "$PLUGINS_SCRIPT_LOCAL" ]]; then
-    log_info "Launching plugins.bash ..."
-    bash "$PLUGINS_SCRIPT_LOCAL"
-    log_info "plugins.bash finished."
-  else
-    log_warning "plugins.bash not found at $PLUGINS_SCRIPT_LOCAL"
-  fi
-fi
-
-if [[ "$(getFlag ENABLE_AUTOCONFIG)" == "true" ]]; then
-  if [[ -x "$AUTOCONFIG_SCRIPT_LOCAL" ]]; then
-    log_info "Launching autoconfig.bash ..."
-    bash "$AUTOCONFIG_SCRIPT_LOCAL"
-    log_info "autoconfig.bash finished."
-  else
-    log_warning "autoconfig.bash not found at $AUTOCONFIG_SCRIPT_LOCAL"
-  fi
+# --- 5. Run autoconfig service (if present) ---
+if [[ -x "$AUTOCONFIG_SCRIPT_LOCAL" ]]; then
+  bash "$AUTOCONFIG_SCRIPT_LOCAL"
 fi
 
 # --- End ---
