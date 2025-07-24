@@ -1,45 +1,38 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - ui_settings.bash
-# Version: v2.3
-# Purpose: Configure Lidarr UI Settings via API (Golden Standard, no internal flag check, uses arr_api).
+# Version: v1.0-gs2.4
+# Purpose: Configure Lidarr UI Settings via API (Golden Standard 2.4 compliant).
 # -------------------------------------------------------------------------------------------------------------
 
-source /config/arrbit/helpers/helpers.bash
+# Always source logging_utils.bash first, then helpers.bash
 source /config/arrbit/helpers/logging_utils.bash
+source /config/arrbit/helpers/helpers.bash
 
-arrbitPurgeOldLogs 5
+# Always purge old logs before anything else
+arrbitPurgeOldLogs
 
+# Define script constants
 SCRIPT_NAME="ui_settings"
-SCRIPT_VERSION="v2.3"
-LOG_DIR="/config/logs"
-LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+SCRIPT_VERSION="v1.0-gs2.4"
+LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
-CYAN='\033[36m'
-YELLOW='\033[33m'
-NC='\033[0m'
+# Ensure log directory exists and file is writable
+mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-# Golden Standard: override log_info/log_error
-log_info() {
-  echo -e "${CYAN}[Arrbit]${NC} $*"
-  printf '[Arrbit] %s\n' "$*" >> "$LOG_FILE"
-}
-log_error() {
-  echo -e "${CYAN}[Arrbit]${NC} ERROR: $*" >&2
-  printf '[Arrbit] ERROR: %s\n' "$*" >> "$LOG_FILE"
-}
+# Banner (first line only; YELLOW in terminal, plain in log file)
+echo -e "${YELLOW}[Arrbit] Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
 
-# Banner line (module/script names in color)
-log_info "${YELLOW}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
-
-# Connect to arr_bridge.bash (waits for API, sets arr_api)
+# --- Connect to arr_bridge.bash (provides arr_api, arrUrl, arrApiKey, arrApiVersion) ---
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
   log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup)"
   exit 1
 fi
 
+# Log module start
 log_info "Configuring UI Settings..."
 
+# --- Prepare the payload for UI settings ---
 payload='{
   "firstDayOfWeek": 0,
   "calendarWeekColumnHeader": "ddd M/D",
@@ -58,21 +51,25 @@ payload='{
   "id": 1
 }'
 
-# Log payload and response to file ONLY (no color codes)
-printf '[Arrbit] UI Settings payload:\n%s\n' "$payload" >> "$LOG_FILE"
+# --- Log payload to file only (sanitized, no color) ---
+printf '[Arrbit] UI Settings payload:\n%s\n' "$payload" | arrbitLogClean >> "$LOG_FILE"
 
+# --- Make API call via arr_api (always use wrapper) ---
 response=$(
   arr_api -X PUT --data-raw "$payload" \
-    "${arrUrl}/api/${arrApiVersion}/config/ui?apikey=${arrApiKey}"
+    "${arrUrl}/api/${arrApiVersion}/config/ui?apikey=REDACTED"
 )
 
-printf '[Arrbit] API Response:\n%s\n' "$response" >> "$LOG_FILE"
+# --- Log sanitized API response (never log secrets/keys) ---
+printf '[Arrbit] API Response:\n%s\n' "$response" | arrbitLogClean >> "$LOG_FILE"
 
+# --- Check if API call was successful (theme field in response) ---
 if echo "$response" | jq -e '.theme' >/dev/null 2>&1; then
   log_info "UI Settings have been configured successfully"
 else
   log_error "UI Settings API call failed (response did not validate, check ARR API connectivity and payload)"
 fi
 
+# --- Module done ---
 log_info "Done with ${SCRIPT_NAME} module!"
 exit 0
