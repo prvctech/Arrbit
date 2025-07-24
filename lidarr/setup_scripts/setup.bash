@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - setup
-# Version: v1.1
-# Purpose: Dynamically installs all Arrbit modules, services, setup scripts, connectors, helpers, and config to /config/arrbit.
+# Version: v1.2
+# Purpose: Dynamically installs all Arrbit modules, services, setup scripts, connectors, helpers, and config to /config/arrbit, including process_scripts/custom.
 # -------------------------------------------------------------------------------------------------------------
 
 set -euo pipefail
@@ -23,7 +23,7 @@ mkdir -p "$TMP_DIR" "$ARRBIT_ROOT"
 
 # --- Start Process ---
 echo -e "${CYAN}[Arrbit]${NC} ${YELLOW}setup install${NC} v4.2 ...."
-echo -e "$LOG_PREFIX Downloading Arrbit repository to temporary folder ..."
+echo -e "$LOG_PREFIX Syncing Arrbit repository..."
 cd "$TMP_DIR"
 
 # --- 1. Download and extract full repo ---
@@ -44,6 +44,12 @@ source "$ARRBIT_ROOT/helpers/helpers.bash"
 # --- 4. Copy modules and services ---
 cp -rf "$REPO_MAIN/process_scripts/modules/."   "$ARRBIT_ROOT/modules/"
 cp -rf "$REPO_MAIN/process_scripts/services/."  "$ARRBIT_ROOT/services/"
+
+# --- 4b. Copy custom process scripts (for tagger.bash, etc) ---
+if [[ -d "$REPO_MAIN/process_scripts/custom" ]]; then
+    cp -rf "$REPO_MAIN/process_scripts/custom" "$ARRBIT_ROOT/"
+    echo -e "$LOG_PREFIX Custom process_scripts copied."
+fi
 
 # --- 5. Copy setup scripts except setup.bash and run ---
 mkdir -p "$ARRBIT_ROOT/setup"
