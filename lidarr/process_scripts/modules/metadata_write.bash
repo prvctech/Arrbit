@@ -1,36 +1,24 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - metadata_write.bash
-# Version: v2.3
-# Purpose: Configure Lidarr Metadata Write Provider via API (Golden Standard, no internal flag check).
+# Version: v2.4-gs2.6
+# Purpose: Configure Lidarr Metadata Write Provider via API (Golden Standard v2.6 compliant).
 # -------------------------------------------------------------------------------------------------------------
 
-source /config/arrbit/helpers/helpers.bash
+# Source logging and helpers (Golden Standard order)
 source /config/arrbit/helpers/logging_utils.bash
+source /config/arrbit/helpers/helpers.bash
 
-arrbitPurgeOldLogs 5
+arrbitPurgeOldLogs
 
 SCRIPT_NAME="metadata_write"
-SCRIPT_VERSION="v2.3"
-LOG_DIR="/config/logs"
-LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+SCRIPT_VERSION="v2.4-gs2.6"
+LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
-CYAN='\033[36m'
-YELLOW='\033[33m'
-NC='\033[0m'
+mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-# Golden Standard log_info/log_error overrides
-log_info() {
-  echo -e "${CYAN}[Arrbit]${NC} $*"
-  printf '[Arrbit] %s\n' "$*" >> "$LOG_FILE"
-}
-log_error() {
-  echo -e "${CYAN}[Arrbit]${NC} ERROR: $*" >&2
-  printf '[Arrbit] ERROR: %s\n' "$*" >> "$LOG_FILE"
-}
-
-# Banner log (module name in yellow, first log only)
-log_info "${YELLOW}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
+# Banner: [Arrbit] always CYAN, module name/version GREEN (first line only)
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
 
 # Connect to arr_bridge.bash (waits for API, sets arr_api)
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
@@ -46,15 +34,18 @@ payload='{
   "id": 1
 }'
 
-# Log payload and response to file ONLY (no color codes)
-printf '[Arrbit] Metadata Write Provider payload:\n%s\n' "$payload" >> "$LOG_FILE"
+# Log sanitized payload to file only (never include secrets)
+log_info "Metadata Write Provider payload written to log file (sanitized)"
+printf '[Arrbit] Metadata Write Provider payload:\n%s\n' "$payload" | arrbitLogClean >> "$LOG_FILE"
 
 response=$(
   arr_api -X PUT --data-raw "$payload" \
     "${arrUrl}/api/${arrApiVersion}/config/metadataProvider?apikey=${arrApiKey}"
 )
 
-printf '[Arrbit] API Response:\n%s\n' "$response" >> "$LOG_FILE"
+# Log sanitized API response to file only
+log_info "API response written to log file (sanitized)"
+printf '[Arrbit] API Response:\n%s\n' "$response" | arrbitLogClean >> "$LOG_FILE"
 
 if echo "$response" | jq -e '.writeAudioTags' >/dev/null 2>&1; then
   log_info "Metadata Write Provider has been configured successfully"
@@ -63,4 +54,5 @@ else
 fi
 
 log_info "Done with ${SCRIPT_NAME} module!"
+log_info "Log saved to $LOG_FILE"
 exit 0
