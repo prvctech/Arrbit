@@ -11,7 +11,7 @@ LOG_DIR="/config/logs"
 mkdir -p "$LOG_DIR" "$HELPERS_DIR"
 source "$HELPERS_DIR/logging_utils.bash"
 source "$HELPERS_DIR/helpers.bash"
-arrbitPurgeOldLogs
+arrbitPurgeOldLogs 2
 
 # -------- constants & vars -----------------------------------------------------------------
 SCRIPT_NAME="dependencies"
@@ -34,14 +34,15 @@ needs_install=false
 command -v atomicparsley >/dev/null 2>&1 || needs_install=true
 
 if [[ "${depsversion:-}" == "$SCRIPT_VERSION" && "$needs_install" == false ]]; then
-  log_info "Dependencies already installed - skipping"
+  log_info "All dependencies are already installed and up-to-date. Skipping installation."
+  log_info "Log saved to $LOG_FILE"
   exit 0
 fi
 
 if [[ -n "${depsversion:-}" && "$depsversion" != "$SCRIPT_VERSION" ]]; then
-  log_info "Upgrading dependencies (details in log file)"
+  log_info "Upgrading dependencies to match $SCRIPT_VERSION..."
 else
-  log_info "Installing dependencies (details in log file)"
+  log_info "Installing dependencies..."
 fi
 
 # -------- system packages -----------------------------------------------------------------
@@ -86,7 +87,7 @@ uv pip install --system --upgrade --no-cache-dir --break-system-packages \
 # -------- update marker -------------------------------------------------------------------
 echo "depsversion=$SCRIPT_VERSION" >"$DEPS_MARKER"
 
-log_info "Dependency installation/upgrade complete"
+log_info "Done with $SCRIPT_NAME."
 log_info "Log saved to $LOG_FILE"
 
 exit 0
