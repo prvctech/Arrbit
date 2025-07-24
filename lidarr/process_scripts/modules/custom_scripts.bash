@@ -20,7 +20,7 @@ CYAN='\033[36m'
 YELLOW='\033[33m'
 NC='\033[0m'
 
-PAYLOAD_JSON="/mnt/data/custom_script_tagger.json"
+PAYLOAD_JSON="/config/arrbit/modules/data/custom_script_tagger.json"
 
 log_info() {
   echo -e "${CYAN}[Arrbit]${NC} $*"
