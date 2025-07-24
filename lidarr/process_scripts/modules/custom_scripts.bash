@@ -42,16 +42,40 @@ if ! arr_api "${arrUrl}/api/${arrApiVersion}/notification" | jq -e '.[] | select
   log_info "Registering arrbit-tagger script"
 
   payload='{
-    "name": "arrbit-tagger",
-    "implementation": "CustomScript",
-    "configContract": "CustomScriptSettings",
+    "onGrab": false,
     "onReleaseImport": true,
     "onUpgrade": true,
+    "onRename": false,
+    "onHealthIssue": false,
+    "onDownloadFailure": false,
+    "onImportFailure": false,
+    "onTrackRetag": false,
+    "onApplicationUpdate": false,
+    "supportsOnGrab": true,
+    "supportsOnReleaseImport": true,
+    "supportsOnUpgrade": true,
+    "supportsOnRename": true,
+    "supportsOnHealthIssue": true,
+    "includeHealthWarnings": false,
+    "supportsOnDownloadFailure": false,
+    "supportsOnImportFailure": false,
+    "supportsOnTrackRetag": true,
+    "supportsOnApplicationUpdate": true,
+    "name": "arrbit-tagger",
     "fields": [
-      { "name": "path", "value": "/config/arrbit/custom/tagger.bash" }
-    ]
+      { "name": "path", "value": "/config/arrbit/custom/tagger.bash" },
+      { "name": "arguments" }
+    ],
+    "implementationName": "Custom Script",
+    "implementation": "CustomScript",
+    "configContract": "CustomScriptSettings",
+    "infoLink": "https://wiki.servarr.com/lidarr/supported#customscript",
+    "message": {
+      "message": "Testing will execute the script with the EventType set to Test, ensure your script handles this correctly",
+      "type": "warning"
+    },
+    "tags": []
   }'
-
   # Log payload and response only to file
   printf '[Arrbit] Registering arrbit-tagger\n[Payload]\n%s\n[/Payload]\n' "$payload" >> "$LOG_FILE"
 
