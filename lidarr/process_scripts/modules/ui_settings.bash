@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - ui_settings.bash
-# Version: v1.1-gs2.5
-# Purpose: Configure Lidarr UI Settings via API (Golden Standard 2.5 compliant).
+# Version: v1.2-gs2.6
+# Purpose: Configure Lidarr UI Settings via API (Golden Standard v2.6 compliant).
 # -------------------------------------------------------------------------------------------------------------
 
 # Source logging and helpers (Golden Standard order)
@@ -14,14 +14,14 @@ arrbitPurgeOldLogs
 
 # Set script constants
 SCRIPT_NAME="ui_settings"
-SCRIPT_VERSION="v1.1-gs2.5"
+SCRIPT_VERSION="v1.2-gs2.6"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 # Ensure log directory exists and file is writable
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-# Banner (first line only; GREEN in terminal, plain in log file)
-echo -e "${GREEN}[Arrbit] Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
+# Banner: [Arrbit] always CYAN, module name/version GREEN (first line only)
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
 
 # Connect to arr_bridge.bash (provides arr_api, arrUrl, arrApiKey, arrApiVersion)
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
@@ -71,4 +71,5 @@ else
 fi
 
 log_info "Done with ${SCRIPT_NAME} module!"
+log_info "Log saved to $LOG_FILE"
 exit 0
