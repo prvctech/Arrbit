@@ -87,10 +87,10 @@ else
   exit 1
 fi
 
-# --- 4. Check ENABLE_CONFIG flag before running services (now use getFlag) ---
-ENABLE_CONFIG=$(getFlag ENABLE_CONFIG)
-if [[ "${ENABLE_CONFIG,,}" != "true" ]]; then
-  log_warning "Arrbit services are OFF. Update ENABLE_CONFIG to 'true' in arrbit-config.conf to enable automation."
+# --- 4. Check ENABLE_AUTOCONFIG flag before running autoconfig service ---
+ENABLE_AUTOCONFIG=$(getFlag ENABLE_AUTOCONFIG)
+if [[ "${ENABLE_AUTOCONFIG,,}" != "true" ]]; then
+  log_warning "Arrbit auto-configuration is OFF. Update ENABLE_AUTOCONFIG to 'true' in arrbit-config.conf to enable automatic configuration."
   log_info "Log saved to $LOG_FILE"
   sleep infinity
 fi
