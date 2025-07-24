@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - autoconfig.bash
-# Version: v5.1-gs2.6
+# Version: v5.2-gs2.6
 # Purpose: Orchestrates Arrbit modules based on config flags in arrbit-config.conf (Golden Standard enforced)
 # -------------------------------------------------------------------------------------------------------------
 
@@ -11,7 +11,7 @@ source /config/arrbit/helpers/logging_utils.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="autoconfig"
-SCRIPT_VERSION="v5.1-gs2.6"
+SCRIPT_VERSION="v5.2-gs2.6"
 ARRBIT_ROOT="/config/arrbit"
 CONFIG_FILE="$ARRBIT_ROOT/config/arrbit-config.conf"
 MODULES_DIR="$ARRBIT_ROOT/modules"
@@ -20,8 +20,9 @@ LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-# Banner (first line, color allowed)
+# Banner (only first line with color is allowed)
 echo -e "${CYAN}[Arrbit]${NC} ${GREEN}${SCRIPT_NAME} service${NC} ${SCRIPT_VERSION} ..."
+echo
 
 # ----------------------------------------------------------------------------
 # 1. CONNECT TO ARRBRIDGE (exports arr_api)
@@ -77,6 +78,7 @@ for NAME in "${MODULES[@]}"; do
 
   SCRIPT="$MODULES_DIR/${NAME}.bash"
   if [ -x "$SCRIPT" ]; then
+    log_info "Launching ${NAME} module..."
     if ! bash "$SCRIPT"; then
       log_warning "${NAME} module failed. See log for details."
     fi
