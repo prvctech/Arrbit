@@ -41,16 +41,16 @@ fi
 if ! arr_api "${arrUrl}/api/${arrApiVersion}/notification" | jq -e '.[] | select(.name=="arrbit-tagger")' >/dev/null; then
   log_info "Registering arrbit-tagger script"
 
-payload='{
-  "name": "arrbit-tagger",
-  "implementation": "CustomScript",
-  "configContract": "CustomScriptSettings",
-  "onReleaseImport": true,
-  "onUpgrade": true,
-  "fields": [
-    { "name": "path", "value": "/config/arrbit/custom/tagger.bash" }
-  ]
-}'
+  payload='{
+    "name": "arrbit-tagger",
+    "implementation": "CustomScript",
+    "configContract": "CustomScriptSettings",
+    "onReleaseImport": true,
+    "onUpgrade": true,
+    "fields": [
+      { "name": "path", "value": "/config/arrbit/custom/tagger.bash" }
+    ]
+  }'
 
   # Log payload and response only to file
   printf '[Arrbit] Registering arrbit-tagger\n[Payload]\n%s\n[/Payload]\n' "$payload" >> "$LOG_FILE"
