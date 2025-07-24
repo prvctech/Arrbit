@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - plugins
-# Version: v3.3
-# Purpose: Install or update Deezer, Tidal, Tubifarry plug-ins for Lidarr.
+# Version: v3.4-gs2.6
+# Purpose: Install or update Deezer, Tidal, Tubifarry plug-ins for Lidarr (Golden Standard v2.6 compliant).
 # -------------------------------------------------------------------------------------------------------------
 
-# Golden Standard: Always source helpers and logging first
+# Golden Standard: Always source logging_utils first, then helpers
 source /config/arrbit/helpers/logging_utils.bash
 source /config/arrbit/helpers/helpers.bash
 
-# Golden Standard: Purge old logs (default >2 days)
+# Golden Standard: Purge old logs (>2 days)
 arrbitPurgeOldLogs
 
-# Golden Standard: Recursively set full permissions
+# Golden Standard: Recursively set full permissions (clear comment)
 chmod -R 777 /config/arrbit/
 chmod -R 777 /config/plugins/
 chmod -R 777 /config/logs/
@@ -20,31 +20,15 @@ chmod -R 777 /config/logs/
 # ------------------ GLOBAL CONSTANTS --------------------------
 PLUGINS_DIR="/config/plugins"
 SCRIPT_NAME="plugins"
-SCRIPT_VERSION="v3.3"
+SCRIPT_VERSION="v3.4-gs2.6"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
-# Color codes (Golden Standard)
-CYAN='\033[36m'
-PURPLE='\033[35m'
-YELLOW='\033[33m'
-NC='\033[0m'
-
-# ------------------ ARRBIT LOGGING (OVERRIDE FOR CYAN TAG) --------------------------
-log_info() {
-  echo -e "${CYAN}[Arrbit]${NC} $*"
-  printf '[Arrbit] %s\n' "$*" >> "$LOG_FILE"
-}
-log_error() {
-  echo -e "${CYAN}[Arrbit]${NC} ${RED}ERROR:${NC} $*" >&2
-  printf '[Arrbit] ERROR: %s\n' "$*" >> "$LOG_FILE"
-}
-
-# ------------------ BANNER LOG (ONLY THIS LINE ADDS EXTRA COLOR) --------------------------
-echo -e "${CYAN}[Arrbit]${NC} ${YELLOW}${SCRIPT_NAME}${NC} service ${PURPLE}Deezer, Tidal, Tubifarry${NC} ${SCRIPT_VERSION}"
+# ------------------ BANNER (single line, colored as per GS v2.6) --------------------------
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}${SCRIPT_NAME}${NC} service ${MAGENTA}Deezer, Tidal, Tubifarry${NC} ${SCRIPT_VERSION}"
 
 # ------------------ FUNCTIONS --------------------------
 has_dll() {
-  # One-line comment: enable nullglob for empty glob expansion
+  # Enable nullglob for empty glob expansion
   shopt -s nullglob
   local dll_files=("$1"/*.dll)
   (( ${#dll_files[@]} ))
@@ -55,7 +39,7 @@ install_plugin() {  # $1 = plugin_name, $2 = plugin_dir, $3 = plugin_url
   local plugin_dir="$2"
   local plugin_url="$3"
 
-  # One-line comment: Check if DLL already exists
+  # Check if DLL already exists
   if has_dll "$plugin_dir"; then
     log_info "$plugin_name already present – skipping"
     return
@@ -63,7 +47,7 @@ install_plugin() {  # $1 = plugin_name, $2 = plugin_dir, $3 = plugin_url
 
   log_info "Downloading $plugin_name …"
 
-  # One-line comment: Create temporary download directory
+  # Create temporary download directory
   local tmp_dir
   tmp_dir=$(mktemp -d)
 
