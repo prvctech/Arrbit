@@ -1,35 +1,24 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - metadata_plugin.bash
-# Version: v2.3
-# Purpose: Configure Lyrics Enhancer metadata provider only (Golden Standard, Tubifarry block removed).
+# Version: v2.4-gs2.6
+# Purpose: Configure Lyrics Enhancer metadata provider only (Golden Standard v2.6 compliant).
 # -------------------------------------------------------------------------------------------------------------
 
-source /config/arrbit/helpers/helpers.bash
+# Source logging and helpers (Golden Standard order)
 source /config/arrbit/helpers/logging_utils.bash
+source /config/arrbit/helpers/helpers.bash
 
-arrbitPurgeOldLogs 5
+arrbitPurgeOldLogs
 
 SCRIPT_NAME="metadata_plugin"
-SCRIPT_VERSION="v2.3"
-LOG_DIR="/config/logs"
-LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+SCRIPT_VERSION="v2.4-gs2.6"
+LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
-CYAN='\033[36m'
-YELLOW='\033[33m'
-NC='\033[0m'
+mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-log_info() {
-  echo -e "${CYAN}[Arrbit]${NC} $*"
-  printf '[Arrbit] %s\n' "$*" >> "$LOG_FILE"
-}
-log_error() {
-  echo -e "${CYAN}[Arrbit]${NC} ERROR: $*" >&2
-  printf '[Arrbit] ERROR: %s\n' "$*" >> "$LOG_FILE"
-}
-
-# Banner (yellow for module name, first log only)
-log_info "${YELLOW}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
+# Banner: [Arrbit] always CYAN, module name/version GREEN (first line only)
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
 
 # Connect to arr_bridge.bash (sets arr_api, arrUrl, arrApiVersion)
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
@@ -50,6 +39,11 @@ upd=$(echo "$le" | jq '
       else . end
     )
 ')
+
+# Log the payload being sent (sanitized)
+log_info "Payload for Lyrics Enhancer written to log file (sanitized)"
+printf '[Arrbit] Lyrics Enhancer update payload:\n%s\n' "$upd" | arrbitLogClean >> "$LOG_FILE"
+
 if arr_api -X PUT --data-raw "$upd" "${arrUrl}/api/${arrApiVersion}/metadata/${lid}" >/dev/null; then
   log_info "Lyrics Enhancer configured"
 else
@@ -57,4 +51,5 @@ else
 fi
 
 log_info "Done with ${SCRIPT_NAME} module!"
+log_info "Log saved to $LOG_FILE"
 exit 0
