@@ -8,7 +8,7 @@
 source /config/arrbit/helpers/helpers.bash
 source /config/arrbit/helpers/logging_utils.bash
 
-arrbitPurgeOldLogs 2
+arrbitPurgeOldLogs
 
 SCRIPT_NAME="autoconfig"
 SCRIPT_VERSION="v5.5-gs2.6"
@@ -22,7 +22,6 @@ touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
 # Banner (only first line with color is allowed)
 echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} service${NC} ${SCRIPT_VERSION} ..."
-echo
 
 # --- 1. Check ENABLE_AUTOCONFIG flag first, fail fast with warning if not true ---
 ENABLE_AUTOCONFIG=$(getFlag ENABLE_AUTOCONFIG)
