@@ -20,8 +20,11 @@ NC='\033[0m'
 
 mkdir -p "$TMP_DIR" "$ARRBIT_ROOT"
 
-# --- Banner & status (echo only, GS exception for setup) ---
-echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Syncing Arrbit repository...${NC}"
+# --- Banner ---
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting setup install${NC} v1.3-gs2.6"
+
+# --- Standard info message (not a banner) ---
+echo -e "${CYAN}[Arrbit]${NC} Syncing Arrbit repository..."
 
 cd "$TMP_DIR"
 
@@ -45,7 +48,7 @@ source "$HELPERS_DIR/helpers.bash"
 arrbitPurgeOldLogs 2
 
 SCRIPT_NAME="setup"
-SCRIPT_VERSION="v1.2-gs2.6"
+SCRIPT_VERSION="v1.3-gs2.6"
 LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
