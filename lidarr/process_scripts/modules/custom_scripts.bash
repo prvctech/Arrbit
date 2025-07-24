@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - custom_scripts.bash
-# Version: v2.3
-# Purpose: Registers custom scripts for Lidarr using modular JSON payloads. Golden Standard enforced.
+# Version : v2.5
+# Purpose : Registers all custom scripts found in /config/arrbit/modules/data/custom_script_*.json (modular, bulletproof, Golden Standard)
 # -------------------------------------------------------------------------------------------------------------
 
 set -euo pipefail
@@ -13,14 +13,15 @@ source /config/arrbit/helpers/logging_utils.bash
 arrbitPurgeOldLogs 5
 
 SCRIPT_NAME="custom_scripts"
-SCRIPT_VERSION="v2.3"
+SCRIPT_VERSION="v2.5"
 LOG_DIR="/config/logs"
 LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 CYAN='\033[36m'
 YELLOW='\033[33m'
 NC='\033[0m'
 
-PAYLOAD_JSON="/config/arrbit/modules/data/custom_script_tagger.json"
+PAYLOAD_DIR="/config/arrbit/modules/data"
+PATTERN="custom_script_*.json"
 
 log_info() {
   echo -e "${CYAN}[Arrbit]${NC} $*"
@@ -40,44 +41,63 @@ if ! source /config/arrbit/connectors/arr_bridge.bash; then
   exit 1
 fi
 
-# --- Check payload file exists ---
-if [[ ! -f "$PAYLOAD_JSON" ]]; then
-  log_error "Payload JSON not found: $PAYLOAD_JSON"
-  exit 1
-fi
+# --- Find and process all custom script JSON payloads ---
+files_found=0
+scripts_registered=0
 
-# --- Extract, clean, and POST each script in payload ---
-count=0
-jq -c '.[]' "$PAYLOAD_JSON" | while read -r raw; do
-  # Remove "id" property to let Lidarr assign new ID
-  payload=$(echo "$raw" | jq 'del(.id)')
-
-  # Get the name (for logs)
-  name=$(echo "$payload" | jq -r '.name // .fields[]? | select(.name == "name") | .value')
-
-  # Check if already exists in Lidarr (by name)
-  if arr_api "${arrUrl}/api/${arrApiVersion}/notification" | jq -e --arg n "$name" '.[] | select(.name==$n)' >/dev/null; then
-    log_info "Custom script '$name' already registered; skipping."
-    printf '[Arrbit] SKIP custom script "%s" already exists\n' "$name" >> "$LOG_FILE"
+for file in "$PAYLOAD_DIR"/$PATTERN; do
+  if [[ ! -f "$file" ]]; then
     continue
   fi
+  files_found=1
 
-  log_info "Registering custom script: $name"
-  printf '[Arrbit] Registering custom script "%s"\n[Payload]\n%s\n[/Payload]\n' "$name" "$payload" >> "$LOG_FILE"
+  jq -c '. as $in | (if type=="array" then $in[] else $in end)' "$file" | while read -r raw; do
+    # --- Validate: Only process objects ---
+    is_obj=$(echo "$raw" | jq -er 'type == "object"' 2>/dev/null || echo "false")
+    if [[ "$is_obj" != "true" ]]; then
+      log_error "Payload in $file is not a valid object: $raw"
+      printf '[Arrbit] ERROR Invalid payload in %s: %s\n' "$file" "$raw" >> "$LOG_FILE"
+      continue
+    fi
 
-  response=$(arr_api -X POST --data-raw "$payload" "${arrUrl}/api/${arrApiVersion}/notification?apikey=${arrApiKey}")
+    payload=$(echo "$raw" | jq 'del(.id)')
+    name=$(echo "$payload" | jq -r '.name // empty')
 
-  printf '[Response]\n%s\n[/Response]\n' "$response" >> "$LOG_FILE"
+    # --- Validate: Name is required ---
+    if [[ -z "$name" ]]; then
+      log_error "Payload missing .name property in $file: $payload"
+      printf '[Arrbit] ERROR Payload missing .name property in %s: %s\n' "$file" "$payload" >> "$LOG_FILE"
+      continue
+    fi
 
-  if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
-    log_info "SUCCESS: Custom script '$name' registered."
-    printf '[Arrbit] SUCCESS custom script "%s" registered\n' "$name" >> "$LOG_FILE"
-    count=$((count + 1))
-  else
-    log_error "Failed to register custom script: $name"
-    printf '[Arrbit] ERROR Failed to register custom script "%s"\n' "$name" >> "$LOG_FILE"
-  fi
+    # --- Skip if already registered ---
+    if arr_api "${arrUrl}/api/${arrApiVersion}/notification" | jq -e --arg n "$name" '.[] | select(.name==$n)' >/dev/null; then
+      log_info "Custom script '$name' already registered; skipping."
+      printf '[Arrbit] SKIP custom script "%s" already exists\n' "$name" >> "$LOG_FILE"
+      continue
+    fi
+
+    log_info "Registering custom script: $name"
+    printf '[Arrbit] Registering custom script "%s"\n[Payload]\n%s\n[/Payload]\n' "$name" "$payload" >> "$LOG_FILE"
+
+    response=$(arr_api -X POST --data-raw "$payload" "${arrUrl}/api/${arrApiVersion}/notification?apikey=${arrApiKey}")
+
+    printf '[Response]\n%s\n[/Response]\n' "$response" >> "$LOG_FILE"
+
+    if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
+      log_info "SUCCESS: Custom script '$name' registered."
+      printf '[Arrbit] SUCCESS custom script "%s" registered\n' "$name" >> "$LOG_FILE"
+      scripts_registered=$((scripts_registered + 1))
+    else
+      log_error "Failed to register custom script: $name"
+      printf '[Arrbit] ERROR Failed to register custom script "%s"\n' "$name" >> "$LOG_FILE"
+    fi
+  done
 done
 
-log_info "Done with ${SCRIPT_NAME} module! ($count new scripts registered)"
+if [[ $files_found -eq 0 ]]; then
+  log_error "No payload files found matching $PAYLOAD_DIR/$PATTERN"
+fi
+
+log_info "Done with ${SCRIPT_NAME} module! ($scripts_registered scripts registered)"
 exit 0
