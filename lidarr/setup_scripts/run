@@ -48,7 +48,7 @@ ENABLE_ARRBIT=$(grep -E '^[[:space:]]*ENABLE_ARRBIT[[:space:]]*=' "$CONFIG_FILE"
                 awk -F= '{print tolower($2)}' | tr -d ' "\r')
 
 if [[ "$ENABLE_ARRBIT" != "true" ]]; then
-  echo -e "${CYAN}[Arrbit]${NC} WARNING: Arrbit services are OFF. Update ENABLE_ARRBIT to 'true' in arrbit-config.conf to enable automation."
+  echo -e "${CYAN}[Arrbit]${NC} ${YELLOW}WARNING:${NC} Arrbit services are OFF. Update ENABLE_ARRBIT to 'true' in arrbit-config.conf to enable automation."
   exit 0
 fi
 
