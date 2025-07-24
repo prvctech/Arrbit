@@ -1,39 +1,28 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - custom_scripts.bash
-# Version : v2.5
-# Purpose : Registers all custom scripts found in /config/arrbit/modules/data/custom_script_*.json (modular, bulletproof, Golden Standard)
+# Version: v2.6-gs2.6
+# Purpose: Registers all custom scripts found in /config/arrbit/modules/data/custom_script_*.json (modular, bulletproof, Golden Standard v2.6 compliant)
 # -------------------------------------------------------------------------------------------------------------
 
 set -euo pipefail
 
-source /config/arrbit/helpers/helpers.bash
+# Golden Standard: log_utils first, then helpers
 source /config/arrbit/helpers/logging_utils.bash
+source /config/arrbit/helpers/helpers.bash
 
-arrbitPurgeOldLogs 5
+arrbitPurgeOldLogs
 
 SCRIPT_NAME="custom_scripts"
-SCRIPT_VERSION="v2.5"
-LOG_DIR="/config/logs"
-LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
-CYAN='\033[36m'
-YELLOW='\033[33m'
-NC='\033[0m'
-
+SCRIPT_VERSION="v2.6-gs2.6"
+LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 PAYLOAD_DIR="/config/arrbit/modules/data"
 PATTERN="custom_script_*.json"
 
-log_info() {
-  echo -e "${CYAN}[Arrbit]${NC} $*"
-  printf '[Arrbit] %s\n' "$*" >> "$LOG_FILE"
-}
-log_error() {
-  echo -e "${CYAN}[Arrbit]${NC} ERROR: $*" >&2
-  printf '[Arrbit] ERROR: %s\n' "$*" >> "$LOG_FILE"
-}
+mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
 # --- Startup banner ---
-log_info "${YELLOW}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
 
 # --- Connect to arr_bridge (required for arr_api) ---
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
@@ -41,7 +30,6 @@ if ! source /config/arrbit/connectors/arr_bridge.bash; then
   exit 1
 fi
 
-# --- Find and process all custom script JSON payloads ---
 files_found=0
 scripts_registered=0
 
@@ -56,7 +44,7 @@ for file in "$PAYLOAD_DIR"/$PATTERN; do
     is_obj=$(echo "$raw" | jq -er 'type == "object"' 2>/dev/null || echo "false")
     if [[ "$is_obj" != "true" ]]; then
       log_error "Payload in $file is not a valid object: $raw"
-      printf '[Arrbit] ERROR Invalid payload in %s: %s\n' "$file" "$raw" >> "$LOG_FILE"
+      printf '[Arrbit] ERROR Invalid payload in %s: %s\n' "$file" "$raw" | arrbitLogClean >> "$LOG_FILE"
       continue
     fi
 
@@ -66,31 +54,31 @@ for file in "$PAYLOAD_DIR"/$PATTERN; do
     # --- Validate: Name is required ---
     if [[ -z "$name" ]]; then
       log_error "Payload missing .name property in $file: $payload"
-      printf '[Arrbit] ERROR Payload missing .name property in %s: %s\n' "$file" "$payload" >> "$LOG_FILE"
+      printf '[Arrbit] ERROR Payload missing .name property in %s: %s\n' "$file" "$payload" | arrbitLogClean >> "$LOG_FILE"
       continue
     fi
 
     # --- Skip if already registered ---
     if arr_api "${arrUrl}/api/${arrApiVersion}/notification" | jq -e --arg n "$name" '.[] | select(.name==$n)' >/dev/null; then
       log_info "Custom script '$name' already registered; skipping."
-      printf '[Arrbit] SKIP custom script "%s" already exists\n' "$name" >> "$LOG_FILE"
+      printf '[Arrbit] SKIP custom script "%s" already exists\n' "$name" | arrbitLogClean >> "$LOG_FILE"
       continue
     fi
 
     log_info "Registering custom script: $name"
-    printf '[Arrbit] Registering custom script "%s"\n[Payload]\n%s\n[/Payload]\n' "$name" "$payload" >> "$LOG_FILE"
+    printf '[Arrbit] Registering custom script "%s"\n[Payload]\n%s\n[/Payload]\n' "$name" "$payload" | arrbitLogClean >> "$LOG_FILE"
 
     response=$(arr_api -X POST --data-raw "$payload" "${arrUrl}/api/${arrApiVersion}/notification?apikey=${arrApiKey}")
 
-    printf '[Response]\n%s\n[/Response]\n' "$response" >> "$LOG_FILE"
+    printf '[Response]\n%s\n[/Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
 
     if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
       log_info "SUCCESS: Custom script '$name' registered."
-      printf '[Arrbit] SUCCESS custom script "%s" registered\n' "$name" >> "$LOG_FILE"
+      printf '[Arrbit] SUCCESS custom script "%s" registered\n' "$name" | arrbitLogClean >> "$LOG_FILE"
       scripts_registered=$((scripts_registered + 1))
     else
       log_error "Failed to register custom script: $name"
-      printf '[Arrbit] ERROR Failed to register custom script "%s"\n' "$name" >> "$LOG_FILE"
+      printf '[Arrbit] ERROR Failed to register custom script "%s"\n' "$name" | arrbitLogClean >> "$LOG_FILE"
     fi
   done
 done
@@ -100,4 +88,5 @@ if [[ $files_found -eq 0 ]]; then
 fi
 
 log_info "Done with ${SCRIPT_NAME} module! ($scripts_registered scripts registered)"
+log_info "Log saved to $LOG_FILE"
 exit 0
