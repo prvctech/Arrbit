@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - autoconfig.bash
-# Version: v5.2-gs2.6
+# Version: v5.5-gs2.6
 # Purpose: Orchestrates Arrbit modules based on config flags in arrbit-config.conf (Golden Standard enforced)
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/helpers.bash
 source /config/arrbit/helpers/logging_utils.bash
 
-arrbitPurgeOldLogs
+arrbitPurgeOldLogs 2
 
 SCRIPT_NAME="autoconfig"
-SCRIPT_VERSION="v5.2-gs2.6"
+SCRIPT_VERSION="v5.5-gs2.6"
 ARRBIT_ROOT="/config/arrbit"
 CONFIG_FILE="$ARRBIT_ROOT/config/arrbit-config.conf"
 MODULES_DIR="$ARRBIT_ROOT/modules"
@@ -24,17 +24,21 @@ touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} service${NC} ${SCRIPT_VERSION} ..."
 echo
 
-# ----------------------------------------------------------------------------
-# 1. CONNECT TO ARRBRIDGE (exports arr_api)
-# ----------------------------------------------------------------------------
+# --- 1. Check ENABLE_AUTOCONFIG flag first, fail fast with warning if not true ---
+ENABLE_AUTOCONFIG=$(getFlag ENABLE_AUTOCONFIG)
+if [[ "${ENABLE_AUTOCONFIG,,}" != "true" ]]; then
+  log_warning "Autoconfig service is OFF. Update ENABLE_AUTOCONFIG to 'true' in arrbit-config.conf."
+  log_info "Log saved to $LOG_FILE"
+  exit 0
+fi
+
+# --- 2. Connect to arr_bridge (exports arr_api) ---
 if ! source "$ARRBIT_ROOT/connectors/arr_bridge.bash"; then
   log_error "arr_bridge.bash not found or failed; exiting."
   exit 1
 fi
 
-# ----------------------------------------------------------------------------
-# 2. MODULES LIST (Add/remove modules here as required)
-# ----------------------------------------------------------------------------
+# --- 3. MODULES LIST (Add/remove modules here as required) ---
 MODULES=(
   custom_formats
   custom_scripts
@@ -49,9 +53,7 @@ MODULES=(
   ui_settings
 )
 
-# ----------------------------------------------------------------------------
-# 3. CHECK IF ANY MODULES ARE ENABLED (fail early if none enabled)
-# ----------------------------------------------------------------------------
+# --- 4. CHECK IF ANY MODULES ARE ENABLED (error if all are disabled) ---
 ENABLED_COUNT=0
 for NAME in "${MODULES[@]}"; do
   FLAG="CONFIGURE_$(echo "$NAME" | tr '[:lower:]' '[:upper:]')"
@@ -61,13 +63,12 @@ for NAME in "${MODULES[@]}"; do
   fi
 done
 if (( ENABLED_COUNT == 0 )); then
-  log_error "Autoconfig aborted - all modules are off (all CONFIGURE_* flags are false)."
+  log_error "Autoconfig stopped: no CONFIGURE_* modules enabled. Update your configuration."
+  log_info "Log saved to $LOG_FILE"
   exit 0
 fi
 
-# ----------------------------------------------------------------------------
-# 4. RUN ENABLED MODULES ONLY (no internal flag logic in modules)
-# ----------------------------------------------------------------------------
+# --- 5. RUN ENABLED MODULES ONLY (no internal flag logic in modules) ---
 for NAME in "${MODULES[@]}"; do
   FLAG="CONFIGURE_$(echo "$NAME" | tr '[:lower:]' '[:upper:]')"
   VAL=$(getFlag "$FLAG")
@@ -87,9 +88,7 @@ for NAME in "${MODULES[@]}"; do
   fi
 done
 
-# ----------------------------------------------------------------------------
-# 5. WRAP UP
-# ----------------------------------------------------------------------------
+# --- 6. WRAP UP ---
 log_info "Log saved to $LOG_FILE"
 log_info "Done with ${SCRIPT_NAME} service"
 
