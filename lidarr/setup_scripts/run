@@ -47,8 +47,8 @@ else
 fi
 
 ENABLE_ARRBIT=$(grep -E '^[[:space:]]*ENABLE_ARRBIT[[:space:]]*=' "$CONFIG_FILE" 2>/dev/null | \
-                grep -v '^[[:space:]]*#' | tail -n1 | \
-                awk -F= '{print tolower($2)}' | tr -d ' "\r')
+  grep -v '^[[:space:]]*#' | tail -n1 | \
+  awk -F= '{print tolower($2)}' | sed 's/[#;].*$//' | tr -d ' \"\r' | xargs)
 
 if [[ "$ENABLE_ARRBIT" != "true" ]]; then
   echo -e "${CYAN}[Arrbit]${NC} ${YELLOW}WARNING:${NC} Arrbit services are OFF. Update ENABLE_ARRBIT to 'true' in arrbit-config.conf to enable automation."
