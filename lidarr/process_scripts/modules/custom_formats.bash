@@ -43,7 +43,9 @@ jq -c '.[]' "$JSON_PATH" | while IFS= read -r format; do
   lowercase_name=$(echo "$format_name" | tr '[:upper:]' '[:lower:]')
   payload=$(echo "$format" | jq 'del(.id)')
 
-  log_info "Processing custom format: ${format_name}"
+  # Removed "Processing..." message to reduce terminal clutter
+
+  # Log payload only to file
   printf '[Arrbit] Format: %s\n[Payload]\n%s\n[/Payload]\n' "$format_name" "$payload" | arrbitLogClean >> "$LOG_FILE"
 
   if echo "$existing_names" | grep -Fxq "$lowercase_name"; then
