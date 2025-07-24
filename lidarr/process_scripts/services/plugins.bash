@@ -1,87 +1,104 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
-# Arrbit - plugins
-# Version: v3.7-gs2.6
-# Purpose: Install or update Deezer, Tidal, Tubifarry plug-ins for Lidarr (Golden Standard v2.6 compliant).
+# Arrbit - autoconfig.bash
+# Version: v5.3-gs2.6
+# Purpose: Orchestrates Arrbit modules based on config flags in arrbit-config.conf (Golden Standard enforced)
 # -------------------------------------------------------------------------------------------------------------
 
-# Golden Standard: Always source logging_utils first, then helpers
-source /config/arrbit/helpers/logging_utils.bash
 source /config/arrbit/helpers/helpers.bash
+source /config/arrbit/helpers/logging_utils.bash
 
 arrbitPurgeOldLogs 2
 
-chmod -R 777 /config/arrbit/
-chmod -R 777 /config/plugins/
-chmod -R 777 /config/logs/
-
-PLUGINS_DIR="/config/plugins"
-SCRIPT_NAME="plugins"
-SCRIPT_VERSION="v3.7-gs2.6"
-LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
-CONFIG_FILE="/config/arrbit/config/arrbit-config.conf"
+SCRIPT_NAME="autoconfig"
+SCRIPT_VERSION="v5.3-gs2.6"
+ARRBIT_ROOT="/config/arrbit"
+CONFIG_FILE="$ARRBIT_ROOT/config/arrbit-config.conf"
+MODULES_DIR="$ARRBIT_ROOT/modules"
+LOG_DIR="/config/logs"
+LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-# --- Banner (color allowed on first line) ---
-echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME}${NC} service ${MAGENTA}Deezer, Tidal, Tubifarry${NC} ${SCRIPT_VERSION}"
+# Banner (only first line with color is allowed)
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} service${NC} ${SCRIPT_VERSION} ..."
 echo
 
-# --- Check ENABLE_PLUGINS flag (Golden Standard: fail fast) ---
-ENABLE_PLUGINS=$(getFlag ENABLE_PLUGINS)
-if [[ "${ENABLE_PLUGINS,,}" != "true" ]]; then
-  log_warning "Plugins service is OFF. Update ENABLE_PLUGINS to 'true' in arrbit-config.conf."
+# --- Check ENABLE_AUTOCONFIG flag (Golden Standard: fail fast) ---
+ENABLE_AUTOCONFIG=$(getFlag ENABLE_AUTOCONFIG)
+if [[ "${ENABLE_AUTOCONFIG,,}" != "true" ]]; then
+  log_warning "Autoconfig service is OFF. Update ENABLE_AUTOCONFIG to 'true' in arrbit-config.conf."
   log_info "Log saved to $LOG_FILE"
   exit 0
 fi
 
-# --- FUNCTIONS ---
-has_dll() {
-  shopt -s nullglob
-  local dll_files=("$1"/*.dll)
-  (( ${#dll_files[@]} ))
-}
+# ----------------------------------------------------------------------------
+# 1. CONNECT TO ARRBRIDGE (exports arr_api)
+# ----------------------------------------------------------------------------
+if ! source "$ARRBIT_ROOT/connectors/arr_bridge.bash"; then
+  log_error "arr_bridge.bash not found or failed; exiting."
+  exit 1
+fi
 
-install_plugin() {  # $1 = plugin_name, $2 = plugin_dir, $3 = plugin_url
-  local plugin_name="$1"
-  local plugin_dir="$2"
-  local plugin_url="$3"
+# ----------------------------------------------------------------------------
+# 2. MODULES LIST (Add/remove modules here as required)
+# ----------------------------------------------------------------------------
+MODULES=(
+  custom_formats
+  custom_scripts
+  delay_profiles
+  media_management
+  metadata_consumer
+  metadata_plugin
+  metadata_profiles
+  metadata_write
+  quality_profiles
+  track_naming
+  ui_settings
+)
 
-  if has_dll "$plugin_dir"; then
-    log_info "$plugin_name already present – skipping"
-    return
+# ----------------------------------------------------------------------------
+# 3. CHECK IF ANY MODULES ARE ENABLED (fail early if none enabled)
+# ----------------------------------------------------------------------------
+ENABLED_COUNT=0
+for NAME in "${MODULES[@]}"; do
+  FLAG="CONFIGURE_$(echo "$NAME" | tr '[:lower:]' '[:upper:]')"
+  VAL=$(getFlag "$FLAG")
+  if [[ -n "${VAL}" && "${VAL,,}" == "true" ]]; then
+    ((ENABLED_COUNT++))
+  fi
+done
+if (( ENABLED_COUNT == 0 )); then
+  log_error "Autoconfig aborted - all modules are off (all CONFIGURE_* flags are false)."
+  log_info "Log saved to $LOG_FILE"
+  exit 0
+fi
+
+# ----------------------------------------------------------------------------
+# 4. RUN ENABLED MODULES ONLY (no internal flag logic in modules)
+# ----------------------------------------------------------------------------
+for NAME in "${MODULES[@]}"; do
+  FLAG="CONFIGURE_$(echo "$NAME" | tr '[:lower:]' '[:upper:]')"
+  VAL=$(getFlag "$FLAG")
+  if [[ -z "${VAL}" || "${VAL,,}" != "true" ]]; then
+    log_warning "${NAME} module is disabled by config; skipping."
+    continue
   fi
 
-  log_info "Downloading $plugin_name …"
-  local tmp_dir
-  tmp_dir=$(mktemp -d)
-
-  if curl -fsSL -o "$tmp_dir/plugin.zip" "$plugin_url" >>"$LOG_FILE" 2>&1; then
-    if unzip -q "$tmp_dir/plugin.zip" -d "$tmp_dir" >>"$LOG_FILE" 2>&1; then
-      mkdir -p "$plugin_dir"
-      find "$tmp_dir" -type f \( -iname "*.dll" -o -iname "*.json" -o -iname "*.pdb" \) -exec mv {} "$plugin_dir/" \;
-      chmod -R 777 "$plugin_dir"
-      log_info "$plugin_name installed"
-    else
-      log_warning "Failed to unzip $plugin_name – skipped"
+  SCRIPT="$MODULES_DIR/${NAME}.bash"
+  if [ -x "$SCRIPT" ]; then
+    log_info "Launching ${NAME} module..."
+    if ! bash "$SCRIPT"; then
+      log_warning "${NAME} module failed. See log for details."
     fi
   else
-    log_warning "Failed to download $plugin_name – skipped"
+    log_warning "${NAME} module not found or not executable; skipped."
   fi
+done
 
-  rm -rf "$tmp_dir"
-}
-
-# --- PLUGIN INSTALLATION ---
-install_plugin "Deezer"    "$PLUGINS_DIR/TrevTV/Lidarr.Plugin.Deezer" \
-  "https://github.com/TrevTV/Lidarr.Plugin.Deezer/releases/latest/download/Lidarr.Plugin.Deezer.net6.0.zip"
-
-install_plugin "Tidal"     "$PLUGINS_DIR/TrevTV/Lidarr.Plugin.Tidal"  \
-  "https://github.com/TrevTV/Lidarr.Plugin.Tidal/releases/latest/download/Lidarr.Plugin.Tidal.net6.0.zip"
-
-install_plugin "Tubifarry" "$PLUGINS_DIR/TypNull/Tubifarry" \
-  "https://github.com/TypNull/Tubifarry/releases/download/v1.8.1.1/Tubifarry-v1.8.1.1.net6.0-develop.zip"
-
+# ----------------------------------------------------------------------------
+# 5. WRAP UP
+# ----------------------------------------------------------------------------
 log_info "Log saved to $LOG_FILE"
 log_info "Done with ${SCRIPT_NAME} service"
 
