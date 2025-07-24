@@ -1,38 +1,26 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - track_naming.bash
-# Version: v2.10
-# Purpose: Configure Lidarr Track Naming profile via API (Golden Standard, no internal flag check).
+# Version: v2.11-gs2.6
+# Purpose: Configure Lidarr Track Naming profile via API (Golden Standard v2.6 compliant).
 # -------------------------------------------------------------------------------------------------------------
 
-source /config/arrbit/helpers/helpers.bash
+# Source logging and helpers (Golden Standard order)
 source /config/arrbit/helpers/logging_utils.bash
+source /config/arrbit/helpers/helpers.bash
 
-arrbitPurgeOldLogs 5
+arrbitPurgeOldLogs
 
 SCRIPT_NAME="track_naming"
-SCRIPT_VERSION="v2.10"
-LOG_DIR="/config/logs"
-LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+SCRIPT_VERSION="v2.11-gs2.6"
+LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
-CYAN='\033[36m'
-YELLOW='\033[33m'
-NC='\033[0m'
+mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-# Golden Standard: override log_info/log_error
-log_info() {
-  echo -e "${CYAN}[Arrbit]${NC} $*"
-  printf '[Arrbit] %s\n' "$*" >> "$LOG_FILE"
-}
-log_error() {
-  echo -e "${CYAN}[Arrbit]${NC} ERROR: $*" >&2
-  printf '[Arrbit] ERROR: %s\n' "$*" >> "$LOG_FILE"
-}
+# Banner: [Arrbit] always CYAN, module name/version GREEN (first line only)
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
 
-# Banner (module/script names in yellow for the first log only)
-log_info "${YELLOW}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
-
-# Connect to arr_bridge.bash (includes wait for API, sets arr_api)
+# Connect to arr_bridge.bash (provides arr_api, arrUrl, arrApiKey, arrApiVersion)
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
   log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup)"
   exit 1
@@ -53,15 +41,18 @@ payload='{
   "id": 1
 }'
 
-# Log payload and response to file ONLY (no color codes)
-printf '[Arrbit] Track Naming payload:\n%s\n' "$payload" >> "$LOG_FILE"
+# Log sanitized payload to file only (never include secrets)
+log_info "Track Naming payload written to log file (sanitized)"
+printf '[Arrbit] Track Naming payload:\n%s\n' "$payload" | arrbitLogClean >> "$LOG_FILE"
 
 response=$(
   arr_api -X PUT --data-raw "$payload" \
     "${arrUrl}/api/${arrApiVersion}/config/naming?apikey=${arrApiKey}"
 )
 
-printf '[Arrbit] API Response:\n%s\n' "$response" >> "$LOG_FILE"
+# Log sanitized API response to file only
+log_info "API response written to log file (sanitized)"
+printf '[Arrbit] API Response:\n%s\n' "$response" | arrbitLogClean >> "$LOG_FILE"
 
 if echo "$response" | jq -e '.renameTracks' >/dev/null 2>&1; then
   log_info "Track Naming has been configured successfully"
@@ -70,4 +61,5 @@ else
 fi
 
 log_info "Done with ${SCRIPT_NAME} module!"
+log_info "Log saved to $LOG_FILE"
 exit 0
