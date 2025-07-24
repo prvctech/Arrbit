@@ -1,69 +1,50 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - dependencies
-# Version : v1.0
-# Purpose : Install / upgrade all system and Python dependencies for Arrbit.
+# Version: v1.0-gs2.6
+# Purpose: Install / upgrade all system and Python dependencies for Arrbit.
 # -------------------------------------------------------------------------------------------------------------
 
-set -euo pipefail
-
-# -------- paths & constants ---------------------------------------------------------
-SERVICE_DIR="/config/arrbit"
-HELPERS_DIR="$SERVICE_DIR/helpers"
+# -------- load logging & helpers (Golden Standard) -----------------------------------------------------------
+HELPERS_DIR="/config/arrbit/helpers"
 LOG_DIR="/config/logs"
+mkdir -p "$LOG_DIR" "$HELPERS_DIR"
+source "$HELPERS_DIR/logging_utils.bash"
+source "$HELPERS_DIR/helpers.bash"
+arrbitPurgeOldLogs
+
+# -------- constants & vars -----------------------------------------------------------------
 SCRIPT_NAME="dependencies"
-SCRIPT_VERSION="v1.0"
+SCRIPT_VERSION="v1.0-gs2.6"
 LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 DEPS_MARKER="$HELPERS_DIR/deps_version.txt"
+touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-# -------- prepare log & helpers -----------------------------------------------------
-mkdir -p "$LOG_DIR" "$HELPERS_DIR"
-touch "$LOG_FILE"; chmod 777 "$LOG_FILE"
+# -------- banner (GREEN for module name, CYAN for [Arrbit]) -------------------------------
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} service${NC} ${SCRIPT_VERSION}"
 
-/usr/bin/env bash -c 'source "'"$HELPERS_DIR/logging_utils.bash"'"' 2>/dev/null || true
-
-# colour codes (stripped in log by arrbitLogClean)
-CYAN='\033[36m'
-YELLOW='\033[33m'
-NC='\033[0m'
-
-arrbitPurgeOldLogs 2 2>/dev/null || true
-
-log() {
-  local plain="[Arrbit] $*"
-  local term="${CYAN}[Arrbit]${NC} $*"
-  echo -e "$term"
-  if type arrbitLogClean >/dev/null 2>&1; then
-    printf '%s\n' "$plain" | arrbitLogClean >>"$LOG_FILE"
-  else
-    printf '%s\n' "$plain" >>"$LOG_FILE"
-  fi
-}
-
-# -------- banner --------------------------------------------------------------------
-log "Starting ${YELLOW}${SCRIPT_NAME} service${NC} ${SCRIPT_VERSION}"
-
-# -------- dependency check ----------------------------------------------------------
+# -------- load old deps marker (if present) -----------------------------------------------
 if [[ -f "$DEPS_MARKER" ]]; then
   # shellcheck source=/dev/null
   source "$DEPS_MARKER"
 fi
 
+# -------- dependency check logic ----------------------------------------------------------
 needs_install=false
 command -v atomicparsley >/dev/null 2>&1 || needs_install=true
 
 if [[ "${depsversion:-}" == "$SCRIPT_VERSION" && "$needs_install" == false ]]; then
-  log "Dependencies already installed - skipping"
+  log_info "Dependencies already installed - skipping"
   exit 0
 fi
 
 if [[ -n "${depsversion:-}" && "$depsversion" != "$SCRIPT_VERSION" ]]; then
-  log "Upgrading dependencies (details in log file)"
+  log_info "Upgrading dependencies (details in log file)"
 else
-  log "Installing dependencies (details in log file)"
+  log_info "Installing dependencies (details in log file)"
 fi
 
-# -------- system packages -----------------------------------------------------------
+# -------- system packages -----------------------------------------------------------------
 apk add -U --upgrade --no-cache \
   tidyhtml \
   musl-locales \
@@ -85,7 +66,7 @@ apk add -U --upgrade --no-cache \
 
 apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/testing atomicparsley >>"$LOG_FILE" 2>&1
 
-# -------- Python packages -----------------------------------------------------------
+# -------- Python packages -----------------------------------------------------------------
 uv pip install --system --upgrade --no-cache-dir --break-system-packages \
   jellyfish \
   beautifulsoup4 \
@@ -102,7 +83,10 @@ uv pip install --system --upgrade --no-cache-dir --break-system-packages \
   r128gain \
   tidal-dl >>"$LOG_FILE" 2>&1
 
+# -------- update marker -------------------------------------------------------------------
 echo "depsversion=$SCRIPT_VERSION" >"$DEPS_MARKER"
-log "Dependency installation/upgrade complete"
-log "Log saved to $LOG_FILE"
+
+log_info "Dependency installation/upgrade complete"
+log_info "Log saved to $LOG_FILE"
+
 exit 0
