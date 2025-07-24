@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - run module
-# Version : v1.5
+# Version : v1.7-gs2.6
 # Purpose : Orchestrator – shows Arrbit logo, runs remote setup.bash, installs dependencies,
 #           then launches local services (plugins, autoconfig) per config flags.
 # -------------------------------------------------------------------------------------------------------------
@@ -10,112 +10,104 @@ set -euo pipefail
 
 sleep 8
 
-# ----------------------------- constants / globals -----------------------------------------------------------
 ARRBIT_ROOT="/config/arrbit"
 CONFIG_FILE_PRIMARY="$ARRBIT_ROOT/config/arrbit-config.conf"
-CONFIG_FILE_LEGACY="$ARRBIT_ROOT/arrbit-config.conf"          # pre-v3.0 layout fallback
+CONFIG_FILE_LEGACY="$ARRBIT_ROOT/arrbit-config.conf"
 LOG_DIR="/config/logs"
-LOG_FILE="$LOG_DIR/arrbit-run-$(date '+%Y_%m_%d-%H_%M').log"
+HELPERS_DIR="$ARRBIT_ROOT/helpers"
 
 DEPENDENCIES_SCRIPT="$ARRBIT_ROOT/setup/dependencies.bash"
 REMOTE_SETUP_URL="https://raw.githubusercontent.com/prvctech/Arrbit/main/lidarr/setup_scripts/setup.bash"
-
 PLUGINS_SCRIPT_LOCAL="$ARRBIT_ROOT/services/plugins.bash"
 AUTOCONFIG_SCRIPT_LOCAL="$ARRBIT_ROOT/services/autoconfig.bash"
 LOGO_SCRIPT_LOCAL="$ARRBIT_ROOT/modules/data/arrbit_logo.bash"
 
-# ANSI colours
-CYAN='\033[0;36m'
-YELLOW='\033[0;33m'
+# --- Banner (color before helpers exist) ---
+CYAN='\033[96m'
+YELLOW='\033[93m'
 NC='\033[0m'
+echo -e "${CYAN}[Arrbit]${NC} ${YELLOW}run module${NC} v1.7-gs2.6 starting …"
 
-LOG_PREFIX="${CYAN}[Arrbit]${NC}"
-
-# ----------------------------- logging setup -----------------------------------------------------------------
-mkdir -p "$LOG_DIR"
-# Purge old logs older than 2 days (before logging)
-find "$LOG_DIR" -type f -name 'arrbit-*' -mtime +2 -delete || true
-exec > >(tee -a "$LOG_FILE") 2>&1   # mirror stdout+stderr to logfile
-
-# ---- 0. coloured banner (+ logo) ---------------------------------------------------------------------------
-printf "%b" "${CYAN}[Arrbit]${NC} ${YELLOW}run module${NC} v1.5 starting …\n"
-
+# Show logo if present
 if [[ -f "$LOGO_SCRIPT_LOCAL" ]]; then
   bash "$LOGO_SCRIPT_LOCAL"
 fi
 
-# ----------------------------- 1. fetch & execute remote setup ----------------------------------------------
-echo -e "$LOG_PREFIX Fetching and executing remote setup.bash ..."
+# --- 1. Fetch & execute remote setup (brings helpers into existence) ---
+echo -e "${CYAN}[Arrbit]${NC} Fetching and executing remote setup.bash ..."
 if ! curl --fail --silent --show-error "$REMOTE_SETUP_URL" | bash; then
-  echo -e "$LOG_PREFIX ERROR: remote setup.bash failed." >&2
+  echo -e "${CYAN}[Arrbit]${NC} ERROR: remote setup.bash failed."
   exit 1
 fi
-echo -e "$LOG_PREFIX Remote setup complete."
+echo -e "${CYAN}[Arrbit]${NC} Remote setup complete."
 
-# ----------------------------- 2. install prerequisites ------------------------------------------------------
-if [[ -x "$DEPENDENCIES_SCRIPT" ]]; then
-  echo -e "$LOG_PREFIX Running dependencies setup ..."
-  bash "$DEPENDENCIES_SCRIPT"
-  echo -e "$LOG_PREFIX Dependencies completed."
+# --- 2. Now helpers exist! Switch to full Golden Standard logging ---
+if [[ -f "$HELPERS_DIR/logging_utils.bash" && -f "$HELPERS_DIR/helpers.bash" ]]; then
+  source "$HELPERS_DIR/logging_utils.bash"
+  source "$HELPERS_DIR/helpers.bash"
+  arrbitPurgeOldLogs 2
+  SCRIPT_NAME="run"
+  SCRIPT_VERSION="v1.7-gs2.6"
+  LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date '+%Y_%m_%d-%H_%M').log"
+  touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 else
-  echo -e "$LOG_PREFIX ERROR: dependencies script not found/executable at $DEPENDENCIES_SCRIPT" >&2
+  echo -e "${CYAN}[Arrbit]${NC} ERROR: Arrbit helpers missing after setup. Cannot continue."
   exit 1
 fi
 
-# ----------------------------- 3. locate config --------------------------------------------------------------
+# --- 3. Install prerequisites ---
+log_info "Running dependencies setup ..."
+if [[ -x "$DEPENDENCIES_SCRIPT" ]]; then
+  bash "$DEPENDENCIES_SCRIPT"
+  log_info "Dependencies completed."
+else
+  log_error "dependencies script not found/executable at $DEPENDENCIES_SCRIPT"
+  exit 1
+fi
+
+# --- 4. Locate config file ---
 if [[ -f "$CONFIG_FILE_PRIMARY" ]]; then
   CONFIG_FILE="$CONFIG_FILE_PRIMARY"
 elif [[ -f "$CONFIG_FILE_LEGACY" ]]; then
   CONFIG_FILE="$CONFIG_FILE_LEGACY"
 else
-  echo -e "$LOG_PREFIX ERROR: arrbit-config.conf not found." >&2
+  log_error "arrbit-config.conf not found."
   exit 1
 fi
 
-# Robust fallback for getFlag if helpers are missing
-getFlag() {
-  local flag_name="$1"
-  local flag_upper
-  flag_upper=$(echo "$flag_name" | tr '[:lower:]' '[:upper:]')
-  awk -F '=' -v key="$flag_upper" '
-    $0 !~ /^[[:space:]]*#/ && NF >= 2 {
-      gsub(/[[:space:]]+/, "", $1);
-      gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2);
-      if (toupper($1) == key) {
-        gsub(/[#;].*$/, "", $2);
-        print tolower($2);
-        exit
-      }
-    }
-  ' "$CONFIG_FILE" 2>/dev/null | tr -d '"\r'
-}
+# --- 4b. Check ENABLE_CONFIG flag ---
+ENABLE_CONFIG=$(getFlag ENABLE_CONFIG)
+if [[ "${ENABLE_CONFIG,,}" != "true" ]]; then
+  log_warning "Arrbit services are OFF. Update ENABLE_CONFIG to 'true' in arrbit-config.conf to enable automation."
+  log_info "Log saved to $LOG_FILE"
+  exit 0
+fi
 
-echo -e "$LOG_PREFIX Reading config flags from $CONFIG_FILE ..."
+# --- 5. Read config flags using real helpers.getFlag ---
+log_info "Reading config flags from $CONFIG_FILE ..."
 
-# ----------------------------- 4. conditional service launches ----------------------------------------------
+# --- 6. Conditional service launches ---
 if [[ "$(getFlag ENABLE_PLUGINS)" == "true" ]]; then
   if [[ -x "$PLUGINS_SCRIPT_LOCAL" ]]; then
-    echo -e "$LOG_PREFIX ➜ Launching plugins.bash ..."
+    log_info "Launching plugins.bash ..."
     bash "$PLUGINS_SCRIPT_LOCAL"
-    echo -e "$LOG_PREFIX plugins.bash finished."
+    log_info "plugins.bash finished."
   else
-    echo -e "$LOG_PREFIX WARNING: plugins.bash not found at $PLUGINS_SCRIPT_LOCAL"
+    log_warning "plugins.bash not found at $PLUGINS_SCRIPT_LOCAL"
   fi
 fi
 
 if [[ "$(getFlag ENABLE_AUTOCONFIG)" == "true" ]]; then
   if [[ -x "$AUTOCONFIG_SCRIPT_LOCAL" ]]; then
-    echo -e "$LOG_PREFIX ➜ Launching autoconfig.bash ..."
+    log_info "Launching autoconfig.bash ..."
     bash "$AUTOCONFIG_SCRIPT_LOCAL"
-    echo -e "$LOG_PREFIX autoconfig.bash finished."
+    log_info "autoconfig.bash finished."
   else
-    echo -e "$LOG_PREFIX WARNING: autoconfig.bash not found at $AUTOCONFIG_SCRIPT_LOCAL"
+    log_warning "autoconfig.bash not found at $AUTOCONFIG_SCRIPT_LOCAL"
   fi
 fi
 
-# ---- future flags placeholder -------------------------------------------------------------------------------
-# Add more service blocks here as new flags are introduced.
-
-# ----------------------------- end ---------------------------------------------------------------------------
-echo -e "$LOG_PREFIX All requested services executed. Sleeping indefinitely."
+# --- End ---
+log_info "All requested services executed. Sleeping indefinitely."
+log_info "Log saved to $LOG_FILE"
 sleep infinity
