@@ -33,6 +33,7 @@ echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting run module${NC} v2.0-gs2.6"
 if [[ -f "$LOGO_SCRIPT_LOCAL" ]]; then
   source "$LOGO_SCRIPT_LOCAL"
   arrbit_logo
+echo
 fi
 
 # --- 0. Find config, check ENABLE_ARRBIT master switch (ultra-minimal, no functions) ---
