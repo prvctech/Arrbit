@@ -1,35 +1,24 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - quality_profiles.bash
-# Version: v1.5
-# Purpose: Configure Lidarr quality profiles via API. Golden Standard. No internal flag checks.
+# Version: v1.6-gs2.6
+# Purpose: Configure Lidarr quality profiles via API (Golden Standard v2.6 compliant).
 # -------------------------------------------------------------------------------------------------------------
 
-source /config/arrbit/helpers/helpers.bash
+# Source logging and helpers (Golden Standard order)
 source /config/arrbit/helpers/logging_utils.bash
+source /config/arrbit/helpers/helpers.bash
 
-arrbitPurgeOldLogs 5
+arrbitPurgeOldLogs
 
 SCRIPT_NAME="quality_profiles"
-SCRIPT_VERSION="v1.5"
-LOG_DIR="/config/logs"
-LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+SCRIPT_VERSION="v1.6-gs2.6"
+LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
-CYAN='\033[36m'
-YELLOW='\033[33m'
-NC='\033[0m'
+mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-log_info() {
-  echo -e "${CYAN}[Arrbit]${NC} $*"
-  printf '[Arrbit] %s\n' "$*" >> "$LOG_FILE"
-}
-log_error() {
-  echo -e "${CYAN}[Arrbit]${NC} ERROR: $*" >&2
-  printf '[Arrbit] ERROR: %s\n' "$*" >> "$LOG_FILE"
-}
-
-# Banner (script/module name in yellow, first log only)
-log_info "${YELLOW}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
+# Banner: [Arrbit] always CYAN, module name/version GREEN (first line only)
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
 
 # Connect to arr_bridge.bash (waits for API, sets arr_api)
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
@@ -103,7 +92,10 @@ EOF
 )
 
 # 3) Update profile via API
-if arr_api -X PUT --data "${hq_profile}" \
+log_info "Updating HQ quality profile (payload logged to file)"
+printf '[Arrbit] HQ Profile payload:\n%s\n' "$hq_profile" | arrbitLogClean >> "$LOG_FILE"
+
+if arr_api -X PUT --data "$hq_profile" \
      "${arrUrl}/api/${arrApiVersion}/qualityprofile/4" >/dev/null; then
   log_info "Quality profile 'hq' updated."
 else
@@ -111,4 +103,5 @@ else
 fi
 
 log_info "Done with ${SCRIPT_NAME} module!"
+log_info "Log saved to $LOG_FILE"
 exit 0
