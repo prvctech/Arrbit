@@ -19,7 +19,7 @@ JSON_PATH="/config/arrbit/modules/data/custom_formats_master.json"
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
 # Banner: [Arrbit] always CYAN, module name/version GREEN (first line only)
-echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
+echo -e "${CYAN}[Arrbit]${NC} Starting ${GREEN}${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
 
 # Connect to arr_bridge.bash (waits for API, sets arr_api)
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
