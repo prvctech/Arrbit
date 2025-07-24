@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - run module
-# Version : v1.7-gs2.6
-# Purpose : Orchestrator – shows Arrbit logo, runs remote setup.bash, installs dependencies,
-#           then launches local services (plugins, autoconfig) per config flags.
+# Version : v1.8-gs2.6
+# Purpose : Orchestrator – shows Arrbit logo, then, only if ENABLE_ARRBIT is true, runs remote setup.bash,
+#           installs dependencies, and launches local services per config flags.
 # -------------------------------------------------------------------------------------------------------------
 
 set -euo pipefail
@@ -22,15 +22,52 @@ PLUGINS_SCRIPT_LOCAL="$ARRBIT_ROOT/services/plugins.bash"
 AUTOCONFIG_SCRIPT_LOCAL="$ARRBIT_ROOT/services/autoconfig.bash"
 LOGO_SCRIPT_LOCAL="$ARRBIT_ROOT/modules/data/arrbit_logo.bash"
 
-# --- Banner (color before helpers exist) ---
+# --- Banner (minimal color before helpers exist) ---
 CYAN='\033[96m'
 GREEN='\033[92m'
 NC='\033[0m'
-echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting run module${NC} v1.7-gs2.6"
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting run module${NC} v1.8-gs2.6"
 
-# Show logo if present
+# Show logo if present (optional)
 if [[ -f "$LOGO_SCRIPT_LOCAL" ]]; then
   bash "$LOGO_SCRIPT_LOCAL"
+fi
+
+# --- 0. Find config, check ENABLE_ARRBIT flag before anything else ---
+CONFIG_FILE=""
+if [[ -f "$CONFIG_FILE_PRIMARY" ]]; then
+  CONFIG_FILE="$CONFIG_FILE_PRIMARY"
+elif [[ -f "$CONFIG_FILE_LEGACY" ]]; then
+  CONFIG_FILE="$CONFIG_FILE_LEGACY"
+fi
+
+# Fallback getFlag (no helpers yet!)
+get_flag_fallback() {
+  local flag_name="$1"
+  local flag_upper
+  flag_upper=$(echo "$flag_name" | tr '[:lower:]' '[:upper:]')
+  awk -F '=' -v key="$flag_upper" '
+    $0 !~ /^[[:space:]]*#/ && NF >= 2 {
+      gsub(/[[:space:]]+/, "", $1);
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2);
+      if (toupper($1) == key) {
+        gsub(/[#;].*$/, "", $2);
+        print tolower($2);
+        exit
+      }
+    }
+  ' "$CONFIG_FILE" 2>/dev/null | tr -d '"\r'
+}
+
+if [[ -z "$CONFIG_FILE" ]]; then
+  echo -e "${CYAN}[Arrbit]${NC} ERROR: arrbit-config.conf not found. Exiting."
+  exit 1
+fi
+
+ENABLE_ARRBIT="$($get_flag_fallback ENABLE_ARRBIT)"
+if [[ "${ENABLE_ARRBIT,,}" != "true" ]]; then
+  echo -e "${CYAN}[Arrbit]${NC} WARNING: Arrbit services are OFF. Update ENABLE_ARRBIT to 'true' in arrbit-config.conf to enable automation."
+  exit 0
 fi
 
 # --- 1. Fetch & execute remote setup (brings helpers into existence) ---
@@ -47,7 +84,7 @@ if [[ -f "$HELPERS_DIR/logging_utils.bash" && -f "$HELPERS_DIR/helpers.bash" ]];
   source "$HELPERS_DIR/helpers.bash"
   arrbitPurgeOldLogs 2
   SCRIPT_NAME="run"
-  SCRIPT_VERSION="v1.7-gs2.6"
+  SCRIPT_VERSION="v1.8-gs2.6"
   LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date '+%Y_%m_%d-%H_%M').log"
   touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 else
@@ -65,17 +102,7 @@ else
   exit 1
 fi
 
-# --- 4. Locate config file ---
-if [[ -f "$CONFIG_FILE_PRIMARY" ]]; then
-  CONFIG_FILE="$CONFIG_FILE_PRIMARY"
-elif [[ -f "$CONFIG_FILE_LEGACY" ]]; then
-  CONFIG_FILE="$CONFIG_FILE_LEGACY"
-else
-  log_error "arrbit-config.conf not found."
-  exit 1
-fi
-
-# --- 4b. Check ENABLE_CONFIG flag ---
+# --- 4. Check ENABLE_CONFIG flag before running services ---
 ENABLE_CONFIG=$(getFlag ENABLE_CONFIG)
 if [[ "${ENABLE_CONFIG,,}" != "true" ]]; then
   log_warning "Arrbit services are OFF. Update ENABLE_CONFIG to 'true' in arrbit-config.conf to enable automation."
