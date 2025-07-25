@@ -12,27 +12,29 @@ if [[ -z "${ARRBIT_HELPERS_INCLUDED:-}" ]]; then
   # Usage: getFlag "ENABLE_PLUGINS"
   # Returns: the value (e.g., true/false), or blank if not found
   # -------------------------------------------------------
-  getFlag() {
-    local flag_name="$1"
-    local config_file="${CONFIG_DIR:-/config/arrbit/config}/arrbit-config.conf"
-    # Convert flag_name to uppercase for case-insensitive search
-    local flag_upper
-    flag_upper=$(echo "$flag_name" | tr '[:lower:]' '[:upper:]')
-    awk -F '=' -v key="$flag_upper" '
-      $0 !~ /^[[:space:]]*#/ && NF >= 2 {
-        # Remove whitespace in key
-        gsub(/[[:space:]]+/, "", $1);
-        # Trim value (leading/trailing whitespace)
-        gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2);
-        if (toupper($1) == key) {
-          # Remove trailing inline comments (e.g., # or ; )
-          gsub(/[#;].*$/, "", $2);
-          print $2;
-          exit
-        }
+getFlag() {
+  local flag_name="$1"
+  local config_file="${CONFIG_DIR:-/config/arrbit/config}/arrbit-config.conf"
+  local flag_upper
+  flag_upper=$(echo "$flag_name" | tr '[:lower:]' '[:upper:]')
+  awk -F '=' -v key="$flag_upper" '
+    $0 !~ /^[[:space:]]*#/ && NF >= 2 {
+      # Remove whitespace in key
+      gsub(/[[:space:]]+/, "", $1)
+      if (toupper($1) == key) {
+        val=$2
+        # Remove inline comments after # or ;
+        sub(/[#;].*/, "", val)
+        # Trim leading/trailing whitespace
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", val)
+        # Remove leading/trailing double quotes
+        gsub(/^"+|"+$/, "", val)
+        print val
+        exit
       }
-    ' "$config_file" 2>/dev/null | tr -d '"\r'
-  }
+    }
+  ' "$config_file"
+}
 
   # -------------------------------------------------------
   # Source guard: prevent this file from being sourced more than once
