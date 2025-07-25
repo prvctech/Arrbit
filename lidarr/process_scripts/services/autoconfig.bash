@@ -47,6 +47,7 @@ MODULES=(
   metadata_plugin
   metadata_profiles
   metadata_write
+  quality_definitions    # new
   quality_profiles
   track_naming
   ui_settings
