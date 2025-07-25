@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - setup
-# Version: v1.3-gs2.6
+# Version: v1.4-gs2.6
 # Purpose: Bootstraps Arrbit: downloads, installs, and initializes everything into /config/arrbit.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -18,10 +18,14 @@ CYAN='\033[96m'
 GREEN='\033[92m'
 NC='\033[0m'
 
-mkdir -p "$TMP_DIR" "$ARRBIT_ROOT"
+# --- Ensure Arrbit root and tmp dir exist ---
+mkdir -p "$ARRBIT_ROOT" "$ARRBIT_ROOT/tmp"
+chmod 777 "$ARRBIT_ROOT/tmp"
+
+mkdir -p "$TMP_DIR"
 
 # --- Banner ---
-echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting setup install${NC} v1.3-gs2.6"
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting setup install${NC} v1.4-gs2.6"
 
 # --- Standard info message (not a banner) ---
 echo -e "${CYAN}[Arrbit]${NC} Syncing Arrbit repository..."
@@ -48,7 +52,7 @@ source "$HELPERS_DIR/helpers.bash"
 arrbitPurgeOldLogs 2
 
 SCRIPT_NAME="setup"
-SCRIPT_VERSION="v1.3-gs2.6"
+SCRIPT_VERSION="v1.4-gs2.6"
 LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
@@ -65,10 +69,18 @@ fi
 mkdir -p "$ARRBIT_ROOT/setup"
 find "$REPO_MAIN/setup_scripts" -type f ! -name "setup.bash" ! -name "run" -exec cp -f {} "$ARRBIT_ROOT/setup/" \;
 
-# --- Copy config only if not present ---
-if [[ ! -d "$ARRBIT_ROOT/config" ]]; then
-    cp -r "$REPO_MAIN/config" "$ARRBIT_ROOT/"
-fi
+# --- Ensure config directory exists ---
+mkdir -p "$ARRBIT_ROOT/config"
+
+# --- Copy each config file ONLY if it does NOT already exist ---
+for src_file in "$REPO_MAIN/config/"*; do
+  filename="$(basename "$src_file")"
+  dest_file="$ARRBIT_ROOT/config/$filename"
+  if [[ ! -f "$dest_file" ]]; then
+    cp -f "$src_file" "$dest_file"
+    chmod 777 "$dest_file"
+  fi
+done
 
 chmod -R 777 "$ARRBIT_ROOT"
 
