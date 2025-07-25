@@ -77,16 +77,14 @@ for NAME in "${MODULES[@]}"; do
     continue
   fi
 
-  SCRIPT="$MODULES_DIR/${NAME}.bash"
-  if [ -x "$SCRIPT" ]; then
-    log_info "Launching ${NAME} module..."
-    if ! bash "$SCRIPT"; then
-      log_warning "${NAME} module failed. See log for details."
-    fi
-  else
-    log_warning "${NAME} module not found or not executable; skipped."
+SCRIPT="$MODULES_DIR/${NAME}.bash"
+if [ -x "$SCRIPT" ]; then
+  if ! bash "$SCRIPT"; then
+    log_warning "${NAME} module failed. See log for details."
   fi
-done
+else
+  log_warning "${NAME} module not found or not executable; skipped."
+fi
 
 # --- 6. WRAP UP ---
 log_info "Log saved to $LOG_FILE"
