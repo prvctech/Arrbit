@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - quality_profiles.bash
-# Version: v1.4-gs2.6
-# Purpose: Import new quality profiles, skip duplicates, then delete Lidarr default ones by NAME only (hardcoded).
+# Version: v1.5-gs2.6
+# Purpose: Import new quality profiles, skip duplicates, no deletion of any profiles.
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/logging_utils.bash
@@ -11,7 +11,7 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="quality_profiles"
-SCRIPT_VERSION="v1.4-gs2.6"
+SCRIPT_VERSION="v1.5-gs2.6"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 REPLACE_JSON="/config/arrbit/modules/data/payload-quality_profiles-no_custom_formats.json"
 
@@ -68,27 +68,6 @@ for profile in "${REPLACEMENTS[@]}"; do
     log_error "Failed to create replacement profile: $name"
     printf '[Arrbit] ERROR Failed to create replacement profile: %s\n' "$name" | arrbitLogClean >> "$LOG_FILE"
   fi
-done
-
-# Refresh existing_profiles after import for deletion step
-existing_profiles=$(arr_api "${arrUrl}/api/${arrApiVersion}/qualityprofile")
-
-# Hardcoded default profile names to delete (lowercase)
-DEFAULT_NAMES=("any" "lossless" "standard")
-
-# --- Step 2: Delete default profiles by NAME only ---
-for del_name in "${DEFAULT_NAMES[@]}"; do
-  for row in $(echo "$existing_profiles" | jq -c '.[]'); do
-    ex_id=$(echo "$row" | jq -r '.id')
-    ex_name=$(echo "$row" | jq -r '.name' | tr '[:upper:]' '[:lower:]')
-
-    if [[ "$ex_name" == "$del_name" ]]; then
-      log_info "Deleting quality profile by name: $del_name (ID: $ex_id)"
-      printf '[Arrbit] Deleting quality profile: %s (ID: %s)\n' "$del_name" "$ex_id" | arrbitLogClean >> "$LOG_FILE"
-      del_response=$(arr_api -X DELETE "${arrUrl}/api/${arrApiVersion}/qualityprofile/$ex_id?apikey=${arrApiKey}")
-      printf '[Response]\n%s\n[/Response]\n' "$del_response" | arrbitLogClean >> "$LOG_FILE"
-    fi
-  done
 done
 
 log_info "Done with ${SCRIPT_NAME} module!"
