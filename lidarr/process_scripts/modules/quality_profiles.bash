@@ -2,7 +2,7 @@
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - quality_profiles.bash
 # Version: v1.4-gs2.6
-# Purpose: Import new quality profiles, then delete Lidarr's default ones by NAME only (no file needed).
+# Purpose: Import new quality profiles, skip duplicates, then delete Lidarr default ones by NAME only (hardcoded).
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/logging_utils.bash
@@ -39,35 +39,52 @@ if [[ -z "$existing_profiles" ]]; then
   exit 1
 fi
 
-# --- Step 1: Import replacements FIRST ---
+# Prepare a lowercase list of existing profile names for quick lookup
+mapfile -t EXISTING_NAMES < <(echo "$existing_profiles" | jq -r '.[].name' | tr '[:upper:]' '[:lower:]')
+
+# --- Step 1: Import replacements (skip if already exists) ---
 mapfile -t REPLACEMENTS < <(jq -c '.[]' "$REPLACE_JSON")
 for profile in "${REPLACEMENTS[@]}"; do
   name=$(echo "$profile" | jq -r '.name')
+  lname=$(echo "$name" | tr '[:upper:]' '[:lower:]')
+
+  # Check if profile name already exists
+  if printf '%s\n' "${EXISTING_NAMES[@]}" | grep -Fxq "$lname"; then
+    log_info "Skipping import, profile already exists: $name"
+    continue
+  fi
+
+  # Remove id field if present before import
   payload=$(echo "$profile" | jq 'del(.id)')
+
   log_info "Importing replacement quality profile: $name"
   printf '[Arrbit] Importing replacement profile: %s\n[Payload]\n%s\n[/Payload]\n' "$name" "$payload" | arrbitLogClean >> "$LOG_FILE"
   response=$(arr_api -X POST --data-raw "$payload" "${arrUrl}/api/${arrApiVersion}/qualityprofile?apikey=${arrApiKey}")
   printf '[Response]\n%s\n[/Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
   if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
     printf '[Arrbit] SUCCESS Replacement profile created: %s\n' "$name" | arrbitLogClean >> "$LOG_FILE"
+    EXISTING_NAMES+=("$lname") # Update existing names list to avoid duplicates during this run
   else
     log_error "Failed to create replacement profile: $name"
     printf '[Arrbit] ERROR Failed to create replacement profile: %s\n' "$name" | arrbitLogClean >> "$LOG_FILE"
   fi
 done
 
-# Refresh existing_profiles for accurate deletion!
+# Refresh existing_profiles after import for deletion step
 existing_profiles=$(arr_api "${arrUrl}/api/${arrApiVersion}/qualityprofile")
 
-# --- Step 2: Delete Lidarr defaults by NAME only ---
+# Hardcoded default profile names to delete (lowercase)
 DEFAULT_NAMES=("any" "lossless" "standard")
-for row in $(echo "$existing_profiles" | jq -c '.[]'); do
-  ex_id=$(echo "$row" | jq -r '.id')
-  ex_name=$(echo "$row" | jq -r '.name' | tr '[:upper:]' '[:lower:]')
-  for del_lname in "${DEFAULT_NAMES[@]}"; do
-    if [[ "$ex_name" == "$del_lname" ]]; then
-      log_info "Deleting quality profile by name: $ex_name (ID: $ex_id)"
-      printf '[Arrbit] Deleting quality profile: %s (ID: %s)\n' "$ex_name" "$ex_id" | arrbitLogClean >> "$LOG_FILE"
+
+# --- Step 2: Delete default profiles by NAME only ---
+for del_name in "${DEFAULT_NAMES[@]}"; do
+  for row in $(echo "$existing_profiles" | jq -c '.[]'); do
+    ex_id=$(echo "$row" | jq -r '.id')
+    ex_name=$(echo "$row" | jq -r '.name' | tr '[:upper:]' '[:lower:]')
+
+    if [[ "$ex_name" == "$del_name" ]]; then
+      log_info "Deleting quality profile by name: $del_name (ID: $ex_id)"
+      printf '[Arrbit] Deleting quality profile: %s (ID: %s)\n' "$del_name" "$ex_id" | arrbitLogClean >> "$LOG_FILE"
       del_response=$(arr_api -X DELETE "${arrUrl}/api/${arrApiVersion}/qualityprofile/$ex_id?apikey=${arrApiKey}")
       printf '[Response]\n%s\n[/Response]\n' "$del_response" | arrbitLogClean >> "$LOG_FILE"
     fi
