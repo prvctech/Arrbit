@@ -13,7 +13,7 @@ arrbitPurgeOldLogs
 SCRIPT_NAME="metadata_profiles"
 SCRIPT_VERSION="v1.0-gs2.6"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
-JSON_PATH="/config/arrbit/modules/data/metadata_profiles.json"
+JSON_PATH="/config/arrbit/modules/data/payload-metadata_profiles.json"
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
