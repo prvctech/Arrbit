@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - quality_profiles.bash
-# Version: v1.7-gs2.6
-# Purpose: Import quality profiles replacing each quality item's formatItems with current Lidarr custom formats
-#          (including IDs), removing all other IDs to avoid conflicts.
+# Version: v1.6-gs2.6
+# Purpose: Import new quality profiles, skip duplicates, assign formatItems using current Lidarr custom formats.
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/logging_utils.bash
@@ -12,7 +11,7 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="quality_profiles"
-SCRIPT_VERSION="v1.7-gs2.6"
+SCRIPT_VERSION="v1.6-gs2.6"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 REPLACE_JSON="/config/arrbit/modules/data/payload-quality_profiles-no_custom_formats.json"
 
@@ -33,15 +32,6 @@ fi
 
 log_info "Reading replacement profiles from: ${REPLACE_JSON}"
 
-# Fetch current Lidarr custom formats (full array with IDs)
-custom_formats_json=$(arr_api "${arrUrl}/api/${arrApiVersion}/customFormat")
-if [[ -z "$custom_formats_json" ]]; then
-  log_error "Could not retrieve custom formats from Lidarr."
-  log_info "Log saved to $LOG_FILE"
-  exit 1
-fi
-
-# Fetch existing quality profiles
 existing_profiles=$(arr_api "${arrUrl}/api/${arrApiVersion}/qualityprofile")
 if [[ -z "$existing_profiles" ]]; then
   log_error "Could not retrieve existing quality profiles from Lidarr."
@@ -49,51 +39,32 @@ if [[ -z "$existing_profiles" ]]; then
   exit 1
 fi
 
-# Prepare lowercase list of existing profile names
+# Prepare a lowercase list of existing profile names for quick lookup
 mapfile -t EXISTING_NAMES < <(echo "$existing_profiles" | jq -r '.[].name' | tr '[:upper:]' '[:lower:]')
 
-# Read replacement profiles into array
+# Get current custom format IDs
+cf_payload=$(arr_api "${arrUrl}/api/${arrApiVersion}/customformat")
+custom_formats_json=$(echo "$cf_payload" | jq '[.[].id]')
+
+# Read replacements from the JSON file
 mapfile -t REPLACEMENTS < <(jq -c '.[]' "$REPLACE_JSON")
 
 SKIPPED_NAMES=()
-
 for profile in "${REPLACEMENTS[@]}"; do
   name=$(echo "$profile" | jq -r '.name')
   lname=$(echo "$name" | tr '[:upper:]' '[:lower:]')
 
+  # Check if profile name already exists
   if printf '%s\n' "${EXISTING_NAMES[@]}" | grep -Fxq "$lname"; then
     SKIPPED_NAMES+=("$name")
     continue
   fi
 
-  # Patch profile:
-  # - Remove all "id" fields recursively EXCEPT those under formatItems (keep IDs of custom formats)
-  # - Replace each quality item's formatItems with the current custom formats JSON (which includes IDs)
+  # Remove all id fields, assign live custom format IDs for formatItems
   patched_profile=$(echo "$profile" | jq --argjson cf "$custom_formats_json" '
-    # Remove all ids except those in formatItems
-    walk(
-      if type == "object" then
-        with_entries(
-          if .key == "id" then
-            # Keep id only if parent object is inside formatItems array
-            if (path | index("formatItems")) then . else empty end
-          else
-            .
-          end
-        )
-      else
-        .
-      end
-    )
-    |
-    # Replace each quality item formatItems with current custom formats array
-    .items |= map(
-      if has("formatItems") then
-        .formatItems = $cf
-      else
-        .
-      end
-    )
+    del(.id)
+    | .items |= map(del(.id))
+    | .items |= map(.formatItems = $cf)
   ')
 
   log_info "Importing replacement quality profile: $name"
@@ -111,7 +82,7 @@ for profile in "${REPLACEMENTS[@]}"; do
 done
 
 if (( ${#SKIPPED_NAMES[@]} > 0 )); then
-  log_info "Quality profiles already exist - skipping import: ${SKIPPED_NAMES[*]}"
+  log_info "Quality profiles already exist - skipping: ${SKIPPED_NAMES[*]}"
 fi
 
 log_info "Done with ${SCRIPT_NAME} module!"
