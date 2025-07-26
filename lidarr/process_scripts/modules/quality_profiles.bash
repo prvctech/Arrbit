@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - quality_profiles.bash
-# Version: v1.6-gs2.6
-# Purpose: Import new quality profiles, skip duplicates, dynamically patch formatItems in quality items to
-#          exactly match current Lidarr custom formats to satisfy validation.
+# Version: v1.7-gs2.6
+# Purpose: Import quality profiles replacing each quality item's formatItems with current Lidarr custom formats
+#          (including IDs), removing all other IDs to avoid conflicts.
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/logging_utils.bash
@@ -12,7 +12,7 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="quality_profiles"
-SCRIPT_VERSION="v1.6-gs2.6"
+SCRIPT_VERSION="v1.7-gs2.6"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 REPLACE_JSON="/config/arrbit/modules/data/payload-quality_profiles-no_custom_formats.json"
 
@@ -33,7 +33,7 @@ fi
 
 log_info "Reading replacement profiles from: ${REPLACE_JSON}"
 
-# Fetch current Lidarr custom formats (full array of objects)
+# Fetch current Lidarr custom formats (full array with IDs)
 custom_formats_json=$(arr_api "${arrUrl}/api/${arrApiVersion}/customFormat")
 if [[ -z "$custom_formats_json" ]]; then
   log_error "Could not retrieve custom formats from Lidarr."
@@ -41,7 +41,7 @@ if [[ -z "$custom_formats_json" ]]; then
   exit 1
 fi
 
-# Fetch existing quality profiles from Lidarr
+# Fetch existing quality profiles
 existing_profiles=$(arr_api "${arrUrl}/api/${arrApiVersion}/qualityprofile")
 if [[ -z "$existing_profiles" ]]; then
   log_error "Could not retrieve existing quality profiles from Lidarr."
@@ -49,16 +49,14 @@ if [[ -z "$existing_profiles" ]]; then
   exit 1
 fi
 
-# Prepare lowercase list of existing profile names for quick lookup
+# Prepare lowercase list of existing profile names
 mapfile -t EXISTING_NAMES < <(echo "$existing_profiles" | jq -r '.[].name' | tr '[:upper:]' '[:lower:]')
 
-# Read replacement profiles from JSON file into array
+# Read replacement profiles into array
 mapfile -t REPLACEMENTS < <(jq -c '.[]' "$REPLACE_JSON")
 
-# Track skipped profile names for consolidated logging
 SKIPPED_NAMES=()
 
-# --- Step 1: Import replacements, skip if profile name exists ---
 for profile in "${REPLACEMENTS[@]}"; do
   name=$(echo "$profile" | jq -r '.name')
   lname=$(echo "$name" | tr '[:upper:]' '[:lower:]')
@@ -69,10 +67,26 @@ for profile in "${REPLACEMENTS[@]}"; do
   fi
 
   # Patch profile:
-  # - Remove id field
-  # - Replace formatItems in each quality item with full current custom formats array
+  # - Remove all "id" fields recursively EXCEPT those under formatItems (keep IDs of custom formats)
+  # - Replace each quality item's formatItems with the current custom formats JSON (which includes IDs)
   patched_profile=$(echo "$profile" | jq --argjson cf "$custom_formats_json" '
-    del(.id) |
+    # Remove all ids except those in formatItems
+    walk(
+      if type == "object" then
+        with_entries(
+          if .key == "id" then
+            # Keep id only if parent object is inside formatItems array
+            if (path | index("formatItems")) then . else empty end
+          else
+            .
+          end
+        )
+      else
+        .
+      end
+    )
+    |
+    # Replace each quality item formatItems with current custom formats array
     .items |= map(
       if has("formatItems") then
         .formatItems = $cf
@@ -89,14 +103,13 @@ for profile in "${REPLACEMENTS[@]}"; do
 
   if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
     printf '[Arrbit] SUCCESS Replacement profile created: %s\n' "$name" | arrbitLogClean >> "$LOG_FILE"
-    EXISTING_NAMES+=("$lname") # Update list to avoid duplicates on this run
+    EXISTING_NAMES+=("$lname")
   else
     log_error "Failed to create replacement profile: $name"
     printf '[Arrbit] ERROR Failed to create replacement profile: %s\n' "$name" | arrbitLogClean >> "$LOG_FILE"
   fi
 done
 
-# Log consolidated skipped profiles message if any
 if (( ${#SKIPPED_NAMES[@]} > 0 )); then
   log_info "Quality profiles already exist - skipping import: ${SKIPPED_NAMES[*]}"
 fi
