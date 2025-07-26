@@ -75,8 +75,8 @@ for definition in "${JSON_DEFS[@]}"; do
 done
 
 if $all_match; then
-  log_info "Metadata profiles already present - skipping."
-  printf '[Arrbit] Metadata profiles already present - skipping.\n' | arrbitLogClean >> "$LOG_FILE"
+  log_info "Metadata profiles already exists - skipping."
+  printf '[Arrbit] Metadata profiles already exists - skipping.\n' | arrbitLogClean >> "$LOG_FILE"
   log_info "Done with ${SCRIPT_NAME} module!"
   log_info "Log saved to $LOG_FILE"
   exit 0
