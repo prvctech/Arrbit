@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - quality_profiles.bash
-# Version: v1.6-gs2.6
-# Purpose: Import new quality profiles, skip duplicates, dynamically patch custom formats to match current Lidarr instance
+# Version: v1.7-gs2.6
+# Purpose: Import new quality profiles, skip duplicates, patch custom formats inside quality items dynamically.
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/logging_utils.bash
@@ -11,7 +11,7 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="quality_profiles"
-SCRIPT_VERSION="v1.6-gs2.6"
+SCRIPT_VERSION="v1.7-gs2.6"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 REPLACE_JSON="/config/arrbit/modules/data/payload-quality_profiles-no_custom_formats.json"
 
@@ -32,7 +32,7 @@ fi
 
 log_info "Reading replacement profiles from: ${REPLACE_JSON}"
 
-# Fetch existing quality profiles and existing custom formats from Lidarr API
+# Fetch existing profiles & custom formats from Lidarr
 existing_profiles_json=$(arr_api "${arrUrl}/api/${arrApiVersion}/qualityprofile")
 if [[ -z "$existing_profiles_json" ]]; then
   log_error "Could not retrieve existing quality profiles from Lidarr."
@@ -47,16 +47,16 @@ if [[ -z "$custom_formats_json" ]]; then
   exit 1
 fi
 
-# Build map from custom format name to ID for current instance
+# Build custom format name -> id map
 declare -A CF_NAME_TO_ID
 while IFS=$'\t' read -r id name; do
   CF_NAME_TO_ID["$name"]=$id
 done < <(echo "$custom_formats_json" | jq -r '.[] | "\(.id)\t\(.name)"')
 
-# Read replacement profiles from static JSON
+# Read replacement profiles from JSON
 mapfile -t REPLACEMENTS < <(jq -c '.[]' "$REPLACE_JSON")
 
-# Build lowercase existing profile names array for skip check
+# Lowercase existing profile names for skip checking
 mapfile -t EXISTING_NAMES < <(echo "$existing_profiles_json" | jq -r '.[].name' | tr '[:upper:]' '[:lower:]')
 
 SKIPPED_NAMES=()
@@ -65,53 +65,38 @@ for profile in "${REPLACEMENTS[@]}"; do
   name=$(echo "$profile" | jq -r '.name')
   lname=$(echo "$name" | tr '[:upper:]' '[:lower:]')
 
-  # Skip if profile name exists
+  # Skip if profile exists
   if printf '%s\n' "${EXISTING_NAMES[@]}" | grep -Fxq "$lname"; then
     SKIPPED_NAMES+=("$name")
     continue
   fi
 
-  # Now we patch the profile payload to dynamically map formatItems/custom formats to current IDs
-
-  # Extract the formatItems from the profile JSON, if present
-  # If no formatItems, then we pass as is (should be empty or [])
-  # We replace IDs with current ones by matching name
-
+  # Patch custom formats inside each quality item's formatItems
+  # Strategy:
+  # - For each .items[] element:
+  #   - Replace formatItems with current custom format objects by matching name
   patched_profile=$(echo "$profile" | jq --argjson cf "$custom_formats_json" '
-    # function to map old custom format IDs to current IDs by name
-    def map_custom_formats:
+    del(.id) |  # remove root id only
+
+    # For each item in items array, patch formatItems by name lookup in current CF
+    .items |= map(
       if has("formatItems") and (.formatItems | length > 0) then
-        .formatItems |= map(
-          # Find matching custom format by name from $cf
-          . as $old |
-          $cf
-          | map(select(.name == $old.name)) | first
-          // $old  # fallback to old if not found
+        .formatItems = (
+          .formatItems
+          | map(
+            # match by name in current CF list and replace whole object
+            .name as $fmtName
+            | $cf
+            | map(select(.name == $fmtName))
+            | first
+            // .
+          )
         )
       else
         .
-      end;
-
-    # For compatibility, also patch any custom formats inside items[].formatItems or formatItems if present (some profiles may have these)
-    def recursive_patch:
-      (.items? // []) |= map(
-        if has("formatItems") then
-          .formatItems |= map(
-            . as $old |
-            $cf
-            | map(select(.name == $old.name)) | first
-            // $old
-          )
-        else
-          .
-        end
-      );
-
-    map_custom_formats | recursive_patch
+      end
+    )
   ')
-
-  # Remove id fields at root and inside items for Lidarr to assign new IDs
-  patched_profile=$(echo "$patched_profile" | jq 'del(.id) | .items |= map(del(.id))')
 
   log_info "Importing replacement quality profile: $name"
   printf '[Arrbit] Importing replacement profile: %s\n[Payload]\n%s\n[/Payload]\n' "$name" "$patched_profile" | arrbitLogClean >> "$LOG_FILE"
@@ -120,7 +105,7 @@ for profile in "${REPLACEMENTS[@]}"; do
 
   if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
     printf '[Arrbit] SUCCESS Replacement profile created: %s\n' "$name" | arrbitLogClean >> "$LOG_FILE"
-    EXISTING_NAMES+=("$lname") # Add to skip list
+    EXISTING_NAMES+=("$lname")
   else
     log_error "Failed to create replacement profile: $name"
     printf '[Arrbit] ERROR Failed to create replacement profile: %s\n' "$name" | arrbitLogClean >> "$LOG_FILE"
