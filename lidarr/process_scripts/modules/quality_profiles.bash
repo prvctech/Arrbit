@@ -2,7 +2,7 @@
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - quality_profiles.bash
 # Version: v1.5-gs2.6
-# Purpose: Import new quality profiles, skip duplicates, no deletion of any profiles.
+# Purpose: Import new quality profiles, skip duplicates with single message, no deletion logic.
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/logging_utils.bash
@@ -44,13 +44,16 @@ mapfile -t EXISTING_NAMES < <(echo "$existing_profiles" | jq -r '.[].name' | tr 
 
 # --- Step 1: Import replacements (skip if already exists) ---
 mapfile -t REPLACEMENTS < <(jq -c '.[]' "$REPLACE_JSON")
+
+skipped_any=false
+
 for profile in "${REPLACEMENTS[@]}"; do
   name=$(echo "$profile" | jq -r '.name')
   lname=$(echo "$name" | tr '[:upper:]' '[:lower:]')
 
   # Check if profile name already exists
   if printf '%s\n' "${EXISTING_NAMES[@]}" | grep -Fxq "$lname"; then
-    log_info "Skipping import, profile already exists: $name"
+    skipped_any=true
     continue
   fi
 
@@ -69,6 +72,10 @@ for profile in "${REPLACEMENTS[@]}"; do
     printf '[Arrbit] ERROR Failed to create replacement profile: %s\n' "$name" | arrbitLogClean >> "$LOG_FILE"
   fi
 done
+
+if $skipped_any; then
+  log_info "Quality profiles already exist - skipping import for existing profiles."
+fi
 
 log_info "Done with ${SCRIPT_NAME} module!"
 log_info "Log saved to $LOG_FILE"
