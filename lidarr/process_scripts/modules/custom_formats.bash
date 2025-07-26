@@ -49,8 +49,8 @@ for format in "${JSON_FORMATS[@]}"; do
 done
 
 if $all_exist; then
-  log_info "Custom formats already present - skipping."
-  printf '[Arrbit] Custom formats already present - skipping.\n' | arrbitLogClean >> "$LOG_FILE"
+  log_info "Custom formats already exists - skipping."
+  printf '[Arrbit] Custom formats already exists - skipping.\n' | arrbitLogClean >> "$LOG_FILE"
   log_info "Done with ${SCRIPT_NAME} module!"
   log_info "Log saved to $LOG_FILE"
   exit 0
