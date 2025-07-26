@@ -5,7 +5,7 @@
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
       {
-        "name": "24 bit, 24-bit, 24bit",
+        "name": "24 bit | 24-bit | 24bit",
         "implementation": "ReleaseTitleSpecification",
         "implementationName": "Release Title",
         "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
@@ -17,7 +17,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)\\b24[\\s\\-]?bit\\b",
+            "value": "(?i)(?<=^|[\\s\\.-])24[\\s\\-]?bit\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -45,7 +45,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)\\b(A?cappella|Vocal[- ]?Only)\\b",
+            "value": "(?i)(?<=^|[\\s\\.-])(A?cappella|Vocal[- ]?Only)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -73,7 +73,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)\\bAnniversary\\b",
+            "value": "(?i)(?<=^|[\\s\\.-])Anniversary\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -89,7 +89,7 @@
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
       {
-        "name": "CDRip, CD",
+        "name": "CDRip | CD",
         "implementation": "ReleaseTitleSpecification",
         "implementationName": "Release Title",
         "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
@@ -101,7 +101,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)\\b(CD\\s?Rip|CD)\\b",
+            "value": "(?i)(?<=^|[\\s\\.-])(CD\\s?Rip|CD)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -117,7 +117,7 @@
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
       {
-        "name": "Compilation, Best Of, Greatest Hits",
+        "name": "Compilation | Best Of | Greatest Hits",
         "implementation": "ReleaseTitleSpecification",
         "implementationName": "Release Title",
         "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
@@ -129,7 +129,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(Compilation|Best Of|Greatest Hits)",
+            "value": "(?i)(?<=^|[\\s\\.-])(Compilation|Best Of|Greatest Hits)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -157,7 +157,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)\\bDeluxe\\b",
+            "value": "(?i)(?<=^|[\\s\\.-])Deluxe\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -173,7 +173,7 @@
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
       {
-        "name": "Demo, Rough Mix",
+        "name": "Demo | Rough Mix",
         "implementation": "ReleaseTitleSpecification",
         "implementationName": "Release Title",
         "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
@@ -185,7 +185,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)\\b(Demo|Rough Mix)\\b",
+            "value": "(?i)(?<=^|[\\s\\.-])(Demo|Rough Mix)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -201,7 +201,7 @@
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
       {
-        "name": "Drumless, No Drums",
+        "name": "Drumless | No Drums",
         "implementation": "ReleaseTitleSpecification",
         "implementationName": "Release Title",
         "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
@@ -213,7 +213,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)\\b(Drumless|No Drums)\\b",
+            "value": "(?i)(?<=^|[\\s\\.-])(Drumless|No Drums)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -241,7 +241,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)\\bEP\\b",
+            "value": "(?i)(?<=^|[\\s\\.-])EP\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -269,7 +269,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)\\bExpanded\\b",
+            "value": "(?i)(?<=^|[\\s\\.-])Expanded\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -297,7 +297,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)\\bExplicit\\b",
+            "value": "(?i)(?<=^|[\\s\\.-])Explicit\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1230,7 +1230,7 @@
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
       {
-        "name": "Instrumental (not plural/group name)",
+        "name": "Instrumental album | Instrumental single",
         "implementation": "ReleaseTitleSpecification",
         "implementationName": "Release Title",
         "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
@@ -1242,7 +1242,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)\\bInstrumental\\b(?!s)",
+            "value": "(?i)(?<=^|[\\s\\.-])(Instrumental( Album)?|Instrumentals)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1258,7 +1258,7 @@
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
       {
-        "name": "Limited Edition, Ltd",
+        "name": "Limited Edition | Ltd",
         "implementation": "ReleaseTitleSpecification",
         "implementationName": "Release Title",
         "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
@@ -1270,7 +1270,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(Limited Edition|Ltd)",
+            "value": "(?i)(?<=^|[\\s\\.-])(Limited Edition|Ltd)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1286,7 +1286,7 @@
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
       {
-        "name": "Live, Concert",
+        "name": "Live | Concert",
         "implementation": "ReleaseTitleSpecification",
         "implementationName": "Release Title",
         "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
@@ -1298,7 +1298,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)\\b(Live|Concert)\\b",
+            "value": "(?i)(?<=^|[\\s\\.-])(Live|Concert)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1314,7 +1314,7 @@
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
       {
-        "name": "FLAC, Lossless",
+        "name": "FLAC | ALAC | APE | WAV | WavPack",
         "implementation": "ReleaseTitleSpecification",
         "implementationName": "Release Title",
         "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
@@ -1326,7 +1326,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)\\b(FLAC|Lossless)\\b",
+            "value": "(?i)(?<=^|[\\s\\.-])(?:FLAC|ALAC|APE|WAV|WavPack)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1487,7 +1487,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)\\bOriginal\\b",
+            "value": "(?i)(?<=^|[\\s\\.-])Original\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1503,7 +1503,7 @@
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
       {
-        "name": "Remastered, Reissue",
+        "name": "Remastered | Reissue",
         "implementation": "ReleaseTitleSpecification",
         "implementationName": "Release Title",
         "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
@@ -1515,7 +1515,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(Remaster(ed)?|Re[- ]issue)",
+            "value": "(?i)(?<=^|[\\s\\.-])(Remaster(ed)?|Re[- ]issue)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1543,7 +1543,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)\\bRemix\\b",
+            "value": "(?i)(?<=^|[\\s\\.-])Remix\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1571,7 +1571,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)\\bSingle\\b",
+            "value": "(?i)(?<=^|[\\s\\.-])Single\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1599,7 +1599,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)\\bVIP\\b",
+            "value": "(?i)(?<=^|[\\s\\.-])VIP\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1615,7 +1615,7 @@
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
       {
-        "name": "WEB, WEB-DL",
+        "name": "WEB | WEB-DL",
         "implementation": "ReleaseTitleSpecification",
         "implementationName": "Release Title",
         "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
@@ -1627,7 +1627,287 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)\\bWEB([- ]?DL)?\\b",
+            "value": "(?i)(?<=^|[\\s\\.-])WEB([- ]?DL)?\\b",
+            "type": "textbox",
+            "advanced": false,
+            "privacy": "normal",
+            "isFloat": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 25,
+    "name": "Lossy",
+    "includeCustomFormatWhenRenaming": false,
+    "specifications": [
+      {
+        "name": "MP3 | AAC | OGG | Vorbis | WMA",
+        "implementation": "ReleaseTitleSpecification",
+        "implementationName": "Release Title",
+        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
+        "negate": false,
+        "required": false,
+        "fields": [
+          {
+            "order": 0,
+            "name": "value",
+            "label": "Regular Expression",
+            "helpText": "Custom Format RegEx is Case Insensitive",
+            "value": "(?i)(?<=^|[\\s\\.-])(?:MP3|AAC|OGG|Vorbis|WMA)\\b",
+            "type": "textbox",
+            "advanced": false,
+            "privacy": "normal",
+            "isFloat": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 26,
+    "name": "Surround",
+    "includeCustomFormatWhenRenaming": false,
+    "specifications": [
+      {
+        "name": "5.1 | 7.1",
+        "implementation": "ReleaseTitleSpecification",
+        "implementationName": "Release Title",
+        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
+        "negate": false,
+        "required": false,
+        "fields": [
+          {
+            "order": 0,
+            "name": "value",
+            "label": "Regular Expression",
+            "helpText": "Custom Format RegEx is Case Insensitive",
+            "value": "(?i)(?<=^|[\\s\\.-])(5\\.1|7\\.1)\\b",
+            "type": "textbox",
+            "advanced": false,
+            "privacy": "normal",
+            "isFloat": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 27,
+    "name": "Dolby Audio",
+    "includeCustomFormatWhenRenaming": false,
+    "specifications": [
+      {
+        "name": "Atmos | Digital | Surround | Audio",
+        "implementation": "ReleaseTitleSpecification",
+        "implementationName": "Release Title",
+        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
+        "negate": false,
+        "required": false,
+        "fields": [
+          {
+            "order": 0,
+            "name": "value",
+            "label": "Regular Expression",
+            "helpText": "Custom Format RegEx is Case Insensitive",
+            "value": "(?i)(?<=^|[\\s\\.-])Dolby(?:\\s?(Atmos|Digital|Surround|Audio))?\\b",
+            "type": "textbox",
+            "advanced": false,
+            "privacy": "normal",
+            "isFloat": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 28,
+    "name": "Japanese / Korean",
+    "includeCustomFormatWhenRenaming": false,
+    "specifications": [
+      {
+        "name": "JP | KR | JPN",
+        "implementation": "ReleaseTitleSpecification",
+        "implementationName": "Release Title",
+        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
+        "negate": false,
+        "required": false,
+        "fields": [
+          {
+            "order": 0,
+            "name": "value",
+            "label": "Regular Expression",
+            "helpText": "Custom Format RegEx is Case Insensitive",
+            "value": "(?i)(?<=^|[\\s\\.-])(JP|KR|JPN|JAPAN|JAPANESE)\\b",
+            "type": "textbox",
+            "advanced": false,
+            "privacy": "normal",
+            "isFloat": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 29,
+    "name": "Multi-disc",
+    "includeCustomFormatWhenRenaming": false,
+    "specifications": [
+      {
+        "name": "Discography | Box Set | Anthology | Collection | Vol",
+        "implementation": "ReleaseTitleSpecification",
+        "implementationName": "Release Title",
+        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
+        "negate": false,
+        "required": false,
+        "fields": [
+          {
+            "order": 0,
+            "name": "value",
+            "label": "Regular Expression",
+            "helpText": "Custom Format RegEx is Case Insensitive",
+            "value": "(?i)(?<=^|[\\s\\.-])(Discography|Box Set|Anthology|Collection|Vol\\.\\d+|CD\\d+)\\b",
+            "type": "textbox",
+            "advanced": false,
+            "privacy": "normal",
+            "isFloat": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 30,
+    "name": "Clean / Censored",
+    "includeCustomFormatWhenRenaming": false,
+    "specifications": [
+      {
+        "name": "Radio Edit | Clean | Censored",
+        "implementation": "ReleaseTitleSpecification",
+        "implementationName": "Release Title",
+        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
+        "negate": false,
+        "required": false,
+        "fields": [
+          {
+            "order": 0,
+            "name": "value",
+            "label": "Regular Expression",
+            "helpText": "Custom Format RegEx is Case Insensitive",
+            "value": "(?i)(?<=^|[\\s\\.-])(Radio Edit|Clean|Censored)\\b",
+            "type": "textbox",
+            "advanced": false,
+            "privacy": "normal",
+            "isFloat": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 31,
+    "name": "Mixtape",
+    "includeCustomFormatWhenRenaming": false,
+    "specifications": [
+      {
+        "name": "Mixtape | Street",
+        "implementation": "ReleaseTitleSpecification",
+        "implementationName": "Release Title",
+        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
+        "negate": false,
+        "required": false,
+        "fields": [
+          {
+            "order": 0,
+            "name": "value",
+            "label": "Regular Expression",
+            "helpText": "Custom Format RegEx is Case Insensitive",
+            "value": "(?i)(?<=^|[\\s\\.-])(Mixtape|Street)\\b",
+            "type": "textbox",
+            "advanced": false,
+            "privacy": "normal",
+            "isFloat": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 32,
+    "name": "DJ-Mix",
+    "includeCustomFormatWhenRenaming": false,
+    "specifications": [
+      {
+        "name": "DJ-Mix",
+        "implementation": "ReleaseTitleSpecification",
+        "implementationName": "Release Title",
+        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
+        "negate": false,
+        "required": false,
+        "fields": [
+          {
+            "order": 0,
+            "name": "value",
+            "label": "Regular Expression",
+            "helpText": "Custom Format RegEx is Case Insensitive",
+            "value": "(?i)(?<=^|[\\s\\.-])DJ[- ]?mix\\b",
+            "type": "textbox",
+            "advanced": false,
+            "privacy": "normal",
+            "isFloat": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 33,
+    "name": "Extended",
+    "includeCustomFormatWhenRenaming": false,
+    "specifications": [
+      {
+        "name": "Club Mix | Extended Mix",
+        "implementation": "ReleaseTitleSpecification",
+        "implementationName": "Release Title",
+        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
+        "negate": false,
+        "required": false,
+        "fields": [
+          {
+            "order": 0,
+            "name": "value",
+            "label": "Regular Expression",
+            "helpText": "Custom Format RegEx is Case Insensitive",
+            "value": "(?i)(?<=^|[\\s\\.-])(Club Mix|Extended Mix|12[”\"] Mix)\\b",
+            "type": "textbox",
+            "advanced": false,
+            "privacy": "normal",
+            "isFloat": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 34,
+    "name": "Soundtrack",
+    "includeCustomFormatWhenRenaming": false,
+    "specifications": [
+      {
+        "name": "Soundtrack | OST | Score",
+        "implementation": "ReleaseTitleSpecification",
+        "implementationName": "Release Title",
+        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
+        "negate": false,
+        "required": false,
+        "fields": [
+          {
+            "order": 0,
+            "name": "value",
+            "label": "Regular Expression",
+            "helpText": "Custom Format RegEx is Case Insensitive",
+            "value": "(?i)(?<=^|[\\s\\.-])(Soundtrack|OST|Score)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
