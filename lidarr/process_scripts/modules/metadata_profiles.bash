@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - metadata_profiles.bash
-# Version: v2.3-gs2.6
+# Version: v2.4-gs2.6
 # Purpose: Import metadata profiles from JSON into Lidarr via API (Golden Standard v2.6 compliant).
 # -------------------------------------------------------------------------------------------------------------
 
@@ -12,7 +12,7 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="metadata_profiles"
-SCRIPT_VERSION="v2.3-gs2.6"
+SCRIPT_VERSION="v2.4-gs2.6"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
@@ -26,7 +26,8 @@ if ! source /config/arrbit/connectors/arr_bridge.bash; then
   exit 1
 fi
 
-JSON_PATH="/config/arrbit/modules/json_values/metadata_profiles_master.json"
+# Updated JSON path and filename
+JSON_PATH="/config/arrbit/modules/json_values/metadata_profiles.json"
 
 if [[ ! -f "$JSON_PATH" ]]; then
   log_error "File not found: ${JSON_PATH}"
