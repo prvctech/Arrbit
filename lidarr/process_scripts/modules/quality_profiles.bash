@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - quality_profiles.bash
-# Version: v1.1-gs2.6
-# Purpose: Safely delete Lidarr default quality profiles if 1:1 match, then import replacements.
+# Version: v1.2-gs2.6
+# Purpose: Import new quality profiles before deleting 1:1 default matches to prevent "no profiles" errors.
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/logging_utils.bash
@@ -11,7 +11,7 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="quality_profiles"
-SCRIPT_VERSION="v1.1-gs2.6"
+SCRIPT_VERSION="v1.2-gs2.6"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 DEFAULT_JSON="/config/arrbit/modules/data/payload-quality_profiles-lidarr_default_values.json"
 REPLACE_JSON="/config/arrbit/modules/data/payload-quality_profiles-no_custom_formats.json"
@@ -47,9 +47,29 @@ if [[ -z "$existing_profiles" ]]; then
   exit 1
 fi
 
-mapfile -t DEFAULTS < <(jq -c '.[]' "$DEFAULT_JSON")
+# --- Step 1: Import replacements FIRST ---
+mapfile -t REPLACEMENTS < <(jq -c '.[]' "$REPLACE_JSON")
 
-# --- Step 1: Find and DELETE default-matching profiles ---
+for profile in "${REPLACEMENTS[@]}"; do
+  name=$(echo "$profile" | jq -r '.name')
+  payload=$(echo "$profile" | jq 'del(.id)')
+  log_info "Importing replacement quality profile: $name"
+  printf '[Arrbit] Importing replacement profile: %s\n[Payload]\n%s\n[/Payload]\n' "$name" "$payload" | arrbitLogClean >> "$LOG_FILE"
+  response=$(arr_api -X POST --data-raw "$payload" "${arrUrl}/api/${arrApiVersion}/qualityprofile?apikey=${arrApiKey}")
+  printf '[Response]\n%s\n[/Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
+  if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
+    printf '[Arrbit] SUCCESS Replacement profile created: %s\n' "$name" | arrbitLogClean >> "$LOG_FILE"
+  else
+    log_error "Failed to create replacement profile: $name"
+    printf '[Arrbit] ERROR Failed to create replacement profile: %s\n' "$name" | arrbitLogClean >> "$LOG_FILE"
+  fi
+done
+
+# Refresh existing_profiles for accurate deletion!
+existing_profiles=$(arr_api "${arrUrl}/api/${arrApiVersion}/qualityprofile")
+
+# --- Step 2: Find and DELETE 1:1 default-matching profiles ---
+mapfile -t DEFAULTS < <(jq -c '.[]' "$DEFAULT_JSON")
 for default_profile in "${DEFAULTS[@]}"; do
   def_name=$(echo "$default_profile" | jq -r '.name')
   def_payload=$(echo "$default_profile" | jq 'del(.id)')
@@ -73,24 +93,6 @@ for default_profile in "${DEFAULTS[@]}"; do
     printf '[Arrbit] Deleting default profile: %s (ID: %s)\n' "$def_name" "$found_id" | arrbitLogClean >> "$LOG_FILE"
     del_response=$(arr_api -X DELETE "${arrUrl}/api/${arrApiVersion}/qualityprofile/$found_id?apikey=${arrApiKey}")
     printf '[Response]\n%s\n[/Response]\n' "$del_response" | arrbitLogClean >> "$LOG_FILE"
-  fi
-done
-
-# --- Step 2: Import replacements ---
-mapfile -t REPLACEMENTS < <(jq -c '.[]' "$REPLACE_JSON")
-
-for profile in "${REPLACEMENTS[@]}"; do
-  name=$(echo "$profile" | jq -r '.name')
-  payload=$(echo "$profile" | jq 'del(.id)')
-  log_info "Importing replacement quality profile: $name"
-  printf '[Arrbit] Importing replacement profile: %s\n[Payload]\n%s\n[/Payload]\n' "$name" "$payload" | arrbitLogClean >> "$LOG_FILE"
-  response=$(arr_api -X POST --data-raw "$payload" "${arrUrl}/api/${arrApiVersion}/qualityprofile?apikey=${arrApiKey}")
-  printf '[Response]\n%s\n[/Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
-  if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
-    printf '[Arrbit] SUCCESS Replacement profile created: %s\n' "$name" | arrbitLogClean >> "$LOG_FILE"
-  else
-    log_error "Failed to create replacement profile: $name"
-    printf '[Arrbit] ERROR Failed to create replacement profile: %s\n' "$name" | arrbitLogClean >> "$LOG_FILE"
   fi
 done
 
