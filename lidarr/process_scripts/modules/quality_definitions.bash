@@ -76,8 +76,8 @@ for definition in "${JSON_DEFS[@]}"; do
 done
 
 if $all_match; then
-  log_info "Quality definitions already present - skipping."
-  printf '[Arrbit] Quality definitions already present - skipping.\n' | arrbitLogClean >> "$LOG_FILE"
+  log_info "Quality definitions already exists - skipping."
+  printf '[Arrbit] Quality definitions already exists - skipping.\n' | arrbitLogClean >> "$LOG_FILE"
   log_info "Done with ${SCRIPT_NAME} module!"
   log_info "Log saved to $LOG_FILE"
   exit 0
