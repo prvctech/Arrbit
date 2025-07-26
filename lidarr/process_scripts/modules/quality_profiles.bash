@@ -74,7 +74,7 @@ for profile in "${REPLACEMENTS[@]}"; do
 done
 
 if $skipped_any; then
-  log_info "Quality profiles already exist - skipping import for existing profiles."
+  log_info "Quality profiles already exists - skipping."
 fi
 
 log_info "Done with ${SCRIPT_NAME} module!"
