@@ -20,15 +20,6 @@ mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
 echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
 
-# --- Robust flag check ---
-export CONFIG_DIR="/config/arrbit/config"
-FLAG_VALUE=$(getFlag CONFIGURE_QUALITY_PROFILE)
-if [[ "${FLAG_VALUE,,}" != "true" ]]; then
-  log_info "CONFIGURE_QUALITY_PROFILE is not set to true in arrbit-config.conf. Skipping quality_profiles module."
-  log_info "Log saved to $LOG_FILE"
-  exit 0
-fi
-
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
   log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup)"
   exit 1
