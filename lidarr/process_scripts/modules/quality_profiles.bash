@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - quality_profiles.bash
-# Version: v1.0-gs2.6
+# Version: v1.1-gs2.6
 # Purpose: Safely delete Lidarr default quality profiles if 1:1 match, then import replacements.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -11,7 +11,7 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="quality_profiles"
-SCRIPT_VERSION="v1.0-gs2.6"
+SCRIPT_VERSION="v1.1-gs2.6"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 DEFAULT_JSON="/config/arrbit/modules/data/payload-quality_profiles-lidarr_default_values.json"
 REPLACE_JSON="/config/arrbit/modules/data/payload-quality_profiles-no_custom_formats.json"
@@ -19,6 +19,15 @@ REPLACE_JSON="/config/arrbit/modules/data/payload-quality_profiles-no_custom_for
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
 echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
+
+# --- Robust flag check ---
+export CONFIG_DIR="/config/arrbit/config"
+FLAG_VALUE=$(getFlag CONFIGURE_QUALITY_PROFILE)
+if [[ "${FLAG_VALUE,,}" != "true" ]]; then
+  log_info "CONFIGURE_QUALITY_PROFILE is not set to true in arrbit-config.conf. Skipping quality_profiles module."
+  log_info "Log saved to $LOG_FILE"
+  exit 0
+fi
 
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
   log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup)"
