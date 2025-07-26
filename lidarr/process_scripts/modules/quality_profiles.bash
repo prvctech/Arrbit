@@ -1,116 +1,82 @@
 #!/usr/bin/env bash
-################################################################################
-# Arrbit: Quality Profile Importer v1.6-gs2.6 (FULL GOLDEN STANDARD)
-################################################################################
+# -------------------------------------------------------------------------------------------------------------
+# Arrbit - quality_profiles.bash
+# Version: v1.5-gs2.6
+# Purpose: Import new quality profiles, skip duplicates with single message, no deletion logic.
+# -------------------------------------------------------------------------------------------------------------
+
 source /config/arrbit/helpers/logging_utils.bash
 source /config/arrbit/helpers/helpers.bash
+
 arrbitPurgeOldLogs
 
-SCRIPT_NAME="arrbit-quality_profiles-importer"
-SCRIPT_VERSION="v1.6-gs2.6"
-LOG_FILE="/config/logs/arrbit-quality_profiles-$(date +'%Y_%m_%d-%H_%M').log"
-mkdir -p "$(dirname "$LOG_FILE")"
-touch "$LOG_FILE"
-chmod 777 "$LOG_FILE"
+SCRIPT_NAME="quality_profiles"
+SCRIPT_VERSION="v1.5-gs2.6"
+LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+REPLACE_JSON="/config/arrbit/modules/data/payload-quality_profiles-no_custom_formats.json"
 
-log_info "[Arrbit] Starting quality_profiles module $SCRIPT_VERSION..."
+mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-source /config/arrbit/connectors/arr_bridge.bash || {
-  log_error "[Arrbit] arr_bridge.bash missing or failed to source!"
-  exit 1
-}
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
 
-# Config paths
-REPLACEMENTS_JSON="/config/arrbit/modules/data/payload-quality_profiles-no_custom_formats.json"
-log_info "[Arrbit] Reading replacement profiles from: $REPLACEMENTS_JSON"
-
-if [[ ! -s "$REPLACEMENTS_JSON" ]]; then
-  log_error "[Arrbit] Replacement profiles JSON missing or empty: $REPLACEMENTS_JSON"
+if ! source /config/arrbit/connectors/arr_bridge.bash; then
+  log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup)"
   exit 1
 fi
 
-REPLACEMENTS=($(jq -c '.[]' "$REPLACEMENTS_JSON"))
-if [[ ${#REPLACEMENTS[@]} -eq 0 ]]; then
-  log_error "[Arrbit] No replacement profiles found in: $REPLACEMENTS_JSON"
+if [[ ! -f "$REPLACE_JSON" ]]; then
+  log_error "File not found: ${REPLACE_JSON}"
+  log_info "Log saved to $LOG_FILE"
   exit 1
 fi
 
-# Fetch qualities from Lidarr
-qualities_json=$(arr_api "${arrUrl}/api/${arrApiVersion}/quality")
-if [[ -z "$qualities_json" ]]; then
-  log_error "[Arrbit] Failed to fetch qualities from Lidarr API."
+log_info "Reading replacement profiles from: ${REPLACE_JSON}"
+
+existing_profiles=$(arr_api "${arrUrl}/api/${arrApiVersion}/qualityprofile")
+if [[ -z "$existing_profiles" ]]; then
+  log_error "Could not retrieve existing quality profiles from Lidarr."
+  log_info "Log saved to $LOG_FILE"
   exit 1
 fi
 
-quality_items=$(echo "$qualities_json" | jq '[.[] | {allowed:true, quality:{id:.id, name:.name, source:(.source // "scene")}, id:.id}]')
-if [[ -z "$quality_items" || "$quality_items" == "null" ]]; then
-  log_error "[Arrbit] Unable to build quality items array for profiles."
-  exit 1
-fi
+# Prepare a lowercase list of existing profile names for quick lookup
+mapfile -t EXISTING_NAMES < <(echo "$existing_profiles" | jq -r '.[].name' | tr '[:upper:]' '[:lower:]')
 
-# Fetch existing profile names for duplicate skipping
-existing_profiles=$(arr_api "${arrUrl}/api/${arrApiVersion}/qualityProfile")
-EXISTING_NAMES=($(echo "$existing_profiles" | jq -r '.[].name' | tr '[:upper:]' '[:lower:]'))
+# --- Step 1: Import replacements (skip if already exists) ---
+mapfile -t REPLACEMENTS < <(jq -c '.[]' "$REPLACE_JSON")
 
-SKIPPED_NAMES=()
-CREATED_NAMES=()
-FAILED_NAMES=()
+skipped_any=false
 
 for profile in "${REPLACEMENTS[@]}"; do
   name=$(echo "$profile" | jq -r '.name')
   lname=$(echo "$name" | tr '[:upper:]' '[:lower:]')
 
+  # Check if profile name already exists
   if printf '%s\n' "${EXISTING_NAMES[@]}" | grep -Fxq "$lname"; then
-    log_warning "[Arrbit] Profile already exists, skipping: $name"
-    SKIPPED_NAMES+=("$name")
+    skipped_any=true
     continue
   fi
 
-  log_info "[Arrbit] Importing replacement quality profile: $name"
+  # Remove id field if present before import
+  payload=$(echo "$profile" | jq 'del(.id)')
 
-  # Remove .id, set .items and .cutoff dynamically
-  first_cutoff=$(echo "$quality_items" | jq '.[0].quality.id')
-  patched_profile=$(echo "$profile" | jq --argjson items "$quality_items" --argjson cutoff "$first_cutoff" '
-    del(.id)
-    | .items = $items
-    | .cutoff = $cutoff
-    | del(.formatItems)
-  ')
-
-  # Always redact sensitive info before logging
-  arrbitLogClean "$patched_profile"
-
-  # Send POST request
-  response=$(arr_api "${arrUrl}/api/${arrApiVersion}/qualityProfile" \
-    -X POST \
-    -H "Content-Type: application/json" \
-    -d "$patched_profile"
-  )
-
-  # Check for success (created profile should echo .name, or response id)
-  if echo "$response" | jq -e '.id, .name' >/dev/null 2>&1; then
-    log_info "[Arrbit] SUCCESS: Created profile: $name"
-    CREATED_NAMES+=("$name")
+  log_info "Importing replacement quality profile: $name"
+  printf '[Arrbit] Importing replacement profile: %s\n[Payload]\n%s\n[/Payload]\n' "$name" "$payload" | arrbitLogClean >> "$LOG_FILE"
+  response=$(arr_api -X POST --data-raw "$payload" "${arrUrl}/api/${arrApiVersion}/qualityprofile?apikey=${arrApiKey}")
+  printf '[Response]\n%s\n[/Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
+  if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
+    printf '[Arrbit] SUCCESS Replacement profile created: %s\n' "$name" | arrbitLogClean >> "$LOG_FILE"
+    EXISTING_NAMES+=("$lname") # Update existing names list to avoid duplicates during this run
   else
-    log_error "[Arrbit] ERROR: Failed to create replacement profile: $name"
-    log_error "[Arrbit] API Response: $(echo "$response" | head -c 400)"
-    FAILED_NAMES+=("$name")
+    log_error "Failed to create replacement profile: $name"
+    printf '[Arrbit] ERROR Failed to create replacement profile: %s\n' "$name" | arrbitLogClean >> "$LOG_FILE"
   fi
 done
 
-log_info "[Arrbit] Import complete."
-if [[ ${#CREATED_NAMES[@]} -gt 0 ]]; then
-  log_info "[Arrbit] Created: ${CREATED_NAMES[*]}"
-fi
-if [[ ${#SKIPPED_NAMES[@]} -gt 0 ]]; then
-  log_warning "[Arrbit] Skipped (already existed): ${SKIPPED_NAMES[*]}"
-fi
-if [[ ${#FAILED_NAMES[@]} -gt 0 ]]; then
-  log_error "[Arrbit] Failed: ${FAILED_NAMES[*]}"
+if $skipped_any; then
+  log_info "Quality profiles already exists - skipping."
 fi
 
-arrbitLogClean "$LOG_FILE"
-
-################################################################################
-# END OF FILE - GOLDEN STANDARD v2.6 (DO NOT EDIT BELOW THIS LINE)
-################################################################################
+log_info "Done with ${SCRIPT_NAME} module!"
+log_info "Log saved to $LOG_FILE"
+exit 0
