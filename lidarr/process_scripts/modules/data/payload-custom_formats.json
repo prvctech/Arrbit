@@ -1,6 +1,6 @@
 [
   {
-    "id": 1,
+    "id": 171,
     "name": "24bit",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -17,7 +17,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])24[\\s\\-]?bit\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])24[\\s\\-\\.]?bit\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -28,7 +28,7 @@
     ]
   },
   {
-    "id": 2,
+    "id": 172,
     "name": "Acapella",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -45,7 +45,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])(A?cappella|Vocal[- ]?Only)\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])(A?cappella|Vocal[- ]?Only)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -56,7 +56,7 @@
     ]
   },
   {
-    "id": 3,
+    "id": 173,
     "name": "Anniversary Edition",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -73,7 +73,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])Anniversary\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])Anniversary\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -84,7 +84,7 @@
     ]
   },
   {
-    "id": 4,
+    "id": 174,
     "name": "CD",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -101,7 +101,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])(CD\\s?Rip|CD)\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])(CD\\s?Rip|CD)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -112,7 +112,7 @@
     ]
   },
   {
-    "id": 5,
+    "id": 175,
     "name": "Compilation",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -129,7 +129,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])(Compilation|Best Of|Greatest Hits)\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])(Compilation|Best Of|Greatest Hits)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -140,7 +140,7 @@
     ]
   },
   {
-    "id": 6,
+    "id": 176,
     "name": "Deluxe Edition",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -157,7 +157,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])Deluxe\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])Deluxe\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -168,7 +168,7 @@
     ]
   },
   {
-    "id": 7,
+    "id": 177,
     "name": "Demo",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -185,7 +185,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])(Demo|Rough Mix)\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])(Demo|Rough Mix)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -196,7 +196,7 @@
     ]
   },
   {
-    "id": 8,
+    "id": 178,
     "name": "Drumless",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -213,7 +213,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])(Drumless|No Drums)\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])(Drumless|No Drums)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -224,7 +224,7 @@
     ]
   },
   {
-    "id": 9,
+    "id": 179,
     "name": "EP",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -241,7 +241,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])EP\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])EP\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -252,7 +252,7 @@
     ]
   },
   {
-    "id": 10,
+    "id": 180,
     "name": "Expanded Edition",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -269,7 +269,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])Expanded\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])Expanded\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -280,7 +280,7 @@
     ]
   },
   {
-    "id": 11,
+    "id": 181,
     "name": "Explicit",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -297,7 +297,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])Explicit\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])Explicit\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -308,12 +308,12 @@
     ]
   },
   {
-    "id": 12,
+    "id": 182,
     "name": "HQ Releases - Tier 1",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
       {
-        "name": "DeVOiD",
+        "name": "Lossless Release Groups",
         "implementation": "ReleaseGroupSpecification",
         "implementationName": "Release Group",
         "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
@@ -325,490 +325,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])DeVOiD\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "PERFECT",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])PERFECT\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "ENRiCH",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])ENRiCH\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "TVRf",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])TVRf\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "MenInFlac",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])MenInFlac\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "RECTiFY",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])RECTiFY\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "FORSAKEN",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])FORSAKEN\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "TWiZTED",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])TWiZTED\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "QTX",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])QTX\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "GRAVE",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])GRAVE\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "GRiMM",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])GRiMM\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "KATARAS",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])KATARAS\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "D2H",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])D2H\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "OBZEN",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])OBZEN\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "CALiFLAC",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])CALiFLAC\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "LSM",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])LSM\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "SkinFlayer",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])SkinFlayer\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "Atomiswave",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])Atomiswave\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "Dalek",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])Dalek\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "K1RZA",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])K1RZA\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "void09",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])void09\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "Burning_Orc",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])Burning_Orc\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "techxvnode",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])techxvnode\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "shadow111",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])shadow111\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])(DeVOiD|PERFECT|ENRiCH|TVRf|MenInFlac|RECTiFY|FORSAKEN|TWiZTED|QTX|GRAVE|GRiMM|KATARAS|D2H|OBZEN|CALiFLAC|LSM|SkinFlayer|Atomiswave|Dalek|K1RZA|void09|Burning_Orc|techxvnode|shadow111)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -819,12 +336,12 @@
     ]
   },
   {
-    "id": 13,
+    "id": 183,
     "name": "HQ Releases - Tier 2",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
       {
-        "name": "KVC",
+        "name": "Lossy Release Groups",
         "implementation": "ReleaseGroupSpecification",
         "implementationName": "Release Group",
         "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
@@ -836,385 +353,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])KVC\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "QSP",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])QSP\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "MELiC",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])MELiC\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "CHD",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])CHD\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "DAP",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])DAP\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "TORRENTiNG",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])TORRENTiNG\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "ViTA",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])ViTA\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "FANGPiRE",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])FANGPiRE\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "WHINYL",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])WHINYL\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "RZK",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])RZK\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "BLR",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])BLR\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "nBz",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])nBz\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "BEKWiTH",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])BEKWiTH\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "ARA",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])ARA\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "justice",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])justice\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "BFPMP3",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])BFPMP3\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "judge",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])judge\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "FLACH",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])FLACH\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "CDDA",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])CDDA\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])(KVC|QSP|MELiC|CHD|DAP|TORRENTiNG|ViTA|FANGPiRE|WHINYL|RZK|BLR|nBz|BEKWiTH|ARA|justice|BFMP3|judge|FLACH|CDDA)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1225,7 +364,7 @@
     ]
   },
   {
-    "id": 14,
+    "id": 184,
     "name": "Instrumental",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -1242,7 +381,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])(Instrumental( Album)?|Instrumentals)\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])(Instrumental( Album)?|Instrumentals)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1253,7 +392,7 @@
     ]
   },
   {
-    "id": 15,
+    "id": 185,
     "name": "Limited Edition",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -1270,7 +409,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])(Limited Edition|Ltd)\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])(Limited Edition|Ltd)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1281,7 +420,7 @@
     ]
   },
   {
-    "id": 16,
+    "id": 186,
     "name": "Live",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -1298,7 +437,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])(Live|Concert)\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])(Live|Concert)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1309,7 +448,7 @@
     ]
   },
   {
-    "id": 17,
+    "id": 187,
     "name": "Lossless",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -1326,7 +465,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])(?:FLAC|ALAC|APE|WAV|WavPack)\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])(FLAC|ALAC|APE|WAV|WavPack)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1337,12 +476,12 @@
     ]
   },
   {
-    "id": 18,
+    "id": 188,
     "name": "LQ Releases",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
       {
-        "name": "RNS",
+        "name": "LQ Release Groups",
         "implementation": "ReleaseGroupSpecification",
         "implementationName": "Release Group",
         "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
@@ -1354,112 +493,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])RNS\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "RAGEMP3",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])RAGEMP3\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "SceneFLAC",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])SceneFLAC\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "DailyRip",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])DailyRip\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "BlogRip",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])BlogRip\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      },
-      {
-        "name": "WALKMAN",
-        "implementation": "ReleaseGroupSpecification",
-        "implementationName": "Release Group",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?<=^|[\\s.-])WALKMAN\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])(RNS|RAGEMP3|SceneFLAC|DailyRip|BlogRip|WALKMAN)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1470,7 +504,7 @@
     ]
   },
   {
-    "id": 19,
+    "id": 189,
     "name": "Original",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -1487,7 +521,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])Original\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])Original\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1498,7 +532,7 @@
     ]
   },
   {
-    "id": 20,
+    "id": 190,
     "name": "Remastered",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -1515,7 +549,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])(Remaster(ed)?|Re[- ]issue)\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])(Remaster(ed)?|Re[- ]issue)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1526,7 +560,7 @@
     ]
   },
   {
-    "id": 21,
+    "id": 191,
     "name": "Remix",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -1543,7 +577,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])Remix\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])Remix\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1554,7 +588,7 @@
     ]
   },
   {
-    "id": 22,
+    "id": 192,
     "name": "Single",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -1571,7 +605,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])Single\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])Single\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1582,7 +616,7 @@
     ]
   },
   {
-    "id": 23,
+    "id": 193,
     "name": "VIP Edition",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -1599,7 +633,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])VIP\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])VIP\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1610,7 +644,7 @@
     ]
   },
   {
-    "id": 24,
+    "id": 194,
     "name": "WEB",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -1627,7 +661,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])WEB([- ]?DL)?\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])WEB([- ]?DL)?\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1638,7 +672,7 @@
     ]
   },
   {
-    "id": 25,
+    "id": 195,
     "name": "Lossy",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -1655,7 +689,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])(?:MP3|AAC|OGG|Vorbis|WMA)\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])(MP3|AAC|OGG|Vorbis|WMA)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1666,7 +700,7 @@
     ]
   },
   {
-    "id": 26,
+    "id": 196,
     "name": "Surround",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -1683,7 +717,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])(5\\.1|7\\.1)\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])(5\\.1|7\\.1)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1694,7 +728,7 @@
     ]
   },
   {
-    "id": 27,
+    "id": 197,
     "name": "Dolby Audio",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -1711,7 +745,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])Dolby(?:\\s?(Atmos|Digital|Surround|Audio))?\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])Dolby(?:\\s?(Atmos|Digital|Surround|Audio))?\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1722,35 +756,7 @@
     ]
   },
   {
-    "id": 28,
-    "name": "Japanese / Korean",
-    "includeCustomFormatWhenRenaming": false,
-    "specifications": [
-      {
-        "name": "JP | KR | JPN",
-        "implementation": "ReleaseTitleSpecification",
-        "implementationName": "Release Title",
-        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
-        "negate": false,
-        "required": false,
-        "fields": [
-          {
-            "order": 0,
-            "name": "value",
-            "label": "Regular Expression",
-            "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])(JP|KR|JPN|JAPAN|JAPANESE)\\b",
-            "type": "textbox",
-            "advanced": false,
-            "privacy": "normal",
-            "isFloat": false
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "id": 29,
+    "id": 199,
     "name": "Multi-disc",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -1767,7 +773,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])(Discography|Box Set|Anthology|Collection|Vol\\.\\d+|CD\\d+)\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])(Discography|Box Set|Anthology|Collection|Vol\\.\\d+|CD\\d+)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1778,7 +784,7 @@
     ]
   },
   {
-    "id": 30,
+    "id": 200,
     "name": "Clean / Censored",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -1795,7 +801,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])(Radio Edit|Clean|Censored)\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])(Radio Edit|Clean|Censored)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1806,7 +812,7 @@
     ]
   },
   {
-    "id": 31,
+    "id": 201,
     "name": "Mixtape",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -1823,7 +829,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])(Mixtape|Street)\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])(Mixtape|Street)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1834,7 +840,7 @@
     ]
   },
   {
-    "id": 32,
+    "id": 202,
     "name": "DJ-Mix",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -1851,7 +857,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])DJ[- ]?mix\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])DJ[- ]?mix\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1862,7 +868,7 @@
     ]
   },
   {
-    "id": 33,
+    "id": 203,
     "name": "Extended",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -1879,7 +885,7 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])(Club Mix|Extended Mix|12[”\"] Mix)\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])(Club Mix|Extended Mix|12[”\"] Mix)\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
@@ -1890,7 +896,7 @@
     ]
   },
   {
-    "id": 34,
+    "id": 204,
     "name": "Soundtrack",
     "includeCustomFormatWhenRenaming": false,
     "specifications": [
@@ -1907,7 +913,35 @@
             "name": "value",
             "label": "Regular Expression",
             "helpText": "Custom Format RegEx is Case Insensitive",
-            "value": "(?i)(?<=^|[\\s\\.-])(Soundtrack|OST|Score)\\b",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])(Soundtrack|OST|Score)\\b",
+            "type": "textbox",
+            "advanced": false,
+            "privacy": "normal",
+            "isFloat": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 205,
+    "name": "FLAC",
+    "includeCustomFormatWhenRenaming": false,
+    "specifications": [
+      {
+        "name": "FLAC",
+        "implementation": "ReleaseTitleSpecification",
+        "implementationName": "Release Title",
+        "infoLink": "https://wiki.servarr.com/lidarr/settings#custom-formats-2",
+        "negate": false,
+        "required": false,
+        "fields": [
+          {
+            "order": 0,
+            "name": "value",
+            "label": "Regular Expression",
+            "helpText": "Custom Format RegEx is Case Insensitive",
+            "value": "(?i)(?<=^|[\\s.\\-\\[\\(\\{_])FLAC\\b",
             "type": "textbox",
             "advanced": false,
             "privacy": "normal",
