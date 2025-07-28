@@ -316,8 +316,8 @@
         "allowed": true
       }
     ],
-    "minFormatScore": 40,
-    "cutoffFormatScore": 220,
+    "minFormatScore": 10,
+    "cutoffFormatScore": 250,
     "formatItems": [
       {
         "format": 273,
@@ -382,7 +382,7 @@
       {
         "format": 261,
         "name": "Single",
-        "score": 0
+        "score": 10
       },
       {
         "format": 260,
@@ -397,7 +397,7 @@
       {
         "format": 258,
         "name": "Original",
-        "score": 10
+        "score": 5
       },
       {
         "format": 257,
@@ -816,8 +816,8 @@
         "id": 1004
       }
     ],
-    "minFormatScore": 10,
-    "cutoffFormatScore": 45,
+    "minFormatScore": 5,
+    "cutoffFormatScore": 50,
     "formatItems": [
       {
         "format": 273,
@@ -1316,8 +1316,8 @@
         "id": 1005
       }
     ],
-    "minFormatScore": 50,
-    "cutoffFormatScore": 220,
+    "minFormatScore": 40,
+    "cutoffFormatScore": 250,
     "formatItems": [
       {
         "format": 273,
