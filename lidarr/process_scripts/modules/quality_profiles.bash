@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - quality_profiles.bash
-# Version: v1.5-gs2.6
+# Version: v1.6-gs2.6
 # Purpose: Import new quality profiles, skip duplicates with single message, no deletion logic.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -11,13 +11,20 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="quality_profiles"
-SCRIPT_VERSION="v1.5-gs2.6"
+SCRIPT_VERSION="v1.6-gs2.6"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
-REPLACE_JSON="/config/arrbit/modules/data/payload-quality_profiles-no_custom_formats.json"
 
-mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
+touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
 echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
+
+# Determine which payload file to use based on CONFIGURE_CUSTOM_FORMATS
+CUSTOM_FORMATS_ENABLED=$(getFlag "CONFIGURE_CUSTOM_FORMATS")
+if [[ "${CUSTOM_FORMATS_ENABLED,,}" == "true" ]]; then
+  REPLACE_JSON="/config/arrbit/modules/data/payload-quality_profiles-with_custom_formats.json"
+else
+  REPLACE_JSON="/config/arrbit/modules/data/payload-quality_profiles-no_custom_formats.json"
+fi
 
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
   log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup)"
@@ -39,10 +46,7 @@ if [[ -z "$existing_profiles" ]]; then
   exit 1
 fi
 
-# Prepare a lowercase list of existing profile names for quick lookup
 mapfile -t EXISTING_NAMES < <(echo "$existing_profiles" | jq -r '.[].name' | tr '[:upper:]' '[:lower:]')
-
-# --- Step 1: Import replacements (skip if already exists) ---
 mapfile -t REPLACEMENTS < <(jq -c '.[]' "$REPLACE_JSON")
 
 skipped_any=false
@@ -51,13 +55,11 @@ for profile in "${REPLACEMENTS[@]}"; do
   name=$(echo "$profile" | jq -r '.name')
   lname=$(echo "$name" | tr '[:upper:]' '[:lower:]')
 
-  # Check if profile name already exists
   if printf '%s\n' "${EXISTING_NAMES[@]}" | grep -Fxq "$lname"; then
     skipped_any=true
     continue
   fi
 
-  # Remove id field if present before import
   payload=$(echo "$profile" | jq 'del(.id)')
 
   log_info "Importing replacement quality profile: $name"
@@ -66,7 +68,7 @@ for profile in "${REPLACEMENTS[@]}"; do
   printf '[Response]\n%s\n[/Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
   if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
     printf '[Arrbit] SUCCESS Replacement profile created: %s\n' "$name" | arrbitLogClean >> "$LOG_FILE"
-    EXISTING_NAMES+=("$lname") # Update existing names list to avoid duplicates during this run
+    EXISTING_NAMES+=("$lname")
   else
     log_error "Failed to create replacement profile: $name"
     printf '[Arrbit] ERROR Failed to create replacement profile: %s\n' "$name" | arrbitLogClean >> "$LOG_FILE"
