@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - quality_profiles.bash
-# Version: v1.6-gs2.6
-# Purpose: Import new quality profiles, skip duplicates with single message, no deletion logic.
+# Version: v1.7-gs2.6
+# Purpose: Import new quality profiles, always map live custom format IDs, skip duplicates, no deletion logic.
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/logging_utils.bash
@@ -11,30 +11,61 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="quality_profiles"
-SCRIPT_VERSION="v1.6-gs2.6"
+SCRIPT_VERSION="v1.7-gs2.6"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
 echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
 
-# Determine which payload file to use based on CONFIGURE_CUSTOM_FORMATS
-CUSTOM_FORMATS_ENABLED=$(getFlag "CONFIGURE_CUSTOM_FORMATS")
-if [[ "${CUSTOM_FORMATS_ENABLED,,}" == "true" ]]; then
-  REPLACE_JSON="/config/arrbit/modules/data/payload-quality_profiles-with_custom_formats.json"
-else
-  REPLACE_JSON="/config/arrbit/modules/data/payload-quality_profiles-no_custom_formats.json"
-fi
-
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
   log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup)"
   exit 1
 fi
 
-if [[ ! -f "$REPLACE_JSON" ]]; then
-  log_error "File not found: ${REPLACE_JSON}"
-  log_info "Log saved to $LOG_FILE"
-  exit 1
+CUSTOM_FORMATS_ENABLED=$(getFlag "CONFIGURE_CUSTOM_FORMATS")
+if [[ "${CUSTOM_FORMATS_ENABLED,,}" == "true" ]]; then
+  # Payloads WITH custom formats
+  REPLACE_JSON="/config/arrbit/modules/data/payload-quality_profiles-with_custom_formats.json"
+
+  # Get custom formats from Lidarr
+  log_info "Fetching live custom format IDs from Lidarr..."
+  CUSTOM_FORMATS_RAW=$(arr_api "${arrUrl}/api/${arrApiVersion}/customformat?apikey=${arrApiKey}")
+  if [[ -z "$CUSTOM_FORMATS_RAW" ]]; then
+    log_error "Could not retrieve custom formats from Lidarr."
+    log_info "Log saved to $LOG_FILE"
+    exit 1
+  fi
+
+  # Build a jq map for name → id
+  CF_JQ_MAP=$(echo "$CUSTOM_FORMATS_RAW" | jq -r 'map({(.name): .id}) | add')
+
+  # Check that all names from payload exist in live formats
+  REMAPPED_JSON=$(jq --argjson cfmap "$CF_JQ_MAP" '
+    map(
+      .formatItems |= map(
+        .format = ($cfmap[.name] // -1)
+      )
+    )
+  ' "$REPLACE_JSON")
+
+  # Validate: if any .format == -1, error!
+  if echo "$REMAPPED_JSON" | jq '.[]|.formatItems[]|select(.format == -1)' | grep -q .; then
+    log_error "Mismatch: One or more custom formats in your profile payload do not exist in Lidarr. Check for typos or import order."
+    log_info "Log saved to $LOG_FILE"
+    exit 1
+  fi
+
+  REPLACEMENTS_JSON="$REMAPPED_JSON"
+else
+  # Payloads WITHOUT custom formats
+  REPLACE_JSON="/config/arrbit/modules/data/payload-quality_profiles-no_custom_formats.json"
+  if [[ ! -f "$REPLACE_JSON" ]]; then
+    log_error "File not found: ${REPLACE_JSON}"
+    log_info "Log saved to $LOG_FILE"
+    exit 1
+  fi
+  REPLACEMENTS_JSON=$(cat "$REPLACE_JSON")
 fi
 
 log_info "Reading replacement profiles from: ${REPLACE_JSON}"
@@ -47,7 +78,7 @@ if [[ -z "$existing_profiles" ]]; then
 fi
 
 mapfile -t EXISTING_NAMES < <(echo "$existing_profiles" | jq -r '.[].name' | tr '[:upper:]' '[:lower:]')
-mapfile -t REPLACEMENTS < <(jq -c '.[]' "$REPLACE_JSON")
+mapfile -t REPLACEMENTS < <(echo "$REPLACEMENTS_JSON" | jq -c '.[]')
 
 skipped_any=false
 
