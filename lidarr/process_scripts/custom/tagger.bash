@@ -23,13 +23,13 @@ echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRI
 # ----- Source Arr Bridge (API/exports) -----
 source /config/arrbit/connectors/arr_bridge.bash
 
-# ----- Validate argument (album ID) -----
-if [[ -z "$1" ]]; then
-    log_error "No album ID supplied as argument. Exiting."
+# ----- Album ID detection (env var first, then argument) -----
+lidarr_album_id="${lidarr_album_id:-$1}"
+if [[ -z "$lidarr_album_id" ]]; then
+    log_error "No album ID supplied as environment variable or argument. Exiting."
     log_info "Log saved to $LOG_FILE"
     exit 1
 fi
-lidarr_album_id="$1"
 
 # ----- Fetch album/artist info via API -----
 log_info "Fetching album and artist info from Lidarr API..."
