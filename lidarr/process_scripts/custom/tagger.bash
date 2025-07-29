@@ -2,8 +2,8 @@
 
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - beets_tagger.bash
-# Version: v1.0-gs2.6
-# Purpose: GS2.6-compliant Lidarr event script to tag music files using beets and metaflac.
+# Version: v1.0-gs2.6-trace
+# Purpose: GS2.6-compliant Lidarr event script to tag music files using beets and metaflac. With TRACE logging.
 # -------------------------------------------------------------------------------------------------------------
 
 # ----- Golden Standard Boilerplate -----
@@ -13,18 +13,27 @@ arrbitPurgeOldLogs
 
 # ----- Module Details -----
 SCRIPT_NAME="beets_tagger"
-SCRIPT_VERSION="v1.0-gs2.6"
+SCRIPT_VERSION="v1.0-gs2.6-trace"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-# ----- Banner (first line only) -----
+# ----- Banner -----
 echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}"
 
-# ----- Source Arr Bridge (API/exports) -----
+# ----- TRACE: Dump call and env info -----
+log_info "Trace: Script called as: $0 $*"
+log_info "Trace: lidarr_album_id env: '${lidarr_album_id:-unset}'"
+log_info "Trace: First argument: '${1:-unset}'"
+log_info "Trace: All env vars matching 'lidarr_*':"
+env | grep -i lidarr_ | arrbitLogClean | while read -r line; do log_info "  $line"; done
+
+# ----- Source Arr Bridge -----
+log_info "Trace: Sourcing arr_bridge.bash"
 source /config/arrbit/connectors/arr_bridge.bash
 
 # ----- Album ID detection (env var first, then argument) -----
 lidarr_album_id="${lidarr_album_id:-$1}"
+log_info "Trace: Resolved lidarr_album_id: '$lidarr_album_id'"
 if [[ -z "$lidarr_album_id" ]]; then
     log_error "No album ID supplied as environment variable or argument. Exiting."
     log_info "Log saved to $LOG_FILE"
@@ -32,8 +41,9 @@ if [[ -z "$lidarr_album_id" ]]; then
 fi
 
 # ----- Fetch album/artist info via API -----
-log_info "Fetching album and artist info from Lidarr API..."
+log_info "Trace: Fetching album info for album_id='$lidarr_album_id'"
 album_response="$(arr_api -X GET "${arrUrl}/api/${arrApiVersion}/album/${lidarr_album_id}")"
+log_info "Trace: Raw album_response: $(echo "$album_response" | jq '.')"
 if [[ -z "$album_response" || "$album_response" == "null" ]]; then
     log_error "Failed to retrieve album details from Lidarr for album ID: $lidarr_album_id"
     log_info "Log saved to $LOG_FILE"
@@ -42,6 +52,7 @@ fi
 
 artist_name="$(echo "$album_response" | jq -r '.artist.artistName // empty')"
 artist_path="$(echo "$album_response" | jq -r '.artist.path // empty')"
+log_info "Trace: artist_name='$artist_name'  artist_path='$artist_path'"
 
 if [[ -z "$artist_name" || -z "$artist_path" ]]; then
     log_error "Missing artist name or path from API response."
@@ -50,9 +61,11 @@ if [[ -z "$artist_name" || -z "$artist_path" ]]; then
 fi
 
 # ----- Fetch first track file to locate album folder -----
-log_info "Locating album folder from track files..."
+log_info "Trace: Fetching track files for album_id='$lidarr_album_id'"
 track_response="$(arr_api -X GET "${arrUrl}/api/${arrApiVersion}/trackFile?albumId=${lidarr_album_id}")"
+log_info "Trace: Raw track_response: $(echo "$track_response" | jq '.')"
 track_path="$(echo "$track_response" | jq -r '.[0].path // empty')"
+log_info "Trace: First track_path='$track_path'"
 if [[ -z "$track_path" ]]; then
     log_error "No track files found for album. Aborting."
     log_info "Log saved to $LOG_FILE"
@@ -60,10 +73,12 @@ if [[ -z "$track_path" ]]; then
 fi
 album_folder="$(dirname "$track_path")"
 album_folder_name="$(basename "$album_folder")"
+log_info "Trace: album_folder='$album_folder' album_folder_name='$album_folder_name'"
 
 log_info "Processing album: '$album_folder_name' (artist: '$artist_name') in folder: $album_folder"
 
 # ----- Verify album folder exists -----
+log_info "Trace: Checking if album folder exists: $album_folder"
 if [[ ! -d "$album_folder" ]]; then
     log_error "Album folder '$album_folder' does not exist. Exiting."
     log_info "Log saved to $LOG_FILE"
@@ -71,6 +86,7 @@ if [[ ! -d "$album_folder" ]]; then
 fi
 
 # ----- Check for FLAC files -----
+log_info "Trace: Checking for FLAC files in $album_folder"
 if ! find "$album_folder" -type f -iname "*.flac" | grep -q .; then
     log_error "No FLAC files found in album folder. Only FLAC is supported."
     log_info "Log saved to $LOG_FILE"
@@ -79,27 +95,31 @@ fi
 
 # ----- Begin Beets tagging process -----
 SECONDS=0
-log_info "Running beets import for folder: $album_folder"
+log_info "Trace: Running beets import for folder: $album_folder"
 
 beets_config="/config/arrbit/config/beets-config.yaml"
 library_tmp="/tmp/beets-lidarr.blb"
 beets_log="/config/logs/beets-lidarr.log"
 
-# Clean up any old temp files
+log_info "Trace: Cleaning temp files: $library_tmp, $beets_log"
 rm -f "$library_tmp" "$beets_log"
 
+log_info "Trace: Executing beet import..."
 beet -c "$beets_config" -l "$library_tmp" -d "$album_folder" import -qC "$album_folder" >> "$beets_log" 2>&1
+log_info "Trace: Beets import completed, see $beets_log for details."
 
 # ----- Fix FLAC tags using metaflac and ffprobe -----
-log_info "Post-processing FLAC tags with metaflac and ffprobe..."
+log_info "Trace: Post-processing FLAC tags with metaflac and ffprobe..."
 fixed_any=0
 find "$album_folder" -type f -iname "*.flac" -print0 | while IFS= read -r -d '' flac; do
+    log_info "Trace: Processing FLAC file: $flac"
     if [[ $fixed_any -eq 0 ]]; then
         log_info "Fixing FLAC tags..."
         fixed_any=1
     fi
 
     artist_credit="$(ffprobe -loglevel 0 -print_format json -show_format -show_streams "$flac" | jq -r '.format.tags.ARTIST_CREDIT // empty')"
+    log_info "Trace: artist_credit='$artist_credit'"
 
     metaflac --remove-tag=ARTIST "$flac"
     metaflac --remove-tag=ALBUMARTIST "$flac"
@@ -113,14 +133,17 @@ find "$album_folder" -type f -iname "*.flac" -print0 | while IFS= read -r -d '' 
 
     if [[ -n "$artist_credit" ]]; then
         metaflac --set-tag=ARTIST="$artist_credit" "$flac"
+        log_info "Trace: Set ARTIST to '$artist_credit'"
     else
         metaflac --set-tag=ARTIST="$artist_name" "$flac"
+        log_info "Trace: Set ARTIST to '$artist_name'"
     fi
 done
 
 log_info "FLAC tag fixing complete."
 
 # ----- Cleanup temp files -----
+log_info "Trace: Removing temp files: $library_tmp, $beets_log"
 rm -f "$library_tmp" "$beets_log"
 
 duration=$SECONDS
