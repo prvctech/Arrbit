@@ -1,0 +1,49 @@
+[
+  {
+    "name": "Default",
+    "items": [
+      {
+        "name": "Tidal",
+        "protocol": "TidalDownloadProtocol",
+        "allowed": true,
+        "delay": 0
+      },
+      {
+        "name": "Deezer",
+        "protocol": "DeezerDownloadProtocol",
+        "allowed": true,
+        "delay": 0
+      },
+      {
+        "name": "Soulseek",
+        "protocol": "SoulseekDownloadProtocol",
+        "allowed": true,
+        "delay": 5
+      },
+      {
+        "name": "Usenet",
+        "protocol": "UsenetDownloadProtocol",
+        "allowed": true,
+        "delay": 10
+      },
+      {
+        "name": "Torrent",
+        "protocol": "TorrentDownloadProtocol",
+        "allowed": true,
+        "delay": 30
+      },
+      {
+        "name": "Youtube",
+        "protocol": "YoutubeDownloadProtocol",
+        "allowed": true,
+        "delay": 60
+      }
+    ],
+    "bypassIfHighestQuality": true,
+    "bypassIfAboveCustomFormatScore": false,
+    "minimumCustomFormatScore": 0,
+    "order": 2147483647,
+    "tags": [],
+    "id": 1
+  }
+]
