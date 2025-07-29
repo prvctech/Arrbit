@@ -40,8 +40,7 @@ fi
 # --- 3. MODULES LIST (Add/remove modules here as required) ---
 MODULES=(
   custom_formats
-  custom_scripts
-  delay_profiles
+  custom_scripts  
   media_management
   metadata_consumer
   metadata_plugin
