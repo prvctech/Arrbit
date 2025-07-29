@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - plugins
-# Version: v3.7-gs2.6
-# Purpose: Install or update Deezer, Tidal, Tubifarry plug-ins for Lidarr (Golden Standard v2.6 compliant).
+# Version: v3.8-gs2.6
+# Purpose: Modular installer for Lidarr plug-ins (Golden Standard v2.6 compliant).
 # -------------------------------------------------------------------------------------------------------------
 
-# Golden Standard: Always source logging_utils first, then helpers
 source /config/arrbit/helpers/logging_utils.bash
 source /config/arrbit/helpers/helpers.bash
 
@@ -17,7 +16,7 @@ chmod -R 777 /config/logs/
 
 PLUGINS_DIR="/config/plugins"
 SCRIPT_NAME="plugins"
-SCRIPT_VERSION="v3.7-gs2.6"
+SCRIPT_VERSION="v3.8-gs2.6"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 CONFIG_FILE="/config/arrbit/config/arrbit-config.conf"
 
@@ -26,10 +25,22 @@ touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 # --- Banner (color allowed on first line) ---
 echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} service${NC} ${MAGENTA}Deezer, Tidal, Tubifarry${NC} ${SCRIPT_VERSION}"
 
-# --- Check ENABLE_PLUGINS flag (Golden Standard: fail fast) ---
-ENABLE_PLUGINS=$(getFlag ENABLE_PLUGINS)
-if [[ "${ENABLE_PLUGINS,,}" != "true" ]]; then
-  log_warning "Plugins service is OFF. Update ENABLE_PLUGINS to 'true' in arrbit-config.conf."
+# --- Get config flags (robust: trims whitespace, lowercase for test) ---
+ENABLE_PLUGINS=$(getFlag ENABLE_PLUGINS | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+INSTALL_PLUGIN_DEEZER=$(getFlag INSTALL_PLUGIN_DEEZER | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+INSTALL_PLUGIN_TIDAL=$(getFlag INSTALL_PLUGIN_TIDAL | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+INSTALL_PLUGIN_TUBIFARRY=$(getFlag INSTALL_PLUGIN_TUBIFARRY | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+
+# --- Master enable check (fail fast) ---
+if [[ "${ENABLE_PLUGINS}" != "true" ]]; then
+  log_warning "Plugins service is OFF. Set ENABLE_PLUGINS to 'true' in arrbit-config.conf."
+  log_info "Log saved to $LOG_FILE"
+  exit 0
+fi
+
+# --- If all plugin flags are false, warn and exit ---
+if [[ "${INSTALL_PLUGIN_DEEZER}" != "true" && "${INSTALL_PLUGIN_TIDAL}" != "true" && "${INSTALL_PLUGIN_TUBIFARRY}" != "true" ]]; then
+  log_warning "Plugins service is ON, but all plugin install flags are disabled. Enable one or more plugins in arrbit-config.conf."
   log_info "Log saved to $LOG_FILE"
   exit 0
 fi
@@ -71,15 +82,21 @@ install_plugin() {  # $1 = plugin_name, $2 = plugin_dir, $3 = plugin_url
   rm -rf "$tmp_dir"
 }
 
-# --- PLUGIN INSTALLATION ---
-install_plugin "Deezer"    "$PLUGINS_DIR/TrevTV/Lidarr.Plugin.Deezer" \
-  "https://github.com/TrevTV/Lidarr.Plugin.Deezer/releases/latest/download/Lidarr.Plugin.Deezer.net6.0.zip"
+# --- PLUGIN INSTALLATION (conditional) ---
+if [[ "${INSTALL_PLUGIN_DEEZER}" == "true" ]]; then
+  install_plugin "Deezer" "$PLUGINS_DIR/TrevTV/Lidarr.Plugin.Deezer" \
+    "https://github.com/TrevTV/Lidarr.Plugin.Deezer/releases/latest/download/Lidarr.Plugin.Deezer.net6.0.zip"
+fi
 
-install_plugin "Tidal"     "$PLUGINS_DIR/TrevTV/Lidarr.Plugin.Tidal"  \
-  "https://github.com/TrevTV/Lidarr.Plugin.Tidal/releases/latest/download/Lidarr.Plugin.Tidal.net6.0.zip"
+if [[ "${INSTALL_PLUGIN_TIDAL}" == "true" ]]; then
+  install_plugin "Tidal" "$PLUGINS_DIR/TrevTV/Lidarr.Plugin.Tidal" \
+    "https://github.com/TrevTV/Lidarr.Plugin.Tidal/releases/latest/download/Lidarr.Plugin.Tidal.net6.0.zip"
+fi
 
-install_plugin "Tubifarry" "$PLUGINS_DIR/TypNull/Tubifarry" \
-  "https://github.com/TypNull/Tubifarry/releases/download/v1.8.1.1/Tubifarry-v1.8.1.1.net6.0-develop.zip"
+if [[ "${INSTALL_PLUGIN_TUBIFARRY}" == "true" ]]; then
+  install_plugin "Tubifarry" "$PLUGINS_DIR/TypNull/Tubifarry" \
+    "https://github.com/TypNull/Tubifarry/releases/download/v1.8.1.1/Tubifarry-v1.8.1.1.net6.0-develop.zip"
+fi
 
 log_info "Log saved to $LOG_FILE"
 log_info "Done with ${SCRIPT_NAME} service"
