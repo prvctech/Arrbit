@@ -55,6 +55,7 @@ apk add -U --upgrade --no-cache \
   git \
   gcc \
   ffmpeg \
+  ffprobe \
   imagemagick \
   opus-tools \
   opustags \
@@ -81,8 +82,7 @@ uv pip install --system --upgrade --no-cache-dir --break-system-packages \
   python-telegram-bot \
   pylast \
   mutagen \
-  r128gain \
-  tidal-dl >>"$LOG_FILE" 2>&1
+  r128gain >>"$LOG_FILE" 2>&1
 
 # -------- update marker -------------------------------------------------------------------
 echo "depsversion=$SCRIPT_VERSION" >"$DEPS_MARKER"
