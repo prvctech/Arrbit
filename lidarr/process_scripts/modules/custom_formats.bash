@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - custom_formats.bash
-# Version: v1-gs2.7
-# Purpose: Import custom formats from JSON into Lidarr (Golden Standard v2.7, ultra-minimal output)
+# Version: v1.1-gs2.7
+# Purpose: Import custom formats from JSON into Lidarr (Golden Standard v2.7, ultra-minimal output, robust error handling)
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/logging_utils.bash
@@ -10,7 +10,7 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="custom_formats"
-SCRIPT_VERSION="v1-gs2.7"
+SCRIPT_VERSION="v1.1-gs2.7"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 JSON_PATH="/config/arrbit/modules/data/payload-custom_formats.json"
 
@@ -44,18 +44,24 @@ EOF
   exit 1
 fi
 
-# Get all existing custom format names, lowercase (guard for empty response)
-existing_names=$(arr_api "${arrUrl}/api/${arrApiVersion}/customformat" | jq -r '.[].name' | tr '[:upper:]' '[:lower:]')
-if [[ -z "$existing_names" ]]; then
-  log_error "Failed to retrieve existing custom format names (see log at /config/logs)"
+# Query custom formats API, robust error detection
+api_response=$(arr_api "${arrUrl}/api/${arrApiVersion}/customformat")
+if ! echo "$api_response" | jq . >/dev/null 2>&1; then
+  log_error "Failed to parse custom format list from API (see log at /config/logs)"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR Could not retrieve custom format list from API
-[WHAT]: Failed to query custom formats from Lidarr
-[WHY]: API may be unreachable or returned invalid data
-[HOW]: Check your Lidarr API status and network connection.
+[Arrbit] ERROR Invalid response from Lidarr API for customformat
+[WHAT]: Could not parse JSON response from API
+[WHY]: API unreachable, misconfigured, or returned invalid data
+[HOW]: Check your Lidarr API status, config, or permissions.
+[Response]
+$api_response
+[/Response]
 EOF
   exit 1
 fi
+
+# Extract names (can be empty if no custom formats exist)
+existing_names=$(echo "$api_response" | jq -r '.[].name' | tr '[:upper:]' '[:lower:]')
 
 # Read all custom formats from JSON
 mapfile -t JSON_FORMATS < <(jq -c '.[]' "$JSON_PATH")
