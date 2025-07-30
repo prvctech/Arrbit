@@ -1,24 +1,26 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - custom_formats.bash
-# Version: v1.1-gs2.7
+# Version: v1.2-gs2.7
 # Purpose: Import custom formats from JSON into Lidarr (Golden Standard v2.7, ultra-minimal output, robust error handling)
 # -------------------------------------------------------------------------------------------------------------
+
+SCRIPT_NAME="custom_formats"
+SCRIPT_VERSION="v1.2-gs2.7"
+LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+export LOG_FILE
 
 source /config/arrbit/helpers/logging_utils.bash
 source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
-SCRIPT_NAME="custom_formats"
-SCRIPT_VERSION="v1.1-gs2.7"
-LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 JSON_PATH="/config/arrbit/modules/data/payload-custom_formats.json"
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
 log_info "Starting ${SCRIPT_NAME} module ${SCRIPT_VERSION}..."
 
-# Source arr_bridge for API variables and arr_api wrapper (may overwrite LOG_FILE)
+# Source arr_bridge for API variables and arr_api wrapper
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
   log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup) (see log at /config/logs)"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
@@ -30,9 +32,7 @@ EOF
   exit 1
 fi
 
-# --- CRITICAL! Restore and export LOG_FILE for this module ---
-LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
-export LOG_FILE
+# (No need to reset LOG_FILE, as we set and exported at the very top!)
 
 if [[ ! -f "$JSON_PATH" ]]; then
   log_error "File not found: ${JSON_PATH} (see log at /config/logs)"
