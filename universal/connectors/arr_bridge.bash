@@ -1,30 +1,79 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - arr_bridge.bash
-# Version: v1.2-gs2.5
-# Purpose: Golden Standard connector for ARR APIs; exports arr_api + connection vars.
+# Version: v1.5-gs2.6
+# Purpose: Golden Standard ARR API connector with fully dynamic API URL, port, and version detection.
 # -------------------------------------------------------------------------------------------------------------
 
-# Source helpers/logging first (Golden Standard)
 source /config/arrbit/helpers/logging_utils.bash
 source /config/arrbit/helpers/helpers.bash
+arrbitPurgeOldLogs
 
-# Use main config.xml for API info (user: single-instance stack)
+SCRIPT_NAME="arr_bridge"
+SCRIPT_VERSION="v1.5-gs2.6"
+LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
+
+echo -e "${GREEN}Arrbit - arr_bridge.bash${NC}"
+
 CONFIG_XML="/config/config.xml"
 
 if [[ ! -f "$CONFIG_XML" ]]; then
   log_error "ARR config.xml not found at $CONFIG_XML"
-  exit 1
+  exit 11
 fi
 
-# Parse and export ARR API credentials (never log these values)
-arrApiKey=$(awk -F'[<>]' '/<ApiKey>/ {print $3}' "$CONFIG_XML" | head -n1)
-arrUrl="http://localhost:8686"    # Override as needed, or make dynamic if you support multi-ARR
-arrApiVersion="v1"                # Default; override if you add detection logic
+# --- Extract ARR config values (url base, key, instance, port) ---
+arr_url_base="$(cat "$CONFIG_XML" | xq | jq -r .Config.UrlBase)"
+if [[ "$arr_url_base" == "null" || -z "$arr_url_base" ]]; then
+  arr_url_base=""
+else
+  arr_url_base="/$(echo "$arr_url_base" | sed 's|^/||;s|/$||')"
+fi
+
+arr_api_key="$(cat "$CONFIG_XML" | xq | jq -r .Config.ApiKey)"
+if [[ -z "$arr_api_key" || "$arr_api_key" == "null" ]]; then
+  log_error "API key not found in $CONFIG_XML"
+  exit 12
+fi
+
+arr_instance_name="$(cat "$CONFIG_XML" | xq | jq -r .Config.InstanceName)"
+if [[ "$arr_instance_name" == "null" || -z "$arr_instance_name" ]]; then
+  arr_instance_name="Lidarr"  # fallback
+fi
+
+arr_port="$(cat "$CONFIG_XML" | xq | jq -r .Config.Port)"
+if [[ -z "$arr_port" || "$arr_port" == "null" ]]; then
+  case "${arr_instance_name,,}" in
+    *sonarr*)  arr_port="8989";  log_warning "API port not found in config.xml, falling back to :8989 (Sonarr default)." ;;
+    *radarr*)  arr_port="7878";  log_warning "API port not found in config.xml, falling back to :7878 (Radarr default)." ;;
+    *readarr*) arr_port="8787";  log_warning "API port not found in config.xml, falling back to :8787 (Readarr default)." ;;
+    *)         arr_port="8686";  log_warning "API port not found in config.xml, falling back to :8686 (Lidarr default)." ;;
+  esac
+fi
+
+# Allow ARR_URL override, else build from config
+arrUrl="${ARR_URL:-http://127.0.0.1:${arr_port}${arr_url_base}}"
+arrApiKey="$arr_api_key"
+
+# --- API version auto-detection (tries v3, then v1) ---
+arrApiVersion=""
+for ver in v3 v1; do
+  response="$(curl -s --fail "${arrUrl}/api/${ver}/system/status?apikey=${arrApiKey}" 2>/dev/null)"
+  if echo "$response" | jq -e '.instanceName' >/dev/null 2>&1; then
+    arrApiVersion="$ver"
+    break
+  fi
+done
+
+if [[ -z "$arrApiVersion" ]]; then
+  log_error "Unable to detect working API version at $arrUrl (tried v3, v1)."
+  exit 13
+fi
 
 export arrApiKey arrUrl arrApiVersion
 
-# Wait for API to become available (all output via log_error, never echo)
+# --- Wait for ARR API to become available ---
 waitForArrApi() {
   local retries=12
   local url="${arrUrl}/api/${arrApiVersion}/system/status?apikey=REDACTED"
@@ -35,11 +84,11 @@ waitForArrApi() {
     sleep 5
   done
   log_error "Could not connect to Arr API after $retries attempts. (Checked: $url)"
-  exit 1
+  exit 14
 }
 waitForArrApi
 
-# Universal Arrbit API call wrapper (only ever use this)
+# --- Universal Arrbit API call wrapper ---
 arr_api() {
   curl -s --fail --retry 3 --retry-delay 2 \
     -H "X-Api-Key: $arrApiKey" \
@@ -47,3 +96,5 @@ arr_api() {
     "$@"
 }
 export -f arr_api
+
+log_info "ARR API bridge initialized: $arrUrl (version $arrApiVersion, port $arr_port, urlbase '$arr_url_base', instance '$arr_instance_name')"
