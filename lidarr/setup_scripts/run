@@ -30,7 +30,7 @@ if [[ ! -f "$HELPERS_DIR/logging_utils.bash" || ! -f "$HELPERS_DIR/helpers.bash"
   exit 1
 fi
 
-# --- 3. Source helpers/config, then (optional) logo/banner ---
+# --- 3. Source helpers/config, set up log file, show logo if present ---
 source "$HELPERS_DIR/logging_utils.bash"
 source "$HELPERS_DIR/helpers.bash"
 arrbitPurgeOldLogs
@@ -44,11 +44,21 @@ if [[ -f "$LOGO_SCRIPT_LOCAL" ]]; then
   source "$LOGO_SCRIPT_LOCAL"
   arrbit_logo
 fi
-echo
 
-# --- 4. Now, strictly GS: log_info/log_error ONLY, no terminal output unless ERROR ---
-# --- 5. Run services (dependencies, plugins, autoconfig), errors always GS-compliant (diagnostics in log) ---
+# --- 4. Check ENABLE_ARRBIT flag, warn once if false, then sleep/exit (GS: use getFlag) ---
+ENABLE_ARRBIT=$(getFlag "ENABLE_ARRBIT")
 
+if [[ "${ENABLE_ARRBIT,,}" != "true" ]]; then
+  log_warning "Arrbit services are OFF. Set ENABLE_ARRBIT to 'true' in arrbit-config.conf to enable automation. (see log at /config/logs)"
+  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] WARNING Arrbit services are OFF.
+[WHY]: ENABLE_ARRBIT is set to false in arrbit-config.conf.
+[FIX]: Edit /config/arrbit/config/arrbit-config.conf and set ENABLE_ARRBIT=true to enable Arrbit automation.
+EOF
+  sleep infinity
+fi
+
+# --- 5. Now, strictly GS: log_info/log_error ONLY, no terminal output unless ERROR ---
 if [[ -x "$DEPENDENCIES_SCRIPT" ]]; then
   bash "$DEPENDENCIES_SCRIPT"
 else
