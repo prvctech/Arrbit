@@ -74,5 +74,4 @@ EOF
 fi
 
 log_info "Done."
-echo -e "${CYAN}[Arrbit]${NC} Done."
 exit 0
