@@ -24,7 +24,6 @@ apk add --no-cache --upgrade \
   git \
   gcc \
   ffmpeg \
-  ffprobe \
   imagemagick \
   opus-tools \
   opustags \
