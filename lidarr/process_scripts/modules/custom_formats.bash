@@ -8,7 +8,6 @@
 SCRIPT_NAME="custom_formats"
 SCRIPT_VERSION="v1.3-gs2.7"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
-export LOG_FILE
 
 source /config/arrbit/helpers/logging_utils.bash
 source /config/arrbit/helpers/helpers.bash
