@@ -50,6 +50,6 @@ else
   log_error "Failed to configure Lyrics Enhancer"
 fi
 
-log_info "Done with ${SCRIPT_NAME} module!"
+#log_info "Done with ${SCRIPT_NAME} module!"
 log_info "Log saved to $LOG_FILE"
 exit 0
