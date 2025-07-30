@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
-# Arrbit - setup.bash
+# Arrbit - setup
 # Version: v1.4-gs2.7.1
-# Purpose: Bootstrap Arrbit: ensure config, folders, helpers, modules present (silent except fatal error).
+# Purpose: Bootstraps Arrbit: downloads, installs, and initializes everything into /config/arrbit. SILENT except fatal error.
 # -------------------------------------------------------------------------------------------------------------
 
 set -euo pipefail
 
 ARRBIT_ROOT="/config/arrbit"
-TMP_DIR="/config/arrbit/tmp"
+TMP_DIR="/tmp/arrbit_dl_$$"
 ZIP_URL="https://github.com/prvctech/Arrbit/archive/refs/heads/main.zip"
-ZIP_NAME="arrbit.zip"
-EXTRACTED="Arrbit-main"
+REPO_MAIN="$TMP_DIR/Arrbit-main/lidarr"
+REPO_UNIVERSAL="$TMP_DIR/Arrbit-main/universal"
 
 # --- Ensure Arrbit root and tmp dir exist ---
 mkdir -p "$ARRBIT_ROOT" "$ARRBIT_ROOT/tmp"
@@ -20,41 +20,56 @@ mkdir -p "$TMP_DIR"
 
 cd "$TMP_DIR"
 
-# --- Download and extract repo (fatal error = only echo allowed) ---
-if ! curl -fsSL "$ZIP_URL" -o "$ZIP_NAME"; then
+# --- Download and extract repo ---
+if ! curl -fsSL "$ZIP_URL" -o arrbit.zip; then
     echo "[Arrbit] ERROR: Failed to download repository. Check network and URL."
     exit 1
 fi
+unzip -qqo arrbit.zip
 
-unzip -qqo "$ZIP_NAME"
-rm -f "$ZIP_NAME"
+# --- Copy helpers and connectors from universal ---
+cp -r "$REPO_UNIVERSAL/helpers" "$ARRBIT_ROOT/"
+cp -r "$REPO_UNIVERSAL/connectors" "$ARRBIT_ROOT/"
 
-# --- Copy core folders to /config/arrbit if not present ---
-for d in config connectors custom helpers modules services setup; do
-  if [[ ! -d "$ARRBIT_ROOT/$d" ]]; then
-    cp -rf "$EXTRACTED/$d" "$ARRBIT_ROOT/"
+# --- Switch to Golden Standard logging as soon as helpers are present ---
+HELPERS_DIR="$ARRBIT_ROOT/helpers"
+LOG_DIR="/config/logs"
+mkdir -p "$LOG_DIR"
+source "$HELPERS_DIR/logging_utils.bash"
+source "$HELPERS_DIR/helpers.bash"
+arrbitPurgeOldLogs 2
+
+SCRIPT_NAME="setup"
+SCRIPT_VERSION="v1.4-gs2.7.1"
+LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
+
+# --- Copy modules and services ---
+cp -rf "$REPO_MAIN/process_scripts/modules/."   "$ARRBIT_ROOT/modules/"
+cp -rf "$REPO_MAIN/process_scripts/services/."  "$ARRBIT_ROOT/services/"
+
+# --- Copy custom process scripts if they exist ---
+if [[ -d "$REPO_MAIN/process_scripts/custom" ]]; then
+    cp -rf "$REPO_MAIN/process_scripts/custom" "$ARRBIT_ROOT/"
+fi
+
+# --- Copy setup scripts except setup.bash and run ---
+mkdir -p "$ARRBIT_ROOT/setup"
+find "$REPO_MAIN/setup_scripts" -type f ! -name "setup.bash" ! -name "run" -exec cp -f {} "$ARRBIT_ROOT/setup/" \;
+
+# --- Ensure config directory exists ---
+mkdir -p "$ARRBIT_ROOT/config"
+
+# --- Copy each config file ONLY if it does NOT already exist ---
+for src_file in "$REPO_MAIN/config/"*; do
+  filename="$(basename "$src_file")"
+  dest_file="$ARRBIT_ROOT/config/$filename"
+  if [[ ! -f "$dest_file" ]]; then
+    cp -f "$src_file" "$dest_file"
+    chmod 777 "$dest_file"
   fi
 done
 
-# --- Write default config if missing ---
-DEFAULT_CONFIG="$EXTRACTED/config/arrbit-config.conf"
-TARGET_CONFIG="$ARRBIT_ROOT/config/arrbit-config.conf"
-if [[ ! -f "$TARGET_CONFIG" && -f "$DEFAULT_CONFIG" ]]; then
-  cp -f "$DEFAULT_CONFIG" "$TARGET_CONFIG"
-fi
-
-# --- Clean up temp dir ---
-rm -rf "$TMP_DIR/$EXTRACTED"
-
-# --- Now helpers should exist: switch to GS logging for the rest ---
-if [[ -f "$ARRBIT_ROOT/helpers/logging_utils.bash" && -f "$ARRBIT_ROOT/helpers/helpers.bash" ]]; then
-  source "$ARRBIT_ROOT/helpers/logging_utils.bash"
-  source "$ARRBIT_ROOT/helpers/helpers.bash"
-  arrbitPurgeOldLogs
-  SCRIPT_NAME="setup"
-  SCRIPT_VERSION="v1.4-gs2.7.1"
-  LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
-  touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
-fi
+chmod -R 777 "$ARRBIT_ROOT"
 
 exit 0
