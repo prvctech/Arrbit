@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - arr_bridge.bash
-# Version: v1.5-gs2.6
+# Version: v1.6-gs2.6
 # Purpose: Golden Standard ARR API connector with fully dynamic API URL, port, and version detection.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -10,11 +10,11 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="arr_bridge"
-SCRIPT_VERSION="v1.5-gs2.6"
+SCRIPT_VERSION="v1.6-gs2.6"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-echo -e "${GREEN}Arrbit - arr_bridge.bash${NC}"
+# No more banner echo, per user preference
 
 CONFIG_XML="/config/config.xml"
 
@@ -97,4 +97,4 @@ arr_api() {
 }
 export -f arr_api
 
-log_info "ARR API bridge initialized: $arrUrl (version $arrApiVersion, port $arr_port, urlbase '$arr_url_base', instance '$arr_instance_name')"
+log_info "Connected to ${arr_instance_name}"
