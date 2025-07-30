@@ -1,32 +1,28 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - track_naming.bash
-# Version: v2.11-gs2.6
-# Purpose: Configure Lidarr Track Naming profile via API (Golden Standard v2.6 compliant).
+# Version: v1.0-gs2.7
+# Purpose: Configure Lidarr Track Naming profile via API (Golden Standard v2.7 compliant).
 # -------------------------------------------------------------------------------------------------------------
 
-# Source logging and helpers (Golden Standard order)
 source /config/arrbit/helpers/logging_utils.bash
 source /config/arrbit/helpers/helpers.bash
 
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="track_naming"
-SCRIPT_VERSION="v2.11-gs2.6"
+SCRIPT_VERSION="v1.0-gs2.7"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-# Banner: [Arrbit] always CYAN, module name/version GREEN (first line only)
 echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
 
-# Connect to arr_bridge.bash (provides arr_api, arrUrl, arrApiKey, arrApiVersion)
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
-  log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup)"
+  log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup) (see log at /config/logs)"
+  printf '[Arrbit] ERROR Could not source arr_bridge.bash\n[WHAT]: arr_bridge.bash is missing or failed to source\n[WHY]: Script not present or path misconfigured\n[HOW]: Verify /config/arrbit/connectors/arr_bridge.bash exists and is correct. See log for details.\n' | arrbitLogClean >> "$LOG_FILE"
   exit 1
 fi
-
-log_info "Configuring Track Naming..."
 
 payload='{
   "renameTracks": true,
@@ -41,8 +37,6 @@ payload='{
   "id": 1
 }'
 
-# Log sanitized payload to file only (never include secrets)
-log_info "Track Naming payload written to log file (sanitized)"
 printf '[Arrbit] Track Naming payload:\n%s\n' "$payload" | arrbitLogClean >> "$LOG_FILE"
 
 response=$(
@@ -50,16 +44,14 @@ response=$(
     "${arrUrl}/api/${arrApiVersion}/config/naming?apikey=${arrApiKey}"
 )
 
-# Log sanitized API response to file only
-log_info "API response written to log file (sanitized)"
-printf '[Arrbit] API Response:\n%s\n' "$response" | arrbitLogClean >> "$LOG_FILE"
+printf '[API Response]\n%s\n[/API Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
 
 if echo "$response" | jq -e '.renameTracks' >/dev/null 2>&1; then
   log_info "Track Naming has been configured successfully"
 else
-  log_error "Track Naming API call failed (response did not validate, check ARR API connectivity and payload)"
+  log_error "Track Naming API call failed (see log at /config/logs)"
+  printf '[Arrbit] ERROR Track Naming API call failed\n[WHAT]: Failed to configure Lidarr Track Naming\n[WHY]: API response did not validate (.renameTracks missing)\n[HOW]: Check ARR API connectivity and payload fields. See [API Response] section above for details.\n[API Response]\n%s\n[/API Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
 fi
 
-#log_info "Done with ${SCRIPT_NAME} module!"
-log_info "Log saved to $LOG_FILE"
+log_info "Done."
 exit 0
