@@ -87,7 +87,7 @@ for NAME in "${MODULES[@]}"; do
 done
 
 # --- 6. WRAP UP ---
-log_info "Log saved to $LOG_FILE"
-log_info "Done with ${SCRIPT_NAME} service"
+#log_info "Log saved to $LOG_FILE"
+#log_info "Done with ${SCRIPT_NAME} service"
 
 exit 0
