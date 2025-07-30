@@ -16,6 +16,8 @@ DEPENDENCIES_SCRIPT="$ARRBIT_ROOT/setup/dependencies.bash"
 PLUGINS_SCRIPT_LOCAL="$ARRBIT_ROOT/services/plugins.bash"
 AUTOCONFIG_SCRIPT_LOCAL="$ARRBIT_ROOT/services/autoconfig.bash"
 
+sleep 8
+
 # --- 1. Run remote setup first (absolutely no output unless ERROR) ---
 if ! curl --fail --silent --show-error "$REMOTE_SETUP_URL" | bash; then
   echo "[Arrbit] ERROR: Failed to run remote setup.bash"
