@@ -44,6 +44,7 @@ if [[ -f "$LOGO_SCRIPT_LOCAL" ]]; then
   source "$LOGO_SCRIPT_LOCAL"
   arrbit_logo
 fi
+echo
 
 # --- 4. Check ENABLE_ARRBIT flag, warn once if false, then sleep/exit (GS: use getFlag) ---
 ENABLE_ARRBIT=$(getFlag "ENABLE_ARRBIT")
