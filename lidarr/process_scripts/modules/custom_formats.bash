@@ -74,8 +74,7 @@ for format in "${JSON_FORMATS[@]}"; do
 done
 
 if $all_exist; then
-  log_info "Custom formats already exist - skipping."
-  log_info "Done."  
+  log_info "Custom formats already exist - skipping."  
   exit 0
 fi
 
