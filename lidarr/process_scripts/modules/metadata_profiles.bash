@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - metadata_profiles.bash
-# Version: v2.7-gs2.7
+# Version: v1.0-gs2.7
 # Purpose: Overwrite Lidarr metadata profiles with payload from metadata_profiles.json (Golden Standard v2.7)
 # -------------------------------------------------------------------------------------------------------------
 
@@ -11,7 +11,7 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="metadata_profiles"
-SCRIPT_VERSION="v2.7-gs2.7"
+SCRIPT_VERSION="v1.0-gs2.7"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 JSON_PATH="/config/arrbit/modules/data/payload-metadata_profiles.json"
 
