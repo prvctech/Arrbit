@@ -55,8 +55,6 @@ if [[ -f "$ARRBIT_ROOT/helpers/logging_utils.bash" && -f "$ARRBIT_ROOT/helpers/h
   SCRIPT_VERSION="v1.4-gs2.7.1"
   LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
   touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
-  log_info "Arrbit setup complete. All folders, configs, and helpers are now present."
-  log_info "Done."
 fi
 
 exit 0
