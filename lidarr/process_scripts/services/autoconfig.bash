@@ -31,10 +31,6 @@ if [[ "${ENABLE_AUTOCONFIG,,}" != "true" ]]; then
   exit 0
 fi
 
-# --- 2. DO NOT CONNECT TO arr_bridge.bash HERE ---
-# Each module will independently source arr_bridge and helpers, and will set LOG_FILE itself.
-# This prevents log/file variable pollution and is required for Golden Standard v2.7 compliance.
-
 # --- 3. MODULES LIST (Add/remove modules here as required) ---
 MODULES=(
   custom_formats
