@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - metadata_consumer.bash
-# Version: v2.7-gs2.7
-# Purpose: Configure Lidarr Metadata Consumer (Kodi/XBMC) via API (Golden Standard v2.7, minimal output)
+# Version: v1.0-gs2.7.1
+# Purpose: Configure Lidarr Metadata Consumer (Kodi/XBMC) via API (Golden Standard v2.7.1, minimal output)
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/logging_utils.bash
@@ -11,7 +11,7 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="metadata_consumer"
-SCRIPT_VERSION="v2.7-gs2.7"
+SCRIPT_VERSION="v1.0-gs2.7.1"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
@@ -20,7 +20,11 @@ echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRI
 
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
   log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup) (see log at /config/logs)"
-  printf '[Arrbit] ERROR Could not source arr_bridge.bash\n[WHAT]: arr_bridge.bash is missing or failed to source\n[WHY]: Script not present or path misconfigured\n[HOW]: Verify /config/arrbit/connectors/arr_bridge.bash exists and is correct. See log for details.\n' | arrbitLogClean >> "$LOG_FILE"
+  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR Could not source arr_bridge.bash
+[WHY]: arr_bridge.bash is missing or failed to source.
+[FIX]: Verify /config/arrbit/connectors/arr_bridge.bash exists and is correct. See log for details.
+EOF
   exit 1
 fi
 
@@ -45,7 +49,7 @@ printf '[Arrbit] Metadata Consumer payload:\n%s\n' "$payload" | arrbitLogClean >
 
 response=$(
   arr_api -X PUT --data-raw "$payload" \
-    "${arrUrl}/api/${arrApiVersion}/metadata/1?apikey=${arrApiKey}"
+    "${arrUrl}/api/${arrApiVersion}/metadata/1"
 )
 
 printf '[API Response]\n%s\n[/API Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
@@ -54,7 +58,14 @@ if echo "$response" | jq -e '.enable' >/dev/null 2>&1; then
   log_info "Metadata Consumer configured"
 else
   log_error "Metadata Consumer API call failed (see log at /config/logs)"
-  printf '[Arrbit] ERROR Metadata Consumer API call failed\n[WHAT]: Failed to update Lidarr Metadata Consumer settings\n[WHY]: API response did not validate (.enable missing)\n[HOW]: Check ARR API connectivity and payload structure. See [API Response] section above for details.\n[API Response]\n%s\n[/API Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
+  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR Metadata Consumer API call failed
+[WHY]: API response did not validate (.enable missing)
+[FIX]: Check ARR API connectivity and payload structure. See [API Response] section above for details.
+[API Response]
+$response
+[/API Response]
+EOF
 fi
 
 log_info "Done."
