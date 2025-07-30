@@ -133,6 +133,6 @@ for definition in "${JSON_DEFS[@]}"; do
   fi
 done
 
-log_info "Done with ${SCRIPT_NAME} module!"
+#log_info "Done with ${SCRIPT_NAME} module!"
 log_info "Log saved to $LOG_FILE"
 exit 0
