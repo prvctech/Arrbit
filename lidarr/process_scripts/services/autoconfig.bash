@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - autoconfig.bash
-# Version: v5.5-gs2.6
+# Version: v1.0-gs2.7
 # Purpose: Orchestrates Arrbit modules based on config flags in arrbit-config.conf (Golden Standard enforced)
 # -------------------------------------------------------------------------------------------------------------
 
@@ -11,7 +11,7 @@ source /config/arrbit/helpers/logging_utils.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="autoconfig"
-SCRIPT_VERSION="v5.5-gs2.6"
+SCRIPT_VERSION="v1.0-gs2.7"
 ARRBIT_ROOT="/config/arrbit"
 CONFIG_FILE="$ARRBIT_ROOT/config/arrbit-config.conf"
 MODULES_DIR="$ARRBIT_ROOT/modules"
@@ -31,11 +31,9 @@ if [[ "${ENABLE_AUTOCONFIG,,}" != "true" ]]; then
   exit 0
 fi
 
-# --- 2. Connect to arr_bridge (exports arr_api) ---
-if ! source "$ARRBIT_ROOT/connectors/arr_bridge.bash"; then
-  log_error "arr_bridge.bash not found or failed; exiting."
-  exit 1
-fi
+# --- 2. DO NOT CONNECT TO arr_bridge.bash HERE ---
+# Each module will independently source arr_bridge and helpers, and will set LOG_FILE itself.
+# This prevents log/file variable pollution and is required for Golden Standard v2.7 compliance.
 
 # --- 3. MODULES LIST (Add/remove modules here as required) ---
 MODULES=(
