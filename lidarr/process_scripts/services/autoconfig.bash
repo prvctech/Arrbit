@@ -1,115 +1,93 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
-# Arrbit - custom_formats.bash
-# Version: v1.2-gs2.7
-# Purpose: Import custom formats from JSON into Lidarr (Golden Standard v2.7, ultra-minimal output, robust error handling)
+# Arrbit - autoconfig.bash
+# Version: v5.5-gs2.6
+# Purpose: Orchestrates Arrbit modules based on config flags in arrbit-config.conf (Golden Standard enforced)
 # -------------------------------------------------------------------------------------------------------------
 
-SCRIPT_NAME="custom_formats"
-SCRIPT_VERSION="v1.2-gs2.7"
-LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
-export LOG_FILE
-
-source /config/arrbit/helpers/logging_utils.bash
 source /config/arrbit/helpers/helpers.bash
+source /config/arrbit/helpers/logging_utils.bash
+
 arrbitPurgeOldLogs
 
-JSON_PATH="/config/arrbit/modules/data/payload-custom_formats.json"
+SCRIPT_NAME="autoconfig"
+SCRIPT_VERSION="v5.5-gs2.6"
+ARRBIT_ROOT="/config/arrbit"
+CONFIG_FILE="$ARRBIT_ROOT/config/arrbit-config.conf"
+MODULES_DIR="$ARRBIT_ROOT/modules"
+LOG_DIR="/config/logs"
+LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
-mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
+touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-log_info "Starting ${SCRIPT_NAME} module ${SCRIPT_VERSION}..."
+# Banner (only first line with color is allowed)
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} service${NC} ${SCRIPT_VERSION} ..."
 
-# Source arr_bridge for API variables and arr_api wrapper
-if ! source /config/arrbit/connectors/arr_bridge.bash; then
-  log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup) (see log at /config/logs)"
-  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR Could not source arr_bridge.bash
-[WHAT]: arr_bridge.bash is missing or failed to source
-[WHY]: Script not present or path misconfigured
-[HOW]: Verify /config/arrbit/connectors/arr_bridge.bash exists and is correct. See log for details.
-EOF
-  exit 1
-fi
-
-# (No need to reset LOG_FILE, as we set and exported at the very top!)
-
-if [[ ! -f "$JSON_PATH" ]]; then
-  log_error "File not found: ${JSON_PATH} (see log at /config/logs)"
-  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR File not found: $JSON_PATH
-[WHAT]: Could not find required payload JSON file
-[WHY]: The file does not exist at the specified path
-[HOW]: Place a valid payload-custom_formats.json in $(dirname "$JSON_PATH")
-EOF
-  exit 1
-fi
-
-# Query custom formats API, robust error detection
-api_response=$(arr_api "${arrUrl}/api/${arrApiVersion}/customformat")
-if ! echo "$api_response" | jq . >/dev/null 2>&1; then
-  log_error "Failed to parse custom format list from API (see log at /config/logs)"
-  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR Invalid response from Lidarr API for customformat
-[WHAT]: Could not parse JSON response from API
-[WHY]: API unreachable, misconfigured, or returned invalid data
-[HOW]: Check your Lidarr API status, config, or permissions.
-[Response]
-$api_response
-[/Response]
-EOF
-  exit 1
-fi
-
-# Extract names (can be empty if no custom formats exist)
-existing_names=$(echo "$api_response" | jq -r '.[].name' | tr '[:upper:]' '[:lower:]')
-
-# Read all custom formats from JSON
-mapfile -t JSON_FORMATS < <(jq -c '.[]' "$JSON_PATH")
-
-# Check if all exist already
-all_exist=true
-for format in "${JSON_FORMATS[@]}"; do
-  format_name=$(echo "$format" | jq -r '.name')
-  lowercase_name=$(echo "$format_name" | tr '[:upper:]' '[:lower:]')
-  if ! echo "$existing_names" | grep -Fxq "$lowercase_name"; then
-    all_exist=false
-    break
-  fi
-done
-
-if $all_exist; then
-  log_info "Custom formats already exist - skipping."
-  log_info "Done."
+# --- 1. Check ENABLE_AUTOCONFIG flag first, fail fast with warning if not true ---
+ENABLE_AUTOCONFIG=$(getFlag ENABLE_AUTOCONFIG)
+if [[ "${ENABLE_AUTOCONFIG,,}" != "true" ]]; then
+  log_warning "Autoconfig service is OFF. Update ENABLE_AUTOCONFIG to 'true' in arrbit-config.conf."
+  log_info "Log saved to $LOG_FILE"
   exit 0
 fi
 
-# Import only missing formats
-for format in "${JSON_FORMATS[@]}"; do
-  format_name=$(echo "$format" | jq -r '.name')
-  lowercase_name=$(echo "$format_name" | tr '[:upper:]' '[:lower:]')
-  payload=$(echo "$format" | jq 'del(.id)')
-  if echo "$existing_names" | grep -Fxq "$lowercase_name"; then
+# --- 2. Connect to arr_bridge (exports arr_api) ---
+if ! source "$ARRBIT_ROOT/connectors/arr_bridge.bash"; then
+  log_error "arr_bridge.bash not found or failed; exiting."
+  exit 1
+fi
+
+# --- 3. MODULES LIST (Add/remove modules here as required) ---
+MODULES=(
+  custom_formats
+  custom_scripts  
+  media_management
+  metadata_consumer
+  metadata_plugin
+  metadata_profiles
+  metadata_write
+  quality_definitions    # new
+  quality_profiles
+  track_naming
+  ui_settings
+)
+
+# --- 4. CHECK IF ANY MODULES ARE ENABLED (error if all are disabled) ---
+ENABLED_COUNT=0
+for NAME in "${MODULES[@]}"; do
+  FLAG="CONFIGURE_$(echo "$NAME" | tr '[:lower:]' '[:upper:]')"
+  VAL=$(getFlag "$FLAG")
+  if [[ -n "${VAL}" && "${VAL,,}" == "true" ]]; then
+    ((ENABLED_COUNT++))
+  fi
+done
+if (( ENABLED_COUNT == 0 )); then
+  log_error "Autoconfig stopped: no CONFIGURE_* modules enabled. Update your configuration."
+  log_info "Log saved to $LOG_FILE"
+  exit 0
+fi
+
+# --- 5. RUN ENABLED MODULES ONLY (no internal flag logic in modules) ---
+for NAME in "${MODULES[@]}"; do
+  FLAG="CONFIGURE_$(echo "$NAME" | tr '[:lower:]' '[:upper:]')"
+  VAL=$(getFlag "$FLAG")
+  if [[ -z "${VAL}" || "${VAL,,}" != "true" ]]; then
+    log_warning "${NAME} module is disabled by config; skipping."
     continue
   fi
-  log_info "Importing custom format: ${format_name}"
-  response=$(arr_api -X POST --data-raw "$payload" "${arrUrl}/api/${arrApiVersion}/customformat")
-  printf '[Response]\n%s\n[/Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
-  if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
-    printf '[Arrbit] SUCCESS Custom format created: %s\n' "$format_name" | arrbitLogClean >> "$LOG_FILE"
+
+  SCRIPT="$MODULES_DIR/${NAME}.bash"
+  if [ -x "$SCRIPT" ]; then
+    if ! bash "$SCRIPT"; then
+      log_warning "${NAME} module failed. See log for details."
+    fi
   else
-    log_error "Failed to import format: ${format_name} (see log at /config/logs)"
-    cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR Failed to create custom format: $format_name
-[WHAT]: Could not import custom format: $format_name
-[WHY]: API failed to return an id. Likely cause: payload invalid or API/server error.
-[HOW]: Check payload JSON fields for correctness, or see [Response] section below for more info.
-[Response]
-$response
-[/Response]
-EOF
+    log_warning "${NAME} module not found or not executable; skipped."
   fi
 done
 
-log_info "Done."
+# --- 6. WRAP UP ---
+#log_info "Log saved to $LOG_FILE"
+#log_info "Done with ${SCRIPT_NAME} service"
+
 exit 0
