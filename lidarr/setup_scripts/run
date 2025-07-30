@@ -44,6 +44,7 @@ if [[ -f "$LOGO_SCRIPT_LOCAL" ]]; then
   source "$LOGO_SCRIPT_LOCAL"
   arrbit_logo
 fi
+echo
 
 # --- 4. Now, strictly GS: log_info/log_error ONLY, no terminal output unless ERROR ---
 # --- 5. Run services (dependencies, plugins, autoconfig), errors always GS-compliant (diagnostics in log) ---
