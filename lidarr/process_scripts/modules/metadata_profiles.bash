@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - metadata_profiles.bash
-# Version: v1.0-gs2.7
-# Purpose: Overwrite Lidarr metadata profiles with payload from metadata_profiles.json (Golden Standard v2.7)
+# Version: v1.0-gs2.7.1
+# Purpose: Overwrite Lidarr metadata profiles with payload from metadata_profiles.json (Golden Standard v2.7.1)
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/logging_utils.bash
@@ -11,7 +11,7 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="metadata_profiles"
-SCRIPT_VERSION="v1.0-gs2.7"
+SCRIPT_VERSION="v1.0-gs2.7.1"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 JSON_PATH="/config/arrbit/modules/data/payload-metadata_profiles.json"
 
@@ -21,13 +21,21 @@ echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRI
 
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
   log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup) (see log at /config/logs)"
-  printf '[Arrbit] ERROR Could not source arr_bridge.bash\n[WHAT]: arr_bridge.bash is missing or failed to source\n[WHY]: Script not present or path misconfigured\n[HOW]: Verify /config/arrbit/connectors/arr_bridge.bash exists and is correct. See log for details.\n' | arrbitLogClean >> "$LOG_FILE"
+  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR Could not source arr_bridge.bash
+[WHY]: arr_bridge.bash is missing or failed to source.
+[FIX]: Verify /config/arrbit/connectors/arr_bridge.bash exists and is correct. See log for details.
+EOF
   exit 1
 fi
 
 if [[ ! -f "$JSON_PATH" ]]; then
   log_error "File not found: ${JSON_PATH} (see log at /config/logs)"
-  printf '[Arrbit] ERROR File not found: %s\n[WHAT]: Could not find required payload JSON file\n[WHY]: The file does not exist at the specified path\n[HOW]: Place a valid payload-metadata_profiles.json in %s\n' "$JSON_PATH" "$(dirname "$JSON_PATH")" | arrbitLogClean >> "$LOG_FILE"
+  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR File not found: $JSON_PATH
+[WHY]: The file does not exist at the specified path.
+[FIX]: Place a valid payload-metadata_profiles.json in $(dirname "$JSON_PATH").
+EOF
   exit 1
 fi
 
@@ -35,7 +43,11 @@ fi
 existing_defs=$(arr_api "${arrUrl}/api/${arrApiVersion}/metadataprofile")
 if [[ -z "$existing_defs" ]]; then
   log_error "Could not retrieve existing metadata profiles from Lidarr. (see log at /config/logs)"
-  printf '[Arrbit] ERROR Could not retrieve existing metadata profiles from Lidarr.\n[WHAT]: API call for current metadata profiles failed\n[WHY]: Connectivity or server/API issue\n[HOW]: Check ARR is running and accessible. See API response/logs for details.\n' | arrbitLogClean >> "$LOG_FILE"
+  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR Could not retrieve existing metadata profiles from Lidarr.
+[WHY]: API call for current metadata profiles failed.
+[FIX]: Check ARR is running and accessible. See API response/logs for details.
+EOF
   exit 1
 fi
 
@@ -73,7 +85,7 @@ for definition in "${JSON_DEFS[@]}"; do
 done
 
 if $all_match; then
-  log_info "Metadata profiles already exists - skipping."
+  log_info "Metadata profiles already exist - skipping."
   log_info "Done."
   exit 0
 fi
@@ -100,29 +112,41 @@ for definition in "${JSON_DEFS[@]}"; do
     if [[ "$(echo "$payload" | jq -S .)" != "$(echo "$match_payload" | jq -S .)" ]]; then
       log_info "Updating metadata profile: ${name} (ID: ${match_id})"
       printf '[Arrbit] Updating Metadata Profile: %s (Lidarr ID: %s)\n[Payload]\n%s\n[/Payload]\n' "$name" "$match_id" "$payload" | arrbitLogClean >> "$LOG_FILE"
-      response=$(arr_api -X PUT --data-raw "$payload" "${arrUrl}/api/${arrApiVersion}/metadataprofile/$match_id?apikey=${arrApiKey}")
-
+      response=$(arr_api -X PUT --data-raw "$payload" "${arrUrl}/api/${arrApiVersion}/metadataprofile/$match_id")
       printf '[Response]\n%s\n[/Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
 
       if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
         printf '[Arrbit] SUCCESS: Metadata profile processed: %s\n' "$name" | arrbitLogClean >> "$LOG_FILE"
       else
         log_error "Failed to process metadata profile: ${name} (see log at /config/logs)"
-        printf '[Arrbit] ERROR Failed to process metadata profile: %s\n[WHAT]: Could not update metadata profile: %s\n[WHY]: API PUT request failed or invalid response\n[HOW]: Check payload and Lidarr server status. See [Response] section below.\n[Response]\n%s\n[/Response]\n' "$name" "$name" "$response" | arrbitLogClean >> "$LOG_FILE"
+        cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR Failed to process metadata profile: $name
+[WHY]: API PUT request failed or invalid response.
+[FIX]: Check payload and Lidarr server status. See [Response] section below.
+[Response]
+$response
+[/Response]
+EOF
       fi
     fi
   else
     log_info "No match found, creating new metadata profile: ${name}"
     printf '[Arrbit] Creating NEW Metadata Profile: %s\n[Payload]\n%s\n[/Payload]\n' "$name" "$payload" | arrbitLogClean >> "$LOG_FILE"
-    response=$(arr_api -X POST --data-raw "$payload" "${arrUrl}/api/${arrApiVersion}/metadataprofile?apikey=${arrApiKey}")
-
+    response=$(arr_api -X POST --data-raw "$payload" "${arrUrl}/api/${arrApiVersion}/metadataprofile")
     printf '[Response]\n%s\n[/Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
 
     if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
       printf '[Arrbit] SUCCESS: Metadata profile created: %s\n' "$name" | arrbitLogClean >> "$LOG_FILE"
     else
       log_error "Failed to create metadata profile: ${name} (see log at /config/logs)"
-      printf '[Arrbit] ERROR Failed to create metadata profile: %s\n[WHAT]: Could not create new metadata profile: %s\n[WHY]: API POST request failed or invalid response\n[HOW]: Check payload and Lidarr server status. See [Response] section below.\n[Response]\n%s\n[/Response]\n' "$name" "$name" "$response" | arrbitLogClean >> "$LOG_FILE"
+      cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR Failed to create metadata profile: $name
+[WHY]: API POST request failed or invalid response.
+[FIX]: Check payload and Lidarr server status. See [Response] section below.
+[Response]
+$response
+[/Response]
+EOF
     fi
   fi
 done
