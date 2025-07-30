@@ -2,7 +2,7 @@
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - custom_formats.bash
 # Version: v2.4-gs2.6
-# Purpose: Import custom formats from JSON into Lidarr (Golden Standard v2.6, with quiet skip logic)
+# Purpose: Import custom formats from JSON into Lidarr (Golden Standard v2.6, minimal output)
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/logging_utils.bash
@@ -26,7 +26,6 @@ fi
 
 if [[ ! -f "$JSON_PATH" ]]; then
   log_error "File not found: ${JSON_PATH}"
-  log_info "Log saved to $LOG_FILE"
   exit 1
 fi
 
@@ -51,8 +50,7 @@ done
 if $all_exist; then
   log_info "Custom formats already exists - skipping."
   printf '[Arrbit] Custom formats already exists - skipping.\n' | arrbitLogClean >> "$LOG_FILE"
-  log_info "Done with ${SCRIPT_NAME} module!"
-  log_info "Log saved to $LOG_FILE"
+  log_info "Done."
   exit 0
 fi
 
@@ -76,6 +74,5 @@ for format in "${JSON_FORMATS[@]}"; do
   fi
 done
 
-#log_info "Done with ${SCRIPT_NAME} module!"
-log_info "Log saved to $LOG_FILE"
+log_info "Done."
 exit 0
