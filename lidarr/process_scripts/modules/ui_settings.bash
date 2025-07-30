@@ -1,35 +1,32 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - ui_settings.bash
-# Version: v1.2-gs2.6
-# Purpose: Configure Lidarr UI Settings via API (Golden Standard v2.6 compliant).
+# Version: v1.2-gs2.7.1
+# Purpose: Configure Lidarr UI Settings via API (Golden Standard v2.7.1 compliant).
 # -------------------------------------------------------------------------------------------------------------
 
-# Source logging and helpers (Golden Standard order)
 source /config/arrbit/helpers/logging_utils.bash
 source /config/arrbit/helpers/helpers.bash
 
-# Always purge old logs before anything else
 arrbitPurgeOldLogs
 
-# Set script constants
 SCRIPT_NAME="ui_settings"
-SCRIPT_VERSION="v1.2-gs2.6"
+SCRIPT_VERSION="v1.2-gs2.7.1"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
-# Ensure log directory exists and file is writable
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-# Banner: [Arrbit] always CYAN, module name/version GREEN (first line only)
 echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
 
-# Connect to arr_bridge.bash (provides arr_api, arrUrl, arrApiKey, arrApiVersion)
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
-  log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup)"
+  log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup) (see log at /config/logs)"
+  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR Could not source arr_bridge.bash
+[WHY]: arr_bridge.bash is missing or failed to source.
+[FIX]: Verify /config/arrbit/connectors/arr_bridge.bash exists and is correct. See log for details.
+EOF
   exit 1
 fi
-
-log_info "Configuring UI Settings..."
 
 payload='{
   "firstDayOfWeek": 0,
@@ -49,27 +46,28 @@ payload='{
   "id": 1
 }'
 
-# Log sanitized payload to file only (never include secrets)
-log_info "UI Settings payload written to log file (sanitized)"
 printf '[Arrbit] UI Settings payload:\n%s\n' "$payload" | arrbitLogClean >> "$LOG_FILE"
 
-# Make API call via arr_api (use real API key in the call)
 response=$(
   arr_api -X PUT --data-raw "$payload" \
-    "${arrUrl}/api/${arrApiVersion}/config/ui?apikey=${arrApiKey}"
+    "${arrUrl}/api/${arrApiVersion}/config/ui"
 )
 
-# Log sanitized API response to file only
-log_info "API response written to log file (sanitized)"
 printf '[Arrbit] API Response:\n%s\n' "$response" | arrbitLogClean >> "$LOG_FILE"
 
-# Check if API call was successful (theme field in response)
 if echo "$response" | jq -e '.theme' >/dev/null 2>&1; then
   log_info "UI Settings have been configured successfully"
 else
-  log_error "UI Settings API call failed (response did not validate, check ARR API connectivity and payload)"
+  log_error "UI Settings API call failed (see log at /config/logs)"
+  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR UI Settings API call failed
+[WHY]: API response did not validate (.theme missing).
+[FIX]: Check ARR API connectivity and payload fields. See [API Response] section above for details.
+[API Response]
+$response
+[/API Response]
+EOF
 fi
 
-#log_info "Done with ${SCRIPT_NAME} module!"
-log_info "Log saved to $LOG_FILE"
+log_info "Done."
 exit 0
