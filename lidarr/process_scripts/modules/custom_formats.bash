@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - custom_formats.bash
-# Version: v1.3-gs2.7
-# Purpose: Import custom formats from JSON into Lidarr (Golden Standard v2.7, ultra-minimal output, robust error handling)
+# Version: v1.3-gs2.7.1
+# Purpose: Import custom formats from JSON into Lidarr (Golden Standard v2.7.1 strict, ultra-minimal output)
 # -------------------------------------------------------------------------------------------------------------
 
 SCRIPT_NAME="custom_formats"
-SCRIPT_VERSION="v1.3-gs2.7"
+SCRIPT_VERSION="v1.3-gs2.7.1"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 source /config/arrbit/helpers/logging_utils.bash
@@ -24,22 +24,19 @@ if ! source /config/arrbit/connectors/arr_bridge.bash; then
   log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup) (see log at /config/logs)"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
 [Arrbit] ERROR Could not source arr_bridge.bash
-[WHAT]: arr_bridge.bash is missing or failed to source
-[WHY]: Script not present or path misconfigured
-[HOW]: Verify /config/arrbit/connectors/arr_bridge.bash exists and is correct. See log for details.
+[WHY]: arr_bridge.bash is missing or failed to source.
+[FIX]: Verify /config/arrbit/connectors/arr_bridge.bash exists and is correct. See log for details.
 EOF
   exit 1
 fi
 
-# (No need to reset LOG_FILE, as we set and exported at the very top!)
-
+# Check that payload JSON exists
 if [[ ! -f "$JSON_PATH" ]]; then
   log_error "File not found: ${JSON_PATH} (see log at /config/logs)"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
 [Arrbit] ERROR File not found: $JSON_PATH
-[WHAT]: Could not find required payload JSON file
-[WHY]: The file does not exist at the specified path
-[HOW]: Place a valid payload-custom_formats.json in $(dirname "$JSON_PATH")
+[WHY]: The file does not exist at the specified path.
+[FIX]: Place a valid payload-custom_formats.json in $(dirname "$JSON_PATH").
 EOF
   exit 1
 fi
@@ -50,9 +47,8 @@ if ! echo "$api_response" | jq . >/dev/null 2>&1; then
   log_error "Failed to parse custom format list from API (see log at /config/logs)"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
 [Arrbit] ERROR Invalid response from Lidarr API for customformat
-[WHAT]: Could not parse JSON response from API
-[WHY]: API unreachable, misconfigured, or returned invalid data
-[HOW]: Check your Lidarr API status, config, or permissions.
+[WHY]: API unreachable, misconfigured, or returned invalid data.
+[FIX]: Check your Lidarr API status, config, or permissions.
 [Response]
 $api_response
 [/Response]
@@ -80,6 +76,7 @@ done
 if $all_exist; then
   log_info "Custom formats already exist - skipping."
   log_info "Done."
+  echo -e "${CYAN}[Arrbit]${NC} Done."
   exit 0
 fi
 
@@ -100,9 +97,8 @@ for format in "${JSON_FORMATS[@]}"; do
     log_error "Failed to import format: ${format_name} (see log at /config/logs)"
     cat <<EOF | arrbitLogClean >> "$LOG_FILE"
 [Arrbit] ERROR Failed to create custom format: $format_name
-[WHAT]: Could not import custom format: $format_name
 [WHY]: API failed to return an id. Likely cause: payload invalid or API/server error.
-[HOW]: Check payload JSON fields for correctness, or see [Response] section below for more info.
+[FIX]: Check payload JSON fields for correctness, or see [Response] section below for more info.
 [Response]
 $response
 [/Response]
@@ -111,4 +107,5 @@ EOF
 done
 
 log_info "Done."
+echo -e "${CYAN}[Arrbit]${NC} Done."
 exit 0
