@@ -110,6 +110,6 @@ if $skipped_any; then
   log_info "Quality profiles already exists - skipping."
 fi
 
-log_info "Done with ${SCRIPT_NAME} module!"
+#log_info "Done with ${SCRIPT_NAME} module!"
 log_info "Log saved to $LOG_FILE"
 exit 0
