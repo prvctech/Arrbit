@@ -30,8 +30,9 @@ EOF
   exit 1
 fi
 
-# --- CRITICAL! Restore LOG_FILE for this module ---
+# --- CRITICAL! Restore and export LOG_FILE for this module ---
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+export LOG_FILE
 
 if [[ ! -f "$JSON_PATH" ]]; then
   log_error "File not found: ${JSON_PATH} (see log at /config/logs)"
