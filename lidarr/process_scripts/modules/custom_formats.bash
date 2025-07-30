@@ -76,6 +76,6 @@ for format in "${JSON_FORMATS[@]}"; do
   fi
 done
 
-log_info "Done with ${SCRIPT_NAME} module!"
+#log_info "Done with ${SCRIPT_NAME} module!"
 log_info "Log saved to $LOG_FILE"
 exit 0
