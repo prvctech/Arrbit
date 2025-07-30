@@ -64,6 +64,6 @@ else
   log_error "Metadata Consumer API call failed (response did not validate, check ARR API connectivity and payload)"
 fi
 
-log_info "Done with ${SCRIPT_NAME} module!"
+#log_info "Done with ${SCRIPT_NAME} module!"
 log_info "Log saved to $LOG_FILE"
 exit 0
