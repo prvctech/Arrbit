@@ -75,8 +75,7 @@ done
 
 if $all_exist; then
   log_info "Custom formats already exist - skipping."
-  log_info "Done."
-  echo -e "${CYAN}[Arrbit]${NC} Done."
+  log_info "Done."  
   exit 0
 fi
 
