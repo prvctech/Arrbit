@@ -112,5 +112,6 @@ if [[ $files_found -eq 0 ]]; then
 EOF
 fi
 
-echo -e "${CYAN}[Arrbit]${NC} Done."
+log_info "Done."
 exit 0
+
