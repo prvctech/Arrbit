@@ -55,7 +55,7 @@ response=$(
 printf '[API Response]\n%s\n[/API Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
 
 if echo "$response" | jq -e '.enable' >/dev/null 2>&1; then
-  log_info "Metadata Consumer configured"
+  log_info "Metadata Consumer has been configured successfully"
 else
   log_error "Metadata Consumer API call failed (see log at /config/logs)"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
