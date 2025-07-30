@@ -87,6 +87,6 @@ if [[ $files_found -eq 0 ]]; then
   log_error "No payload files found matching $PAYLOAD_DIR/$PATTERN"
 fi
 
-log_info "Done with ${SCRIPT_NAME} module! ($scripts_registered scripts registered)"
+#log_info "Done with ${SCRIPT_NAME} module! ($scripts_registered scripts registered)"
 log_info "Log saved to $LOG_FILE"
 exit 0
