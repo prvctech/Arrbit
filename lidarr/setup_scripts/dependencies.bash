@@ -14,6 +14,9 @@ source /config/arrbit/helpers/logging_utils.bash
 
 arrbitPurgeOldLogs
 
+# ---- BANNER ----
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting dependencies setup ${NC} ${SCRIPT_VERSION}..."
+
 # --- Install all system packages (Alpine only), log everything to file ---
 apk add --no-cache --upgrade \
   tidyhtml \
