@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - custom_formats.bash
-# Version: v1.2-gs2.7
+# Version: v1.3-gs2.7
 # Purpose: Import custom formats from JSON into Lidarr (Golden Standard v2.7, ultra-minimal output, robust error handling)
 # -------------------------------------------------------------------------------------------------------------
 
 SCRIPT_NAME="custom_formats"
-SCRIPT_VERSION="v1.2-gs2.7"
+SCRIPT_VERSION="v1.3-gs2.7"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 export LOG_FILE
 
@@ -14,11 +14,11 @@ source /config/arrbit/helpers/logging_utils.bash
 source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
+
 JSON_PATH="/config/arrbit/modules/data/payload-custom_formats.json"
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
-
-log_info "Starting ${SCRIPT_NAME} module ${SCRIPT_VERSION}..."
 
 # Source arr_bridge for API variables and arr_api wrapper
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
