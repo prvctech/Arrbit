@@ -34,7 +34,7 @@ payload='{
   "id": 1
 }'
 
-printf '[Arrbit] Metadata Write Provider payload:\n%s\n' "$payload" | arrbitLogClean >> "$LOG_FILE"
+printf '[Arrbit] Metadata Write payload:\n%s\n' "$payload" | arrbitLogClean >> "$LOG_FILE"
 
 response=$(
   arr_api -X PUT --data-raw "$payload" \
@@ -44,7 +44,7 @@ response=$(
 printf '[API Response]\n%s\n[/API Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
 
 if echo "$response" | jq -e '.writeAudioTags' >/dev/null 2>&1; then
-  log_info "Metadata Write Provider has been configured successfully"
+  log_info "Metadata Write has been configured successfully"
 else
   log_error "Metadata Write API call failed (see log at /config/logs)"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
