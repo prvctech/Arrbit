@@ -20,8 +20,9 @@ LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-# Banner (only first line with color is allowed)
+# Banner 
 echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} service${NC} ${SCRIPT_VERSION} ..."
+echo -e "${CYAN}[Arrbit]${NC} Initializing modules..."
 
 # --- 1. Check ENABLE_AUTOCONFIG flag first, fail fast with warning if not true ---
 ENABLE_AUTOCONFIG=$(getFlag ENABLE_AUTOCONFIG)
