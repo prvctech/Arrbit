@@ -1,52 +1,21 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
-# Arrbit - dependencies
-# Version: v1.0-gs2.6
-# Purpose: Install / upgrade all system and Python dependencies for Arrbit.
+# Arrbit - dependencies.bash
+# Version: v1.4-gs2.7.1
+# Purpose: Installs required Alpine system packages and Python modules (idempotent, GS-compliant, log to file)
 # -------------------------------------------------------------------------------------------------------------
 
-# -------- load logging & helpers (Golden Standard) -----------------------------------------------------------
-HELPERS_DIR="/config/arrbit/helpers"
-LOG_DIR="/config/logs"
-mkdir -p "$LOG_DIR" "$HELPERS_DIR"
-source "$HELPERS_DIR/logging_utils.bash"
-source "$HELPERS_DIR/helpers.bash"
-arrbitPurgeOldLogs 2
-
-# -------- constants & vars -----------------------------------------------------------------
 SCRIPT_NAME="dependencies"
-SCRIPT_VERSION="v1.0-gs2.6"
-LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
-DEPS_MARKER="$HELPERS_DIR/deps_version.txt"
+SCRIPT_VERSION="v1.4-gs2.7.1"
+LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-# -------- banner (GREEN for module name, CYAN for [Arrbit]) -------------------------------
-echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} service${NC} ${SCRIPT_VERSION}"
+source /config/arrbit/helpers/logging_utils.bash
 
-# -------- load old deps marker (if present) -----------------------------------------------
-if [[ -f "$DEPS_MARKER" ]]; then
-  # shellcheck source=/dev/null
-  source "$DEPS_MARKER"
-fi
+arrbitPurgeOldLogs
 
-# -------- dependency check logic ----------------------------------------------------------
-needs_install=false
-command -v atomicparsley >/dev/null 2>&1 || needs_install=true
-
-if [[ "${depsversion:-}" == "$SCRIPT_VERSION" && "$needs_install" == false ]]; then
-  log_info "All dependencies are already installed and up-to-date. Skipping installation."
-  log_info "Log saved to $LOG_FILE"
-  exit 0
-fi
-
-if [[ -n "${depsversion:-}" && "$depsversion" != "$SCRIPT_VERSION" ]]; then
-  log_info "Upgrading dependencies to match $SCRIPT_VERSION..."
-else
-  log_info "Installing dependencies..."
-fi
-
-# -------- system packages -----------------------------------------------------------------
-apk add -U --upgrade --no-cache \
+# --- Install all system packages (Alpine only), log everything to file ---
+apk add --no-cache --upgrade \
   tidyhtml \
   musl-locales \
   musl-locales-lang \
@@ -64,30 +33,35 @@ apk add -U --upgrade --no-cache \
   uv \
   parallel \
   npm \
-  ripgrep >>"$LOG_FILE" 2>&1
+  ripgrep \
+  atomicparsley \
+  python3 \
+  py3-pip >>"$LOG_FILE" 2>&1
 
-apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/testing atomicparsley >>"$LOG_FILE" 2>&1
+# --- Always install yq (pip version, provides xq and yq everywhere) ---
+if ! xq --version >/dev/null 2>&1 || ! yq --version >/dev/null 2>&1; then
+  pip3 install --break-system-packages --upgrade yq >>"$LOG_FILE" 2>&1
+fi
 
-# -------- Python packages -----------------------------------------------------------------
-uv pip install --system --upgrade --no-cache-dir --break-system-packages \
-  jellyfish \
-  beautifulsoup4 \
-  yt-dlp \
-  beets \
-  yq \
-  pyxDamerauLevenshtein \
-  pyacoustid \
-  requests \
-  colorama \
-  python-telegram-bot \
-  pylast \
-  mutagen \
-  r128gain >>"$LOG_FILE" 2>&1
+# --- Post-install verification (log_error if missing) ---
+missing=""
+for cmd in atomicparsley python3 pip3 xq yq jq git gcc ffmpeg ffprobe imagemagick npm ripgrep parallel uv; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    missing="$missing $cmd"
+  fi
+done
 
-# -------- update marker -------------------------------------------------------------------
-echo "depsversion=$SCRIPT_VERSION" >"$DEPS_MARKER"
+if [[ -n "$missing" ]]; then
+  log_error "Missing required dependencies after install:$missing (see log at /config/logs)"
+  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR One or more required dependencies are missing after setup:$missing
+[WHY]: Installation failed or not on PATH.
+[FIX]: Ensure all dependencies are installed and available in the system PATH.
+EOF
+  exit 1
+else
+  log_info "All required dependencies are present."
+fi
 
-log_info "Done with $SCRIPT_NAME."
-log_info "Log saved to $LOG_FILE"
-
+log_info "Done."
 exit 0
