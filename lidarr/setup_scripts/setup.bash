@@ -1,75 +1,81 @@
 #!/usr/bin/env bash
-# -------------------------------------------------------------------------------------------------------------
-# Arrbit - setup
-# Version: v1.4-gs2.7.1
-# Purpose: Bootstraps Arrbit: downloads, installs, and initializes everything into /config/arrbit. SILENT except fatal error.
-# -------------------------------------------------------------------------------------------------------------
 
-set -euo pipefail
-
-ARRBIT_ROOT="/config/arrbit"
-TMP_DIR="/tmp/arrbit_dl_$$"
-ZIP_URL="https://github.com/prvctech/Arrbit/archive/refs/heads/main.zip"
-REPO_MAIN="$TMP_DIR/Arrbit-main/lidarr"
-REPO_UNIVERSAL="$TMP_DIR/Arrbit-main/universal"
-
-# --- Ensure Arrbit root and tmp dir exist ---
-mkdir -p "$ARRBIT_ROOT" "$ARRBIT_ROOT/tmp"
-chmod 777 "$ARRBIT_ROOT/tmp"
-mkdir -p "$TMP_DIR"
-
-cd "$TMP_DIR"
-
-# --- Download and extract repo ---
-if ! curl -fsSL "$ZIP_URL" -o arrbit.zip; then
-    echo "[Arrbit] ERROR: Failed to download repository. Check network and URL."
-    exit 1
-fi
-unzip -qqo arrbit.zip
-
-# --- Copy helpers and connectors from universal ---
-cp -r "$REPO_UNIVERSAL/helpers" "$ARRBIT_ROOT/"
-cp -r "$REPO_UNIVERSAL/connectors" "$ARRBIT_ROOT/"
-
-# --- Switch to Golden Standard logging as soon as helpers are present ---
-HELPERS_DIR="$ARRBIT_ROOT/helpers"
-LOG_DIR="/config/logs"
-mkdir -p "$LOG_DIR"
-source "$HELPERS_DIR/logging_utils.bash"
-source "$HELPERS_DIR/helpers.bash"
-arrbitPurgeOldLogs 2
-
-SCRIPT_NAME="setup"
-SCRIPT_VERSION="v1.4-gs2.7.1"
-LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+SCRIPT_NAME="dependencies"
+SCRIPT_VERSION="v2.5-gs2.7.1"
+LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-# --- Copy modules and services ---
-cp -rf "$REPO_MAIN/process_scripts/modules/."   "$ARRBIT_ROOT/modules/"
-cp -rf "$REPO_MAIN/process_scripts/services/."  "$ARRBIT_ROOT/services/"
+source /config/arrbit/helpers/logging_utils.bash
+arrbitPurgeOldLogs
 
-# --- Copy custom process scripts if they exist ---
-if [[ -d "$REPO_MAIN/process_scripts/custom" ]]; then
-    cp -rf "$REPO_MAIN/process_scripts/custom" "$ARRBIT_ROOT/"
-fi
+# ---- BANNER (Only one echo allowed) ----
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting dependencies setup ${NC}${SCRIPT_VERSION}..."
 
-# --- Copy setup scripts except setup.bash and run ---
-mkdir -p "$ARRBIT_ROOT/setup"
-find "$REPO_MAIN/setup_scripts" -type f ! -name "setup.bash" ! -name "run" -exec cp -f {} "$ARRBIT_ROOT/setup/" \;
-
-# --- Ensure config directory exists ---
-mkdir -p "$ARRBIT_ROOT/config"
-
-# --- Copy each config file ONLY if it does NOT already exist ---
-for src_file in "$REPO_MAIN/config/"*; do
-  filename="$(basename "$src_file")"
-  dest_file="$ARRBIT_ROOT/config/$filename"
-  if [[ ! -f "$dest_file" ]]; then
-    cp -f "$src_file" "$dest_file"
-    chmod 777 "$dest_file"
+REQUIRED_CMDS="beet atomicparsley python3 uv eyed3 yq vorbiscomment metaflac opustags"
+missing=""
+for cmd in $REQUIRED_CMDS; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    missing="$missing $cmd"
   fi
 done
 
-chmod -R 777 "$ARRBIT_ROOT"
+if [[ -z "$missing" ]]; then
+  log_info "All required dependencies are present."
+  log_info "Done."
+  exit 0
+else
+  # Minimal status, Arrbit GS: only print if something will be installed
+  echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Installing missing dependencies...${NC}"
+  log_info "Missing dependencies detected: $missing"
+fi
 
+# --- Install dependencies (all logs to $LOG_FILE, never echo) ---
+apk add --no-cache uv >>"$LOG_FILE" 2>&1
+
+apk add --no-cache \
+  tidyhtml \
+  musl-locales \
+  musl-locales-lang \
+  flac \
+  jq \
+  git \
+  gcc \
+  ffmpeg \
+  imagemagick \
+  opus-tools \
+  opustags \
+  python3 \
+  vorbis-tools \
+  parallel \
+  npm \
+  ripgrep >>"$LOG_FILE" 2>&1
+
+apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/community beets >>"$LOG_FILE" 2>&1
+apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/testing atomicparsley >>"$LOG_FILE" 2>&1
+
+uv pip install --system --upgrade --no-cache-dir --break-system-packages \
+  eyed3 yq mutagen beautifulsoup4 jellyfish pyacoustid requests >>"$LOG_FILE" 2>&1
+
+# Eyed3 CLI wrapper (if needed)
+if ! command -v eyed3 >/dev/null 2>&1; then
+  echo '#!/bin/sh' > /usr/local/bin/eyed3
+  echo 'exec python3 -m eyed3.main "$@"' >> /usr/local/bin/eyed3
+  chmod +x /usr/local/bin/eyed3
+fi
+
+# --- Final post-install check ---
+missing=""
+for cmd in $REQUIRED_CMDS; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    missing="$missing $cmd"
+  fi
+done
+
+if [[ -n "$missing" ]]; then
+  log_error "Missing required dependencies after install: $missing (see log at /config/logs)"
+  exit 1
+fi
+
+log_info "All required dependencies are present."
+log_info "Done."
 exit 0
