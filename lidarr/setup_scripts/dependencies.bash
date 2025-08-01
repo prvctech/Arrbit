@@ -52,7 +52,7 @@ fi
 # --- If eyed3 still not found, create a wrapper for python3 -m eyed3 ---
 if ! command -v eyed3 >/dev/null 2>&1; then
   echo '#!/bin/sh' > /usr/local/bin/eyed3
-  echo 'exec python3 -m eyed3 "$@"' >> /usr/local/bin/eyed3
+  echo 'exec python3 -m eyed3.main "$@"' >> /usr/local/bin/eyed3
   chmod +x /usr/local/bin/eyed3
 fi
 
