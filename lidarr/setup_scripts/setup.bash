@@ -59,6 +59,8 @@ find "$REPO_MAIN/setup_scripts" -type f ! -name "setup.bash" ! -name "run" -exec
 
 # --- Ensure config directory exists ---
 mkdir -p "$ARRBIT_ROOT/config"
+mkdir -p /config/plugins
+chmod 777 /config/plugins
 
 # --- Copy each config file ONLY if it does NOT already exist ---
 for src_file in "$REPO_MAIN/config/"*; do
