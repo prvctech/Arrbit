@@ -38,8 +38,11 @@ apk add --no-cache --upgrade \
   ripgrep \
   atomicparsley \
   python3 \
-  py3-pip >>"$LOG_FILE" 2>&1
-
+  py3-pip \
+  py3-eyed3 \
+  vorbis-tools \
+  >>"$LOG_FILE" 2>&1
+  
 # --- Always install yq (pip version, provides xq and yq everywhere) ---
 if ! xq --version >/dev/null 2>&1 || ! yq --version >/dev/null 2>&1; then
   pip3 install --break-system-packages --upgrade yq >>"$LOG_FILE" 2>&1
