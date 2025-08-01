@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - dependencies.bash
-# Version: v1.4-gs2.7.1
+# Version: v1.5-gs2.7.1
 # Purpose: Installs required Alpine system packages and Python modules (idempotent, GS-compliant, log to file)
 # -------------------------------------------------------------------------------------------------------------
 
 SCRIPT_NAME="dependencies"
-SCRIPT_VERSION="v1.4-gs2.7.1"
+SCRIPT_VERSION="v1.5-gs2.7.1"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
@@ -41,8 +41,14 @@ apk add --no-cache --upgrade \
   py3-pip \
   eyed3 \
   vorbis-tools \
-  >>"$LOG_FILE" 2>&1
-  
+  >>"$LOG_FILE" 2>&1 || true
+
+# --- If eyed3 still not available (not on PATH), fallback to pip install ---
+if ! command -v eyed3 >/dev/null 2>&1; then
+  pip3 install --break-system-packages --upgrade eyed3 >>"$LOG_FILE" 2>&1
+  export PATH="$PATH:~/.local/bin:$PATH"
+fi
+
 # --- Always install yq (pip version, provides xq and yq everywhere) ---
 if ! xq --version >/dev/null 2>&1 || ! yq --version >/dev/null 2>&1; then
   pip3 install --break-system-packages --upgrade yq >>"$LOG_FILE" 2>&1
