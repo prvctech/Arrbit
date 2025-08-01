@@ -74,7 +74,5 @@ if [[ -n "$missing" ]]; then
   log_error "Missing required dependencies after install: $missing (see log at /config/logs)"
   exit 1
 fi
-
-echo -e "${CYAN}[Arrbit]${NC} All required dependencies are present."
-log_info "All required dependencies are present."
+log_info "Done"
 exit 0
