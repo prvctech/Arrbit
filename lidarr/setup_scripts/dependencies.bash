@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 
 SCRIPT_NAME="dependencies"
-SCRIPT_VERSION="v2.4-gs2.7.1"
+SCRIPT_VERSION="v2.5-gs2.7.1"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
 source /config/arrbit/helpers/logging_utils.bash
 arrbitPurgeOldLogs
 
-# ---- BANNER ----
+# ---- BANNER (Only one echo allowed) ----
 echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting dependencies setup ${NC}${SCRIPT_VERSION}..."
 
 REQUIRED_CMDS="beet atomicparsley python3 uv eyed3 yq vorbiscomment metaflac opustags"
@@ -20,17 +20,16 @@ for cmd in $REQUIRED_CMDS; do
 done
 
 if [[ -z "$missing" ]]; then
-  echo -e "${CYAN}[Arrbit]${NC} All required dependencies are present."
-  echo -e "${CYAN}[Arrbit]${NC} Done."
   log_info "All required dependencies are present."
   log_info "Done."
   exit 0
 else
+  # Minimal status, Arrbit GS: only print if something will be installed
   echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Installing missing dependencies...${NC}"
   log_info "Missing dependencies detected: $missing"
 fi
 
-# --- Install dependencies (all logs to $LOG_FILE) ---
+# --- Install dependencies (all logs to $LOG_FILE, never echo) ---
 apk add --no-cache uv >>"$LOG_FILE" 2>&1
 
 apk add --no-cache \
@@ -76,5 +75,7 @@ if [[ -n "$missing" ]]; then
   log_error "Missing required dependencies after install: $missing (see log at /config/logs)"
   exit 1
 fi
+
+log_info "All required dependencies are present."
 log_info "Done."
 exit 0
