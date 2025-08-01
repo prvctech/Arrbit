@@ -11,6 +11,8 @@ echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting dependencies setup ${NC} ${SCRIPT
 # UV first
 apk add --no-cache uv >>"$LOG_FILE" 2>&1
 
+# Core Alpine packages
+apk add --no-cache uv
 apk add --no-cache \
   tidyhtml \
   musl-locales \
@@ -27,10 +29,14 @@ apk add --no-cache \
   vorbis-tools \
   parallel \
   npm \
-  ripgrep \
-  beets >>"$LOG_FILE" 2>&1
+  ripgrep
 
-apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/testing atomicparsley >>"$LOG_FILE" 2>&1
+# Beets from edge community
+apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/community beets
+
+# AtomicParsley from edge/testing
+apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/testing atomicparsley
+
 
 # Python tools via uv if necessary
 uv pip install --system --upgrade --no-cache-dir --break-system-packages \
