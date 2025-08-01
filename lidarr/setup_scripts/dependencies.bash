@@ -1,84 +1,46 @@
 #!/usr/bin/env bash
-# -------------------------------------------------------------------------------------------------------------
-# Arrbit - dependencies.bash
-# Version: v1.6-gs2.7.1
-# Purpose: Installs required Alpine system packages and Python modules (idempotent, GS-compliant, log to file)
-# -------------------------------------------------------------------------------------------------------------
-
 SCRIPT_NAME="dependencies"
-SCRIPT_VERSION="v1.6-gs2.7.1"
+SCRIPT_VERSION="v1.7-gs2.7.1"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
 source /config/arrbit/helpers/logging_utils.bash
-
 arrbitPurgeOldLogs
 
-# ---- BANNER ----
-echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting dependencies setup ${NC} ${SCRIPT_VERSION}..."
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting dependencies setup ${SCRIPT_VERSION}..."
 
-# --- Install all system packages (Alpine only), log everything to file ---
+# --- Install system packages ---
 apk add --no-cache --upgrade \
-  tidyhtml \
-  musl-locales \
-  musl-locales-lang \
-  flac \
-  jq \
-  git \
-  gcc \
-  ffmpeg \
-  imagemagick \
-  opus-tools \
-  opustags \
-  python3-dev \
-  libc-dev \
-  uv \
-  parallel \
-  npm \
-  ripgrep \
-  atomicparsley \
-  python3 \
-  py3-pip \
-  eyed3 \
-  vorbis-tools \
-  >>"$LOG_FILE" 2>&1 || true
+  tidyhtml musl-locales musl-locales-lang flac jq git gcc ffmpeg imagemagick opus-tools opustags python3-dev libc-dev parallel npm ripgrep python3 python3-pip vorbis-tools uv >>"$LOG_FILE" 2>&1
 
-# --- If eyed3 still not available (not on PATH), fallback to pip install ---
-if ! command -v eyed3 >/dev/null 2>&1; then
-  pip3 install --break-system-packages --upgrade eyed3 >>"$LOG_FILE" 2>&1
-  export PATH="/usr/local/bin:$HOME/.local/bin:$PATH"
-fi
+# --- AtomicParsley from edge/testing ---
+apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/testing atomicparsley >>"$LOG_FILE" 2>&1 || {
+  log_error "Failed to install atomicparsley"
+  exit 1
+}
 
-# --- If eyed3 still not found, create a wrapper for python3 -m eyed3 ---
+# --- Python dependencies via uv ---
+uv pip install --system --upgrade --no-cache-dir --break-system-packages \
+  eyed3 yq mutagen beautifulsoup4 jellyfish pyacoustid requests >>"$LOG_FILE" 2>&1
+
+# --- Wrapper for eyed3 ---
 if ! command -v eyed3 >/dev/null 2>&1; then
   echo '#!/bin/sh' > /usr/local/bin/eyed3
   echo 'exec python3 -m eyed3.main "$@"' >> /usr/local/bin/eyed3
   chmod +x /usr/local/bin/eyed3
 fi
 
-# --- Always install yq (pip version, provides xq and yq everywhere) ---
-if ! xq --version >/dev/null 2>&1 || ! yq --version >/dev/null 2>&1; then
-  pip3 install --break-system-packages --upgrade yq >>"$LOG_FILE" 2>&1
-fi
-
-# --- Post-install verification (log_error if missing) ---
+# --- Final verification ---
 missing=""
-for cmd in atomicparsley python3 pip3 xq yq jq git gcc ffmpeg magick rg npm parallel uv eyed3 vorbiscomment metaflac opustags; do
+for cmd in atomicparsley python3 pip3 uv eyed3 vorbiscomment metaflac opustags yq; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     missing="$missing $cmd"
   fi
 done
 
 if [[ -n "$missing" ]]; then
-  log_error "Missing required dependencies after install:$missing (see log at /config/logs)"
-  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR One or more required dependencies are missing after setup:$missing
-[WHY]: Installation failed or not on PATH.
-[FIX]: Ensure all dependencies are installed and available in the system PATH.
-EOF
+  log_error "Missing required dependencies:$missing"
   exit 1
-else
-  log_info "All required dependencies are present."
 fi
 
 log_info "Done."
