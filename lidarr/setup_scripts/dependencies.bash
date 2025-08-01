@@ -39,7 +39,7 @@ apk add --no-cache --upgrade \
   atomicparsley \
   python3 \
   py3-pip \
-  py3-eyed3 \
+  eyed3 \
   vorbis-tools \
   >>"$LOG_FILE" 2>&1
   
@@ -50,7 +50,7 @@ fi
 
 # --- Post-install verification (log_error if missing) ---
 missing=""
-for cmd in atomicparsley python3 pip3 xq yq jq git gcc ffmpeg magick rg npm parallel uv vorbiscomment metaflac opustags; do
+for cmd in atomicparsley python3 pip3 xq yq jq git gcc ffmpeg magick rg npm parallel uv eyed3 vorbiscomment metaflac opustags; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     missing="$missing $cmd"
   fi
