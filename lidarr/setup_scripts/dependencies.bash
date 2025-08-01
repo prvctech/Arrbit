@@ -51,7 +51,7 @@ fi
 
 # Final verification
 missing=""
-for cmd in beets beet atomicparsley python3 uv eyed3 yq vorbiscomment metaflac opustags; do
+for cmd in beet atomicparsley python3 uv eyed3 yq vorbiscomment metaflac opustags; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     missing="$missing $cmd"
   fi
