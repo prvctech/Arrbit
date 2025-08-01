@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - tagger.bash
-# Version: v0.2-gs2.7.1
-# Purpose: Tags music after Lidarr import, using arr_bridge for API info, then cleans/sets tags with metaflac.
+# Version: v0.3-gs2.7.1
+# Purpose: Tags music after Lidarr import, using arr_bridge to get album artist, cleans FLAC tags with metaflac.
 # -------------------------------------------------------------------------------------------------------------
 
 SCRIPT_NAME="tagger"
-SCRIPT_VERSION="v0.2-gs2.7.1"
+SCRIPT_VERSION="v0.3-gs2.7.1"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
@@ -24,19 +24,25 @@ if [[ -z "$ALBUM_PATH" || ! -d "$ALBUM_PATH" ]]; then
   log_error "lidarr_release_folder is not set or is not a valid directory (see log at /config/logs)"
   exit 1
 fi
-
 log_info "Tagger starting for album path: $ALBUM_PATH"
 
-# --- 2. Query Lidarr API for album artist (GS via arr_bridge) ---
-arr_api_init "lidarr"
-album_artist=$(arr_api_album_artist "$ALBUM_PATH")
-if [[ -z "$album_artist" ]]; then
+# --- 2. Use arr_bridge to get album info and artist ---
+# URL-encode ALBUM_PATH for API search
+encoded_album_path=$(python3 -c 'import urllib.parse,os; print(urllib.parse.quote(os.environ["ALBUM_PATH"]))' )
+api_url="${arrUrl}/api/${arrApiVersion}/album?path=${encoded_album_path}&apikey=${arrApiKey}"
+album_json=$(arr_api "$api_url")
+
+# Extract artist name (uses first result if multiple)
+album_artist=$(echo "$album_json" | jq -r '.[0].artist.artistName // empty')
+
+if [[ -z "$album_artist" || "$album_artist" == "null" ]]; then
   log_error "Could not retrieve album artist from Lidarr API for path: $ALBUM_PATH"
   exit 1
 fi
+
 log_info "Album artist from Lidarr: $album_artist"
 
-# --- 3. Process FLAC files ---
+# --- 3. Clean and set tags on all FLAC files ---
 shopt -s nullglob
 for flacfile in "$ALBUM_PATH"/*.flac; do
   log_info "Cleaning FLAC tags for: $flacfile"
@@ -46,7 +52,7 @@ for flacfile in "$ALBUM_PATH"/*.flac; do
     metaflac --remove-tag="$tag" "$flacfile" >>"$LOG_FILE" 2>&1
   done
 
-  # Set artist tags to Lidarr artist
+  # Set tags to album artist from Lidarr
   for tag in ALBUMARTIST ALBUMARTISTSORT "ALBUM ARTIST" ALBUM_ARTIST; do
     metaflac --set-tag="$tag=$album_artist" "$flacfile" >>"$LOG_FILE" 2>&1
   done
