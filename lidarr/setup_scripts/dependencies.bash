@@ -43,10 +43,11 @@ apk add --no-cache --upgrade \
   vorbis-tools \
   >>"$LOG_FILE" 2>&1 || true
 
-# --- If eyed3 still not available (not on PATH), fallback to pip install ---
+# If eyed3 still missing, create a wrapper script pointing to the module
 if ! command -v eyed3 >/dev/null 2>&1; then
-  pip3 install --break-system-packages --upgrade eyed3 >>"$LOG_FILE" 2>&1
-  export PATH="$PATH:~/.local/bin:$PATH"
+  echo '#!/bin/sh' > /usr/local/bin/eyed3
+  echo 'exec python3 -m eyed3 "$@"' >> /usr/local/bin/eyed3
+  chmod +x /usr/local/bin/eyed3
 fi
 
 # --- Always install yq (pip version, provides xq and yq everywhere) ---
