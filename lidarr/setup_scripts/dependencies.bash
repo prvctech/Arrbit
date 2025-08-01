@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 SCRIPT_NAME="dependencies"
-SCRIPT_VERSION="v2.3-gs2.7.1"
+SCRIPT_VERSION="v2.4-gs2.7.1"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
@@ -21,14 +21,16 @@ done
 
 if [[ -z "$missing" ]]; then
   echo -e "${CYAN}[Arrbit]${NC} All required dependencies are present."
+  echo -e "${CYAN}[Arrbit]${NC} Done."
   log_info "All required dependencies are present."
+  log_info "Done."
   exit 0
 else
   echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Installing missing dependencies...${NC}"
   log_info "Missing dependencies detected: $missing"
 fi
 
-# --- Install dependencies (quiet, all output to $LOG_FILE) ---
+# --- Install dependencies (all logs to $LOG_FILE) ---
 apk add --no-cache uv >>"$LOG_FILE" 2>&1
 
 apk add --no-cache \
@@ -62,7 +64,7 @@ if ! command -v eyed3 >/dev/null 2>&1; then
   chmod +x /usr/local/bin/eyed3
 fi
 
-# --- Final post-install check (only shows in terminal once) ---
+# --- Final post-install check ---
 missing=""
 for cmd in $REQUIRED_CMDS; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
@@ -74,5 +76,9 @@ if [[ -n "$missing" ]]; then
   log_error "Missing required dependencies after install: $missing (see log at /config/logs)"
   exit 1
 fi
-log_info "Done"
+
+echo -e "${CYAN}[Arrbit]${NC} All required dependencies are present."
+echo -e "${CYAN}[Arrbit]${NC} Done."
+log_info "All required dependencies are present."
+log_info "Done."
 exit 0
