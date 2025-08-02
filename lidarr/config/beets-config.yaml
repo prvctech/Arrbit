@@ -1,5 +1,5 @@
 directory: /data/media/music/personal
-library: /config/beetslibrary.blb
+library: /config/arrbit/beetslibrary.blb
 import:
     move: yes
     copy: no
