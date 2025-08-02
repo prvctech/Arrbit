@@ -5,6 +5,12 @@
 # Purpose: Tags FLAC metadata after Lidarr import. Uses Lidarr API (via arr_bridge) and sets/cleans artist fields.
 # -------------------------------------------------------------------------------------------------------------
 
+# --- TEST BUTTON SKIP LOGIC ---
+if [[ "${lidarr_eventtype:-}" == "Test" ]] || [[ -z "${lidarr_release_folder:-}" ]]; then
+  log_info "Lidarr Test event detected or lidarr_release_folder unset. Exiting cleanly."
+  exit 0
+fi
+
 SCRIPT_NAME="tagger"
 SCRIPT_VERSION="v0.4-gs2.7.1"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
