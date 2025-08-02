@@ -31,8 +31,8 @@ fi
 payload='{
   "renameTracks": true,
   "replaceIllegalCharacters": true,
-  "standardTrackFormat": "{Artist CleanName} - {Album Type} - {Release Year} - {Album CleanTitle}/{medium:00}{track:00} - {Track CleanTitle}",
-  "multiDiscTrackFormat": "{Artist CleanName} - {Album Type} - {Release Year} - {Album CleanTitle}/{medium:00}{track:00} - {Track CleanTitle}",
+  "standardTrackFormat": "{Artist Name} - {Album Type} - {Release Year} - {Album CleanTitle}/{medium:00}{track:00} - {Track CleanTitle}",
+  "multiDiscTrackFormat": "{Artist Name} - {Album Type} - {Release Year} - {Album CleanTitle}/{medium:00}{track:00} - {Track CleanTitle}",
   "artistFolderFormat": "{Artist Name} {(Artist Disambiguation)}",
   "includeArtistName": false,
   "includeAlbumTitle": false,
