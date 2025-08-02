@@ -33,7 +33,7 @@ payload='{
   "replaceIllegalCharacters": true,
   "standardTrackFormat": "{Artist CleanName} - {Album Type} - {Release Year} - {Album CleanTitle}/{medium:00}{track:00} - {Track CleanTitle}",
   "multiDiscTrackFormat": "{Artist CleanName} - {Album Type} - {Release Year} - {Album CleanTitle}/{medium:00}{track:00} - {Track CleanTitle}",
-  "artistFolderFormat": "{Artist CleanName} {(Artist Disambiguation)}",
+  "artistFolderFormat": "{Artist Name} {(Artist Disambiguation)}",
   "includeArtistName": false,
   "includeAlbumTitle": false,
   "includeQuality": false,
