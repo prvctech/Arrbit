@@ -1,7 +1,7 @@
 directory: /data/media/music/personal
 library: /config/arrbit/beetslibrary.blb
 import:
-    move: yes
+    move: no
     copy: no
     write: yes
     resume: ask
