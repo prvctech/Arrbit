@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - tagger.bash
-# Version: v1.0-gs2.7.1
-# Purpose: Enhanced FLAC metadata tagger for Lidarr imports. Handles featuring artists, integrates with Beets,
-#          and ensures proper metadata for Plex compatibility.
+# Version: v1.1-gs2.7.1
+# Purpose: Enhanced FLAC metadata tagger for Lidarr imports. Uses album ID for reliable album identification,
+#          handles featuring artists, integrates with Beets, and ensures proper metadata for Plex compatibility.
 # -------------------------------------------------------------------------------------------------------------
 
 SCRIPT_NAME="tagger"
-SCRIPT_VERSION="v1.0-gs2.7.1"
+SCRIPT_VERSION="v1.1-gs2.7.1"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
@@ -25,48 +25,35 @@ fi
 # ---- BANNER ----
 echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting tagger module ${NC}${SCRIPT_VERSION}..."
 
-# --- 1. Validate environment and paths ---
-ALBUM_PATH="${lidarr_release_folder:-}"
+# --- 1. Get album ID from Lidarr event or command line ---
+ALBUM_ID="${lidarr_album_id:-}"
 
-# If album path not set via Lidarr event, check for manual override
-if [[ -z "$ALBUM_PATH" ]]; then
-  if [[ -n "$1" && -d "$1" ]]; then
-    ALBUM_PATH="$1"
-    log_info "Using manually provided album path: $ALBUM_PATH"
+# If album ID not set via Lidarr event, check for manual override
+if [[ -z "$ALBUM_ID" ]]; then
+  if [[ -n "$1" ]]; then
+    ALBUM_ID="$1"
+    log_info "Using manually provided album ID: $ALBUM_ID"
   else
-    log_error "No valid album path provided (see log at /config/logs)"
+    log_error "No album ID provided (see log at /config/logs)"
     cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR No valid album path provided
-[WHY]: lidarr_release_folder environment variable is not set and no valid path was provided as argument
-[FIX]: Either run this script from Lidarr's Connect settings or provide a valid directory path as argument
+[Arrbit] ERROR No album ID provided
+[WHY]: lidarr_album_id environment variable is not set and no ID was provided as argument
+[FIX]: Either run this script from Lidarr's Connect settings or provide an album ID as argument
 EOF
     exit 1
   fi
 fi
 
-if [[ ! -d "$ALBUM_PATH" ]]; then
-  log_error "Album path is not a valid directory: $ALBUM_PATH (see log at /config/logs)"
-  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR Album path is not a valid directory
-[WHY]: The specified path does not exist or is not a directory
-[FIX]: Check that the path exists and is accessible
-EOF
-  exit 1
-fi
-
-log_info "Tagger started for album path: $ALBUM_PATH"
-
-# --- 2. Query Lidarr API for album and artist details ---
-encoded_album_path=$(python3 -c 'import urllib.parse,os; print(urllib.parse.quote(os.environ["ALBUM_PATH"]))')
-api_url="${arrUrl}/api/${arrApiVersion}/album?path=${encoded_album_path}&apikey=${arrApiKey}"
+# --- 2. Query Lidarr API for album details using album ID ---
+api_url="${arrUrl}/api/${arrApiVersion}/album/${ALBUM_ID}?apikey=${arrApiKey}"
 album_json=$(arr_api "$api_url")
 
 # Check if API call was successful
-if ! echo "$album_json" | jq -e '.[0]' >/dev/null 2>&1; then
+if ! echo "$album_json" | jq -e '.id' >/dev/null 2>&1; then
   log_error "Failed to retrieve album information from Lidarr API (see log at /config/logs)"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
 [Arrbit] ERROR Failed to retrieve album information from Lidarr API
-[WHY]: API call failed or returned invalid data
+[WHY]: API call failed or returned invalid data for album ID: $ALBUM_ID
 [FIX]: Check Lidarr API connectivity and verify the album exists in Lidarr
 [API Response]
 $album_json
@@ -76,10 +63,10 @@ EOF
 fi
 
 # Extract album and artist details
-album_id=$(echo "$album_json" | jq -r '.[0].id')
-album_title=$(echo "$album_json" | jq -r '.[0].title')
-album_artist=$(echo "$album_json" | jq -r '.[0].artist.artistName')
-album_release_date=$(echo "$album_json" | jq -r '.[0].releaseDate')
+album_title=$(echo "$album_json" | jq -r '.title')
+album_artist=$(echo "$album_json" | jq -r '.artist.artistName')
+album_artist_path=$(echo "$album_json" | jq -r '.artist.path')
+album_release_date=$(echo "$album_json" | jq -r '.releaseDate')
 album_year=$(echo "$album_release_date" | cut -d'-' -f1)
 
 if [[ -z "$album_artist" || "$album_artist" == "null" ]]; then
@@ -97,20 +84,51 @@ fi
 
 log_info "Album details from Lidarr: '$album_title' by '$album_artist' ($album_year)"
 
-# --- 3. Get track information for featuring artists ---
-tracks_url="${arrUrl}/api/${arrApiVersion}/track?albumId=${album_id}&apikey=${arrApiKey}"
+# --- 3. Get track file information to determine album path ---
+tracks_url="${arrUrl}/api/${arrApiVersion}/trackFile?albumId=${ALBUM_ID}&apikey=${arrApiKey}"
 tracks_json=$(arr_api "$tracks_url")
 
 if ! echo "$tracks_json" | jq -e '.[0]' >/dev/null 2>&1; then
-  log_warning "No track information found for album ID: $album_id"
+  log_error "No track files found for album ID: $ALBUM_ID (see log at /config/logs)"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] WARNING No track information found for album ID: $album_id
-[WHY]: The album may not have any tracks or the API call failed
-[FIX]: Check that the album has tracks in Lidarr
+[Arrbit] ERROR No track files found for album ID: $ALBUM_ID
+[WHY]: The album may not have any track files or the API call failed
+[FIX]: Check that the album has track files in Lidarr
+[API Response]
+$tracks_json
+[/API Response]
 EOF
+  exit 1
 fi
 
-# --- 4. Run Beets import on the album directory ---
+# Get the first track path and extract the album folder path
+track_path=$(echo "$tracks_json" | jq -r '.[0].path')
+ALBUM_PATH=$(dirname "$track_path")
+album_folder_name=$(basename "$ALBUM_PATH")
+
+# Verify the album path exists and is within the artist path
+if [[ ! -d "$ALBUM_PATH" ]]; then
+  log_error "Album path does not exist: $ALBUM_PATH (see log at /config/logs)"
+  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR Album path does not exist: $ALBUM_PATH
+[WHY]: The directory derived from track file path does not exist
+[FIX]: Check that the album directory exists and is accessible
+EOF
+  exit 1
+fi
+
+# Verify the album path is within the artist path
+if ! echo "$ALBUM_PATH" | grep -q "$album_artist_path"; then
+  log_warning "Album path ($ALBUM_PATH) is not within artist path ($album_artist_path)"
+fi
+
+log_info "Processing album: $album_folder_name at path: $ALBUM_PATH"
+
+# --- 4. Get track information for featuring artists ---
+tracks_info_url="${arrUrl}/api/${arrApiVersion}/track?albumId=${ALBUM_ID}&apikey=${arrApiKey}"
+tracks_info_json=$(arr_api "$tracks_info_url")
+
+# --- 5. Run Beets import on the album directory ---
 log_info "Running Beets import on album directory"
 
 # Create a temporary beets config that points to the main config
@@ -146,7 +164,7 @@ fi
 # Clean up temp config
 rm -rf "$TEMP_CONFIG_DIR"
 
-# --- 5. Process FLAC files to ensure featuring artists are properly tagged ---
+# --- 6. Process FLAC files to ensure featuring artists are properly tagged ---
 shopt -s nullglob
 flac_files=("$ALBUM_PATH"/*.flac)
 
@@ -189,71 +207,49 @@ else:
 }
 
 # Process each FLAC file
+fixed=0
 for flac_file in "${flac_files[@]}"; do
-  filename=$(basename "$flac_file")
-  log_info "Processing FLAC file: $filename"
+  if [[ $fixed -eq 0 ]]; then
+    fixed=$((fixed + 1))
+    log_info "Fixing FLAC tags..."
+  fi
   
-  # Get track information from filename
+  filename=$(basename "$flac_file")
+  
+  # Get track information from file
   track_title=$(metaflac --show-tag=TITLE "$flac_file" | sed 's/^TITLE=//i')
   track_artist=$(metaflac --show-tag=ARTIST "$flac_file" | sed 's/^ARTIST=//i')
   
-  # Look for featuring artists in track title or artist
-  featuring_match=""
-  if [[ "$track_title" =~ [Ff]eat\.?|[Ff]eaturing|[Ww]ith|[Ff]t\.? ]]; then
-    featuring_match="$track_title"
-  elif [[ "$track_artist" =~ [Ff]eat\.?|[Ff]eaturing|[Ww]ith|[Ff]t\.?|&|[Aa]nd ]]; then
-    featuring_match="$track_artist"
-  fi
+  # Get artist credit from ffprobe (similar to NINJA's BeetsTagger approach)
+  artist_credit=$(ffprobe -loglevel 0 -print_format json -show_format -show_streams "$flac_file" | jq -r ".format.tags.ARTIST_CREDIT" | sed "s/null//g" | sed "/^$/d")
   
-  # If we have a featuring artist, normalize the format
-  if [[ -n "$featuring_match" ]]; then
-    # Try to find the track in the Lidarr API response
-    track_info=$(echo "$tracks_json" | jq -r --arg title "$track_title" '.[] | select(.title == $title)')
-    
-    if [[ -n "$track_info" && "$track_info" != "null" ]]; then
-      # Get the track title and artist from Lidarr
-      lidarr_title=$(echo "$track_info" | jq -r '.title')
-      
-      # Check if we have artist information from Lidarr
-      if [[ -n "$lidarr_title" && "$lidarr_title" != "null" ]]; then
-        log_info "Found track in Lidarr: $lidarr_title"
-      fi
-    fi
-    
-    # Normalize the featuring format
-    normalized_artist=$(normalize_featuring "$track_artist")
-    
-    if [[ "$normalized_artist" != "$track_artist" ]]; then
-      log_info "Updating artist tag: '$track_artist' -> '$normalized_artist'"
-      
-      # Remove existing artist tags
-      metaflac --remove-tag=ARTIST "$flac_file" >>"$LOG_FILE" 2>&1
-      
-      # Set the normalized artist tag
-      metaflac --set-tag="ARTIST=$normalized_artist" "$flac_file" >>"$LOG_FILE" 2>&1
-      
-      # Also update the ARTISTS tag if it exists
-      metaflac --remove-tag=ARTISTS "$flac_file" >>"$LOG_FILE" 2>&1
-      metaflac --set-tag="ARTISTS=$normalized_artist" "$flac_file" >>"$LOG_FILE" 2>&1
-    fi
-  fi
-  
-  # Always ensure ALBUMARTIST tags are consistent
-  for tag in ALBUMARTIST ALBUMARTISTSORT "ALBUM ARTIST" ALBUM_ARTIST; do
+  # Remove unwanted tags
+  for tag in ARTIST ALBUMARTIST ALBUMARTIST_CREDIT ALBUMARTISTSORT "ALBUM ARTIST" ALBUM_ARTIST ARTISTSORT COMPOSERSORT; do
     metaflac --remove-tag="$tag" "$flac_file" >>"$LOG_FILE" 2>&1
-    metaflac --set-tag="$tag=$album_artist" "$flac_file" >>"$LOG_FILE" 2>&1
   done
+  
+  # Set album artist tags
+  metaflac --set-tag="ALBUMARTIST=$album_artist" "$flac_file" >>"$LOG_FILE" 2>&1
+  
+  # Set artist tag based on artist credit or normalize featuring format
+  if [[ -n "$artist_credit" ]]; then
+    # Use artist credit if available
+    metaflac --set-tag="ARTIST=$artist_credit" "$flac_file" >>"$LOG_FILE" 2>&1
+  elif [[ -n "$track_artist" && "$track_artist" != "$album_artist" ]]; then
+    # Normalize featuring format
+    normalized_artist=$(normalize_featuring "$track_artist")
+    metaflac --set-tag="ARTIST=$normalized_artist" "$flac_file" >>"$LOG_FILE" 2>&1
+  else
+    # Default to album artist
+    metaflac --set-tag="ARTIST=$album_artist" "$flac_file" >>"$LOG_FILE" 2>&1
+  fi
   
   # Ensure YEAR tag is set
   if [[ -n "$album_year" && "$album_year" != "null" ]]; then
     metaflac --remove-tag=YEAR "$flac_file" >>"$LOG_FILE" 2>&1
     metaflac --set-tag="YEAR=$album_year" "$flac_file" >>"$LOG_FILE" 2>&1
   fi
-  
-  # Log the final tags for verification
-  current_tags=$(metaflac --list --block-type=VORBIS_COMMENT "$flac_file" | grep -E "^\\s+comment\\[[0-9]+\\]: " | sed 's/^[[:space:]]*comment\[[0-9]*\]: //')
-  printf '[Final Tags for %s]\n%s\n[/Final Tags]\n' "$filename" "$current_tags" | arrbitLogClean >> "$LOG_FILE"
 done
 
-log_info "Tagging complete for $ALBUM_PATH"
+log_info "Tagging complete for $album_folder_name"
 exit 0
