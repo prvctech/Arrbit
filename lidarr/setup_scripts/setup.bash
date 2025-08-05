@@ -62,39 +62,36 @@ mkdir -p "$ARRBIT_ROOT/config"
 mkdir -p /config/plugins
 chmod 777 /config/plugins
 
-# --- Copy each config file ONLY if it does NOT already exist ---
-for src_file in "$REPO_MAIN/config/"*; do
-  filename="$(basename "$src_file")"
-  dest_file="$ARRBIT_ROOT/config/$filename"
-  if [[ ! -f "$dest_file" ]]; then
-    cp -f "$src_file" "$dest_file"
-    chmod 777 "$dest_file"
+# --- Copy YAML config file if it doesn't exist ---
+if [[ -f "$REPO_MAIN/config/arrbit-config.yaml" ]]; then
+  if [[ ! -f "$ARRBIT_ROOT/config/arrbit-config.yaml" ]]; then
+    cp -f "$REPO_MAIN/config/arrbit-config.yaml" "$ARRBIT_ROOT/config/"
+    chmod 777 "$ARRBIT_ROOT/config/arrbit-config.yaml"
+    log_info "Installed arrbit-config.yaml"
   fi
-done
+else
+  log_warning "arrbit-config.yaml not found in repository"
+fi
+
+# --- Remove old .conf file if it exists ---
+if [[ -f "$ARRBIT_ROOT/config/arrbit-config.conf" ]]; then
+  log_info "Removing deprecated arrbit-config.conf"
+  rm -f "$ARRBIT_ROOT/config/arrbit-config.conf"
+fi
 
 # --- Copy new configuration utilities ---
-# Check if config_utils.bash exists in the repo
+# Copy config_utils.bash
 if [[ -f "$REPO_MAIN/helpers/config_utils.bash" ]]; then
   cp -f "$REPO_MAIN/helpers/config_utils.bash" "$ARRBIT_ROOT/helpers/"
   chmod 777 "$ARRBIT_ROOT/helpers/config_utils.bash"
   log_info "Installed config_utils.bash"
 fi
 
-# Check if config_validator.bash exists in the repo
+# Copy config_validator.bash
 if [[ -f "$REPO_MAIN/helpers/config_validator.bash" ]]; then
   cp -f "$REPO_MAIN/helpers/config_validator.bash" "$ARRBIT_ROOT/helpers/"
   chmod 777 "$ARRBIT_ROOT/helpers/config_validator.bash"
   log_info "Installed config_validator.bash"
-fi
-
-# Copy YAML config example if it exists
-if [[ -f "$REPO_MAIN/config/arrbit-config.yaml" ]]; then
-  # Only copy if it doesn't exist
-  if [[ ! -f "$ARRBIT_ROOT/config/arrbit-config.yaml" ]]; then
-    cp -f "$REPO_MAIN/config/arrbit-config.yaml" "$ARRBIT_ROOT/config/"
-    chmod 777 "$ARRBIT_ROOT/config/arrbit-config.yaml"
-    log_info "Installed arrbit-config.yaml example"
-  fi
 fi
 
 chmod -R 777 "$ARRBIT_ROOT"
