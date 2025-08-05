@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Simple dependencies installer for Arrbit
+# Simple dependencies installer for Arrbit - with standardized paths
 
 SCRIPT_NAME="dependencies"
-SCRIPT_VERSION="v3.0-gs2.7.1"
+SCRIPT_VERSION="v3.1-gs2.7.1"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 # Create log directory if it doesn't exist
@@ -54,26 +54,21 @@ uv pip install --system --upgrade --no-cache-dir --break-system-packages \
   mutagen \
   pyyaml >> "$LOG_FILE" 2>&1
 
-# Install yq v4 directly
+# Install yq v4 directly to /usr/bin (standard location)
 echo "[Arrbit] Installing yq v4..."
-mkdir -p /usr/local/bin
-wget -q https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq >> "$LOG_FILE" 2>&1
-chmod +x /usr/local/bin/yq >> "$LOG_FILE" 2>&1
-
-# Add /usr/local/bin to PATH
-export PATH="/usr/local/bin:$PATH"
-echo 'export PATH="/usr/local/bin:$PATH"' >> /etc/profile
+wget -q https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq >> "$LOG_FILE" 2>&1
+chmod +x /usr/bin/yq >> "$LOG_FILE" 2>&1
 
 # Create eyed3 wrapper if needed
 if ! command -v eyed3 >/dev/null 2>&1; then
-  echo '#!/bin/sh' > /usr/local/bin/eyed3
-  echo 'exec python3 -m eyed3.main "$@"' >> /usr/local/bin/eyed3
-  chmod +x /usr/local/bin/eyed3
+  echo '#!/bin/sh' > /usr/bin/eyed3
+  echo 'exec python3 -m eyed3.main "$@"' >> /usr/bin/eyed3
+  chmod +x /usr/bin/eyed3
 fi
 
 # Verify yq installation
-if command -v /usr/local/bin/yq >/dev/null 2>&1; then
-  yq_version=$(/usr/local/bin/yq --version 2>&1)
+if command -v yq >/dev/null 2>&1; then
+  yq_version=$(yq --version 2>&1)
   echo "[Arrbit] Successfully installed $yq_version"
 else
   echo "[Arrbit] ERROR: Failed to install yq v4"
