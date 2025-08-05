@@ -1,12 +1,21 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - plugins
-# Version: v3.8-gs2.6
-# Purpose: Modular installer for Lidarr plug-ins (Golden Standard v2.6 compliant).
+# Version: v3.9-gs2.7.1
+# Purpose: Modular installer for Lidarr plug-ins (Golden Standard v2.7.1 compliant).
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/logging_utils.bash
 source /config/arrbit/helpers/helpers.bash
+
+# Source the new configuration utilities if available
+if [[ -f "/config/arrbit/helpers/config_utils.bash" ]]; then
+  source /config/arrbit/helpers/config_utils.bash
+fi
+
+if [[ -f "/config/arrbit/helpers/config_validator.bash" ]]; then
+  source /config/arrbit/helpers/config_validator.bash
+fi
 
 arrbitPurgeOldLogs 2
 
@@ -16,31 +25,49 @@ chmod -R 777 /config/logs/
 
 PLUGINS_DIR="/config/plugins"
 SCRIPT_NAME="plugins"
-SCRIPT_VERSION="v3.8-gs2.6"
+SCRIPT_VERSION="v3.9-gs2.7.1"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 CONFIG_FILE="/config/arrbit/config/arrbit-config.conf"
+YAML_CONFIG_FILE="/config/arrbit/config/arrbit-config.yaml"
 
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
 # --- Banner (color allowed on first line) ---
 echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} service${NC} ${MAGENTA}Deezer, Tidal, Tubifarry${NC} ${SCRIPT_VERSION}"
 
-# --- Get config flags (robust: trims whitespace, lowercase for test) ---
-ENABLE_PLUGINS=$(getFlag ENABLE_PLUGINS | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
-INSTALL_PLUGIN_DEEZER=$(getFlag INSTALL_PLUGIN_DEEZER | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
-INSTALL_PLUGIN_TIDAL=$(getFlag INSTALL_PLUGIN_TIDAL | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
-INSTALL_PLUGIN_TUBIFARRY=$(getFlag INSTALL_PLUGIN_TUBIFARRY | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+# --- Get config flags using the new configuration system if available ---
+if type get_config >/dev/null 2>&1; then
+  # Using the new configuration system
+  ENABLE_PLUGINS=$(get_config "plugins.enable" "ENABLE_PLUGINS" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+  INSTALL_PLUGIN_DEEZER=$(get_config "plugins.install.deezer" "INSTALL_PLUGIN_DEEZER" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+  INSTALL_PLUGIN_TIDAL=$(get_config "plugins.install.tidal" "INSTALL_PLUGIN_TIDAL" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+  INSTALL_PLUGIN_TUBIFARRY=$(get_config "plugins.install.tubifarry" "INSTALL_PLUGIN_TUBIFARRY" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+  
+  # Validate configuration if validator is available
+  if type validate_boolean >/dev/null 2>&1; then
+    validate_boolean "plugins.enable" "$ENABLE_PLUGINS" || ENABLE_PLUGINS="false"
+    validate_boolean "plugins.install.deezer" "$INSTALL_PLUGIN_DEEZER" || INSTALL_PLUGIN_DEEZER="false"
+    validate_boolean "plugins.install.tidal" "$INSTALL_PLUGIN_TIDAL" || INSTALL_PLUGIN_TIDAL="false"
+    validate_boolean "plugins.install.tubifarry" "$INSTALL_PLUGIN_TUBIFARRY" || INSTALL_PLUGIN_TUBIFARRY="false"
+  fi
+else
+  # Fallback to the original getFlag function
+  ENABLE_PLUGINS=$(getFlag ENABLE_PLUGINS | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+  INSTALL_PLUGIN_DEEZER=$(getFlag INSTALL_PLUGIN_DEEZER | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+  INSTALL_PLUGIN_TIDAL=$(getFlag INSTALL_PLUGIN_TIDAL | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+  INSTALL_PLUGIN_TUBIFARRY=$(getFlag INSTALL_PLUGIN_TUBIFARRY | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+fi
 
 # --- Master enable check (fail fast) ---
 if [[ "${ENABLE_PLUGINS}" != "true" ]]; then
-  log_warning "Plugins service is OFF. Set ENABLE_PLUGINS to 'true' in arrbit-config.conf."
+  log_warning "Plugins service is OFF. Set ENABLE_PLUGINS to 'true' in arrbit-config.conf or plugins.enable to true in arrbit-config.yaml."
   log_info "Log saved to $LOG_FILE"
   exit 0
 fi
 
 # --- If all plugin flags are false, warn and exit ---
 if [[ "${INSTALL_PLUGIN_DEEZER}" != "true" && "${INSTALL_PLUGIN_TIDAL}" != "true" && "${INSTALL_PLUGIN_TUBIFARRY}" != "true" ]]; then
-  log_warning "Plugins service is ON, but all plugin install flags are disabled. Enable one or more plugins in arrbit-config.conf."
+  log_warning "Plugins service is ON, but all plugin install flags are disabled. Enable one or more plugins in the configuration."
   log_info "Log saved to $LOG_FILE"
   exit 0
 fi
