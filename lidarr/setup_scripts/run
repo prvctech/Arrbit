@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - run module
-# Version: v2.1-gs2.7.1
+# Version: v2.2-gs2.7.1
 # Purpose: Orchestrator – runs setup first, then executes all Arrbit service modules (silent except ERROR).
 # -------------------------------------------------------------------------------------------------------------
 
@@ -36,7 +36,7 @@ source "$HELPERS_DIR/helpers.bash"
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="run"
-SCRIPT_VERSION="v2.1-gs2.7.1"
+SCRIPT_VERSION="v2.2-gs2.7.1"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date '+%Y_%m_%d-%H_%M').log"
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
@@ -46,20 +46,59 @@ if [[ -f "$LOGO_SCRIPT_LOCAL" ]]; then
 fi
 echo
 
-# --- 4. Check ENABLE_ARRBIT flag, warn once if false, then sleep/exit (GS: use getFlag) ---
-ENABLE_ARRBIT=$(getFlag "ENABLE_ARRBIT")
+# --- 4. Source configuration utilities ---
+CONFIG_UTILS="$HELPERS_DIR/config_utils.bash"
+CONFIG_VALIDATOR="$HELPERS_DIR/config_validator.bash"
+
+if [[ ! -f "$CONFIG_UTILS" ]]; then
+  log_error "Configuration utilities missing: $CONFIG_UTILS (see log at /config/logs)"
+  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR Configuration utilities missing
+[WHY]: $CONFIG_UTILS not found after setup
+[FIX]: Check that the repository includes the config_utils.bash file
+EOF
+  exit 1
+fi
+
+source "$CONFIG_UTILS"
+
+if [[ -f "$CONFIG_VALIDATOR" ]]; then
+  source "$CONFIG_VALIDATOR"
+  log_info "Configuration validation enabled"
+fi
+
+# --- 5. Check YAML configuration exists ---
+if ! config_exists; then
+  log_error "Configuration file missing: arrbit-config.yaml (see log at /config/logs)"
+  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR Configuration file missing
+[WHY]: arrbit-config.yaml not found in /config/arrbit/config/
+[FIX]: Create a configuration file based on the example in the repository
+EOF
+  exit 1
+fi
+
+# --- 6. Check enable_arrbit flag ---
+ENABLE_ARRBIT=$(get_yaml_value "enable_arrbit")
+
+# Validate if validator is available
+if type validate_boolean >/dev/null 2>&1; then
+  if ! validate_boolean "enable_arrbit" "$ENABLE_ARRBIT"; then
+    ENABLE_ARRBIT="false"
+  fi
+fi
 
 if [[ "${ENABLE_ARRBIT,,}" != "true" ]]; then
-  log_warning "Arrbit services are OFF. Set ENABLE_ARRBIT to 'true' in arrbit-config.conf to enable automation. (see log at /config/logs)"
+  log_warning "Arrbit services are OFF. Set enable_arrbit to 'true' in arrbit-config.yaml to enable automation. (see log at /config/logs)"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
 [Arrbit] WARNING Arrbit services are OFF.
-[WHY]: ENABLE_ARRBIT is set to false in arrbit-config.conf.
-[FIX]: Edit /config/arrbit/config/arrbit-config.conf and set ENABLE_ARRBIT=true to enable Arrbit automation.
+[WHY]: enable_arrbit is set to false in arrbit-config.yaml.
+[FIX]: Edit /config/arrbit/config/arrbit-config.yaml and set enable_arrbit: true to enable Arrbit automation.
 EOF
   sleep infinity
 fi
 
-# --- 5. Now, strictly GS: log_info/log_error ONLY, no terminal output unless ERROR ---
+# --- 7. Run dependencies script ---
 if [[ -x "$DEPENDENCIES_SCRIPT" ]]; then
   bash "$DEPENDENCIES_SCRIPT"
 else
@@ -72,10 +111,12 @@ EOF
   exit 1
 fi
 
+# --- 8. Run plugins script ---
 if [[ -x "$PLUGINS_SCRIPT_LOCAL" ]]; then
   bash "$PLUGINS_SCRIPT_LOCAL"
 fi
 
+# --- 9. Run autoconfig script ---
 if [[ -x "$AUTOCONFIG_SCRIPT_LOCAL" ]]; then
   bash "$AUTOCONFIG_SCRIPT_LOCAL"
 fi
