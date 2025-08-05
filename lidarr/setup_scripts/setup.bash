@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - setup
-# Version: v1.4-gs2.7.1
+# Version: v1.5-gs2.7.1
 # Purpose: Bootstraps Arrbit: downloads, installs, and initializes everything into /config/arrbit. SILENT except fatal error.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -40,7 +40,7 @@ source "$HELPERS_DIR/helpers.bash"
 arrbitPurgeOldLogs 2
 
 SCRIPT_NAME="setup"
-SCRIPT_VERSION="v1.4-gs2.7.1"
+SCRIPT_VERSION="v1.5-gs2.7.1"
 LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
@@ -71,6 +71,31 @@ for src_file in "$REPO_MAIN/config/"*; do
     chmod 777 "$dest_file"
   fi
 done
+
+# --- Copy new configuration utilities ---
+# Check if config_utils.bash exists in the repo
+if [[ -f "$REPO_MAIN/helpers/config_utils.bash" ]]; then
+  cp -f "$REPO_MAIN/helpers/config_utils.bash" "$ARRBIT_ROOT/helpers/"
+  chmod 777 "$ARRBIT_ROOT/helpers/config_utils.bash"
+  log_info "Installed config_utils.bash"
+fi
+
+# Check if config_validator.bash exists in the repo
+if [[ -f "$REPO_MAIN/helpers/config_validator.bash" ]]; then
+  cp -f "$REPO_MAIN/helpers/config_validator.bash" "$ARRBIT_ROOT/helpers/"
+  chmod 777 "$ARRBIT_ROOT/helpers/config_validator.bash"
+  log_info "Installed config_validator.bash"
+fi
+
+# Copy YAML config example if it exists
+if [[ -f "$REPO_MAIN/config/arrbit-config.yaml" ]]; then
+  # Only copy if it doesn't exist
+  if [[ ! -f "$ARRBIT_ROOT/config/arrbit-config.yaml" ]]; then
+    cp -f "$REPO_MAIN/config/arrbit-config.yaml" "$ARRBIT_ROOT/config/"
+    chmod 777 "$ARRBIT_ROOT/config/arrbit-config.yaml"
+    log_info "Installed arrbit-config.yaml example"
+  fi
+fi
 
 chmod -R 777 "$ARRBIT_ROOT"
 
