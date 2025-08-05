@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 SCRIPT_NAME="dependencies"
 SCRIPT_VERSION="v2.7-gs2.7.1"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
@@ -77,16 +75,36 @@ apk add --no-cache \
 apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/community beets >>"$LOG_FILE" 2>&1
 apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/testing atomicparsley >>"$LOG_FILE" 2>&1
 
+# Try to install yq v4 from Alpine repositories first
+log_info "Attempting to install yq v4 from Alpine repositories..."
+
+# Try edge/community repository
+if apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/community yq >>"$LOG_FILE" 2>&1; then
+  yq_version=$(yq --version 2>&1 | grep -oP '(\d+\.\d+\.\d+)' | head -1)
+  if [[ -n "$yq_version" && "${yq_version%%.*}" -ge "4" ]]; then
+    log_info "Successfully installed yq v$yq_version from Alpine edge/community"
+  else
+    log_info "Alpine repository has yq v$yq_version, need v4.x. Will try direct download."
+    apk del yq >>"$LOG_FILE" 2>&1
+    # Install yq v4.x directly from GitHub
+    log_info "Installing yq v4.x from GitHub..."
+    wget -q https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq >>"$LOG_FILE" 2>&1
+    chmod +x /usr/bin/yq >>"$LOG_FILE" 2>&1
+    yq_version=$(yq --version 2>&1 | grep -oP '(\d+\.\d+\.\d+)' | head -1)
+    log_info "Installed yq version $yq_version from GitHub"
+  fi
+else
+  # If Alpine repository install fails, download directly from GitHub
+  log_info "Alpine repository install failed. Installing yq v4.x from GitHub..."
+  wget -q https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq >>"$LOG_FILE" 2>&1
+  chmod +x /usr/bin/yq >>"$LOG_FILE" 2>&1
+  yq_version=$(yq --version 2>&1 | grep -oP '(\d+\.\d+\.\d+)' | head -1)
+  log_info "Installed yq version $yq_version from GitHub"
+fi
+
 # PyYAML is required for configuration
 uv pip install --system --upgrade --no-cache-dir --break-system-packages \
   eyed3 mutagen beautifulsoup4 jellyfish pyacoustid requests pyyaml >>"$LOG_FILE" 2>&1
-
-# Install yq v4.x directly from GitHub
-log_info "Installing yq v4.x from GitHub..."
-wget -q https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq >>"$LOG_FILE" 2>&1
-chmod +x /usr/bin/yq >>"$LOG_FILE" 2>&1
-yq_version=$(yq --version 2>&1 | grep -oP '(\d+\.\d+\.\d+)' | head -1)
-log_info "Installed yq version $yq_version"
 
 # Eyed3 CLI wrapper (if needed)
 if ! command -v eyed3 >/dev/null 2>&1; then
