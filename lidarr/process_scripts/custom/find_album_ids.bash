@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - find_album_ids.bash
-# Version: v1.0-gs2.7.1
+# Version: v1.1-gs2.7.1
 # Purpose: Utility script to find album IDs in Lidarr with various search options
 # -------------------------------------------------------------------------------------------------------------
 
 SCRIPT_NAME="find_album_ids"
-SCRIPT_VERSION="v1.0-gs2.7.1"
+SCRIPT_VERSION="v1.1-gs2.7.1"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
@@ -132,8 +132,8 @@ elif [[ -n "$TITLE_SEARCH" ]]; then
     echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Searching for albums with title containing: $TITLE_SEARCH${NC}"
     filtered_albums=$(echo "$albums_json" | jq -r --arg title "$TITLE_SEARCH" '[.[] | select(.title | ascii_downcase | contains($title | ascii_downcase))]')
 else
-    # Show recent albums
-    filtered_albums=$(echo "$albums_json" | jq -r '[.[] | sort_by(.releaseDate) | reverse | limit('"$SHOW_RECENT"'; .)]')
+    # Show recent albums - simplified to avoid sorting issues
+    filtered_albums=$(echo "$albums_json" | jq -r '[.[] | limit('"$SHOW_RECENT"'; .)]')
 fi
 
 # Check if we found any albums
@@ -149,7 +149,7 @@ echo -e "${CYAN}[Arrbit]${NC} ${GREEN}------------------------------------------
 # Display the results
 if [[ "$FULL_DETAILS" == "true" ]]; then
     # Show full details
-    echo "$filtered_albums" | jq -r '.[] | "ID: \(.id)\nTitle: \(.title)\nArtist: \(.artist.artistName)\nRelease Date: \(.releaseDate)\nQuality: \(.quality.quality.name)\nPath: \(.artist.path)/\(.title)\n------------------------------------------"'
+    echo "$filtered_albums" | jq -r '.[] | "ID: \(.id)\nTitle: \(.title)\nArtist: \(.artist.artistName)\nRelease Date: \(.releaseDate)\nPath: \(.artist.path)/\(.title)\n------------------------------------------"'
 else
     # Show compact list
     echo -e "${CYAN}[Arrbit]${NC} ${GREEN}ID | Title | Artist | Release Date${NC}"
