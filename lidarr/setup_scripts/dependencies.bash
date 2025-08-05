@@ -11,7 +11,7 @@ arrbitPurgeOldLogs
 # ---- BANNER (Only one echo allowed) ----
 echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting dependencies setup ${NC}${SCRIPT_VERSION}..."
 
-# Added PyYAML for YAML configuration support
+# YAML support is now required, not optional
 REQUIRED_CMDS="beet atomicparsley python3 uv eyed3 yq vorbiscomment metaflac opustags"
 missing=""
 for cmd in $REQUIRED_CMDS; do
@@ -64,7 +64,7 @@ apk add --no-cache \
 apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/community beets >>"$LOG_FILE" 2>&1
 apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/testing atomicparsley >>"$LOG_FILE" 2>&1
 
-# Added PyYAML to the pip install command for YAML configuration support
+# PyYAML is now required for configuration
 uv pip install --system --upgrade --no-cache-dir --break-system-packages \
   eyed3 yq mutagen beautifulsoup4 jellyfish pyacoustid requests pyyaml >>"$LOG_FILE" 2>&1
 
@@ -83,7 +83,7 @@ for cmd in $REQUIRED_CMDS; do
   fi
 done
 
-# Check for YAML support again
+# Check for YAML support again - this is now required
 yaml_support=false
 if command -v yq >/dev/null 2>&1; then
   yaml_support=true
