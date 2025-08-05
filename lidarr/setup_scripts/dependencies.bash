@@ -2,7 +2,7 @@
 # Simple dependencies installer for Arrbit - with standardized paths
 
 SCRIPT_NAME="dependencies"
-SCRIPT_VERSION="v3.1-gs2.7.1"
+SCRIPT_VERSION="v3.0-gs2.7.1"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 # Create log directory if it doesn't exist
