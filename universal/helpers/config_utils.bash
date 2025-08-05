@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - config_utils.bash
-# Version: v1.0-gs2.7.1
-# Purpose: Configuration utilities for reading YAML config format
+# Version: v1.1-gs2.7.1
+# Purpose: Configuration utilities for reading YAML config format with debugging
 # -------------------------------------------------------------------------------------------------------------
 
 # Source guard to prevent multiple inclusion
@@ -18,10 +18,13 @@ if [[ -z "${ARRBIT_CONFIG_UTILS_INCLUDED:-}" ]]; then
   # -------------------------------------------------------------------------------------------------------------
   yaml_installed() {
     if command -v yq >/dev/null 2>&1; then
+      echo "DEBUG: yq is installed" >> /config/logs/yaml_debug.log
       return 0
     elif command -v python3 >/dev/null 2>&1 && python3 -c "import yaml" >/dev/null 2>&1; then
+      echo "DEBUG: python3 with yaml module is installed" >> /config/logs/yaml_debug.log
       return 0
     else
+      echo "DEBUG: No YAML parsing tools found" >> /config/logs/yaml_debug.log
       return 1
     fi
   }
@@ -37,18 +40,25 @@ if [[ -z "${ARRBIT_CONFIG_UTILS_INCLUDED:-}" ]]; then
     
     # Check if file exists
     if [[ ! -f "$config_file" ]]; then
+      echo "DEBUG: Config file not found: $config_file" >> /config/logs/yaml_debug.log
       return 1
     fi
     
+    echo "DEBUG: Reading $key_path from $config_file" >> /config/logs/yaml_debug.log
+    
     # Try yq first (preferred for performance)
     if command -v yq >/dev/null 2>&1; then
-      yq eval ".$key_path" "$config_file" 2>/dev/null || echo ""
+      echo "DEBUG: Using yq to parse YAML" >> /config/logs/yaml_debug.log
+      local result=$(yq eval ".$key_path" "$config_file" 2>/dev/null || echo "")
+      echo "DEBUG: yq result for $key_path: '$result'" >> /config/logs/yaml_debug.log
+      echo "$result"
       return
     fi
     
     # Fall back to Python if yq is not available
     if command -v python3 >/dev/null 2>&1; then
-      python3 -c "
+      echo "DEBUG: Using python3 to parse YAML" >> /config/logs/yaml_debug.log
+      local result=$(python3 -c "
 import yaml, sys
 try:
     with open('$config_file', 'r') as f:
@@ -68,9 +78,12 @@ try:
             print(str(value).lower())
         else:
             print(value)
-except Exception:
+except Exception as e:
+    print(f'ERROR: {e}', file=sys.stderr)
     print('')
-" 2>/dev/null || echo ""
+" 2>>/config/logs/yaml_debug.log || echo "")
+      echo "DEBUG: python result for $key_path: '$result'" >> /config/logs/yaml_debug.log
+      echo "$result"
     fi
   }
 
@@ -79,11 +92,14 @@ except Exception:
   # Returns: 0 if exists, 1 if not
   # -------------------------------------------------------------------------------------------------------------
   config_exists() {
-    if [[ -f "${YAML_CONFIG_FILE:-$DEFAULT_YAML_PATH}" ]]; then
+    local config_file="${YAML_CONFIG_FILE:-$DEFAULT_YAML_PATH}"
+    if [[ -f "$config_file" ]]; then
+      echo "DEBUG: Config file exists: $config_file" >> /config/logs/yaml_debug.log
       return 0
     else
+      echo "DEBUG: Config file does not exist: $config_file" >> /config/logs/yaml_debug.log
       return 1
     fi
   }
 
-fi # End of source guard
+fi
