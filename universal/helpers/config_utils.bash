@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
-# Arrbit - config_utils.bash
+# Arrbit - simple_config_utils.bash
 # Version: v1.0-gs2.7.1
-# Purpose: Configuration utilities for reading YAML config format
+# Purpose: Simple and reliable YAML configuration reader
 # -------------------------------------------------------------------------------------------------------------
 
 # Source guard to prevent multiple inclusion
@@ -12,20 +12,6 @@ if [[ -z "${ARRBIT_CONFIG_UTILS_INCLUDED:-}" ]]; then
   # Default path
   DEFAULT_YAML_PATH="/config/arrbit/config/arrbit-config.yaml"
   
-  # -------------------------------------------------------------------------------------------------------------
-  # yaml_installed: Check if YAML parsing tools are installed
-  # Returns: 0 if installed, 1 if not
-  # -------------------------------------------------------------------------------------------------------------
-  yaml_installed() {
-    if command -v yq >/dev/null 2>&1; then
-      return 0
-    elif command -v python3 >/dev/null 2>&1 && python3 -c "import yaml" >/dev/null 2>&1; then
-      return 0
-    else
-      return 1
-    fi
-  }
-
   # -------------------------------------------------------------------------------------------------------------
   # get_yaml_value: Get a configuration value from the YAML config file
   # Usage: get_yaml_value "plugins.enable"
@@ -37,10 +23,17 @@ if [[ -z "${ARRBIT_CONFIG_UTILS_INCLUDED:-}" ]]; then
     
     # Check if file exists
     if [[ ! -f "$config_file" ]]; then
+      echo ""
       return 1
     fi
     
-    # Try yq first (preferred for performance)
+    # Use yq from /usr/local/bin
+    if [[ -x "/usr/local/bin/yq" ]]; then
+      /usr/local/bin/yq eval ".$key_path" "$config_file" 2>/dev/null || echo ""
+      return
+    fi
+    
+    # Fall back to system yq if available
     if command -v yq >/dev/null 2>&1; then
       yq eval ".$key_path" "$config_file" 2>/dev/null || echo ""
       return
