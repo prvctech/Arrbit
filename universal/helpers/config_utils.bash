@@ -1,8 +1,9 @@
+
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
-# Arrbit - simple_config_utils.bash
+# Arrbit - standardized_config_utils.bash
 # Version: v1.0-gs2.7.1
-# Purpose: Simple and reliable YAML configuration reader
+# Purpose: Simple and reliable YAML configuration reader using standard paths
 # -------------------------------------------------------------------------------------------------------------
 
 # Source guard to prevent multiple inclusion
@@ -27,13 +28,7 @@ if [[ -z "${ARRBIT_CONFIG_UTILS_INCLUDED:-}" ]]; then
       return 1
     fi
     
-    # Use yq from /usr/local/bin
-    if [[ -x "/usr/local/bin/yq" ]]; then
-      /usr/local/bin/yq eval ".$key_path" "$config_file" 2>/dev/null || echo ""
-      return
-    fi
-    
-    # Fall back to system yq if available
+    # Use yq from standard path
     if command -v yq >/dev/null 2>&1; then
       yq eval ".$key_path" "$config_file" 2>/dev/null || echo ""
       return
