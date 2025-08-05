@@ -1,7 +1,8 @@
+#!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
-# Arrbit - helpers.bash
+# Arrbit - simple_helpers.bash
 # Version: v2.0-gs2.7.1
-# Purpose: Reusable helper functions for Arrbit scripts (YAML config reading, source guard, joinBy, etc)
+# Purpose: Simple helper functions for Arrbit scripts
 # -------------------------------------------------------------------------------------------------------------
 
 if [[ -z "${ARRBIT_HELPERS_INCLUDED:-}" ]]; then
@@ -60,31 +61,14 @@ if [[ -z "${ARRBIT_HELPERS_INCLUDED:-}" ]]; then
     esac
     
     # Source config_utils.bash if available
-    if [[ -f "/config/arrbit/helpers/config_utils.bash" ]]; then
+    if [[ -f "/config/arrbit/helpers/simple_config_utils.bash" ]]; then
+      source "/config/arrbit/helpers/simple_config_utils.bash"
+      get_yaml_value "$yaml_key"
+    elif [[ -f "/config/arrbit/helpers/config_utils.bash" ]]; then
       source "/config/arrbit/helpers/config_utils.bash"
       get_yaml_value "$yaml_key"
     else
-      # Fallback to traditional config if config_utils.bash is not available
-      local config_file="${CONFIG_DIR:-/config/arrbit/config}/arrbit-config.conf"
-      local flag_upper
-      flag_upper=$(echo "$flag_name" | tr '[:lower:]' '[:upper:]')
-      awk -F '=' -v key="$flag_upper" '
-        $0 !~ /^[[:space:]]*#/ && NF >= 2 {
-          # Remove whitespace in key
-          gsub(/[[:space:]]+/, "", $1)
-          if (toupper($1) == key) {
-            val=$2
-            # Remove inline comments after # or ;
-            sub(/[#;].*/, "", val)
-            # Trim leading/trailing whitespace
-            gsub(/^[[:space:]]+|[[:space:]]+$/, "", val)
-            # Remove leading/trailing double quotes
-            gsub(/^"+|"+$/, "", val)
-            print val
-            exit
-          }
-        }
-      ' "$config_file"
+      echo ""
     fi
   }
 
