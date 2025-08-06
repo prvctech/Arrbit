@@ -25,24 +25,49 @@ if [[ ! -f "$CONFIG_XML" ]]; then
   exit 11
 fi
 
-# --- Extract ARR config values (url base, key, port) ---
-arr_url_base="$(cat "$CONFIG_XML" | xq | jq -r .Config.UrlBase)"
-if [[ "$arr_url_base" == "null" || -z "$arr_url_base" ]]; then
-  arr_url_base=""
-else
-  arr_url_base="/$(echo "$arr_url_base" | sed 's|^/||;s|/$||')"
-fi
-
-arr_api_key="$(cat "$CONFIG_XML" | xq | jq -r .Config.ApiKey)"
-if [[ -z "$arr_api_key" || "$arr_api_key" == "null" ]]; then
-  log_error "API key not found in $CONFIG_XML"
+# --- Check for required tools ---
+if ! command -v jq &>/dev/null; then
+  log_error "jq is not installed. Please install it with: apt-get update && apt-get install -y jq"
   exit 12
 fi
 
-arr_port="$(cat "$CONFIG_XML" | xq | jq -r .Config.Port)"
-if [[ -z "$arr_port" || "$arr_port" == "null" ]]; then
-  log_error "Port not found in $CONFIG_XML"
+# --- Function to extract value from XML using grep/sed fallback if xq is not available ---
+extract_xml_value() {
+  local xml_file="$1"
+  local element="$2"
+  
+  # Try using xq if available
+  if command -v xq &>/dev/null; then
+    local value=$(cat "$xml_file" | xq | jq -r ".Config.$element")
+    if [[ "$value" != "null" && -n "$value" ]]; then
+      echo "$value"
+      return 0
+    fi
+  fi
+  
+  # Fallback to grep/sed
+  local value=$(grep -o "<$element>[^<]*</$element>" "$xml_file" | sed -e "s/<$element>//" -e "s/<\/$element>//")
+  echo "$value"
+}
+
+# --- Extract ARR config values (url base, key, port) ---
+arr_url_base=$(extract_xml_value "$CONFIG_XML" "UrlBase")
+if [[ -n "$arr_url_base" ]]; then
+  arr_url_base="/$(echo "$arr_url_base" | sed 's|^/||;s|/$||')"
+else
+  arr_url_base=""
+fi
+
+arr_api_key=$(extract_xml_value "$CONFIG_XML" "ApiKey")
+if [[ -z "$arr_api_key" ]]; then
+  log_error "API key not found in $CONFIG_XML"
   exit 13
+fi
+
+arr_port=$(extract_xml_value "$CONFIG_XML" "Port")
+if [[ -z "$arr_port" ]]; then
+  log_error "Port not found in $CONFIG_XML"
+  exit 14
 fi
 
 # Allow ARR_URL override, else build from config
@@ -61,7 +86,7 @@ done
 
 if [[ -z "$arrApiVersion" ]]; then
   log_error "Unable to detect working API version at $arrUrl (tried v3, v1)."
-  exit 14
+  exit 15
 fi
 
 export arrApiKey arrUrl arrApiVersion
@@ -77,7 +102,7 @@ waitForArrApi() {
     sleep 5
   done
   log_error "Could not connect to Arr API after $retries attempts. (Checked: $url)"
-  exit 15
+  exit 16
 }
 waitForArrApi
 
