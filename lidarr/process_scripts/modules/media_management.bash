@@ -39,45 +39,29 @@ if [[ -z "$PAYLOAD_PATH" || "$PAYLOAD_PATH" == "null" ]]; then
   PAYLOAD_PATH="/config/arrbit/modules/data/payload-media_management.json"
 fi
 
-# --- 3. Check if payload file exists, create default if not ---
+# --- 3. Check if payload file exists ---
 if [[ ! -f "$PAYLOAD_PATH" ]]; then
-  log_info "Payload file not found, creating default media management settings"
-  mkdir -p "$(dirname "$PAYLOAD_PATH")"
-  
-  # Create default media management payload
-  cat > "$PAYLOAD_PATH" <<EOF
-{
-  "autoUnmonitorPreviouslyDownloadedEpisodes": false,
-  "recycleBin": "",
-  "recycleBinCleanupDays": 7,
-  "downloadPropersAndRepacks": "preferAndUpgrade",
-  "createEmptyArtistFolders": false,
-  "deleteEmptyFolders": false,
-  "fileDate": "albumReleaseDate",
-  "rescanAfterRefresh": "always",
-  "allowFingerprinting": "allFiles",
-  "setPermissionsLinux": false,
-  "chmodFolder": "777",
-  "chownGroup": "",
-  "skipFreeSpaceCheckWhenImporting": false,
-  "minimumFreeSpaceWhenImporting": 100,
-  "copyUsingHardlinks": true,
-  "importExtraFiles": true,
-  "extraFileExtensions": "jpg,png,txt,nfo",
-  "id": 1
-}
+  log_error "Payload file not found: ${PAYLOAD_PATH} (see log at /config/logs)"
+  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR Payload file not found: $PAYLOAD_PATH
+[WHY]: The file does not exist at the specified path.
+[FIX]: Place a valid payload-media_management.json in $(dirname "$PAYLOAD_PATH") or update the path in configuration:
+      autoconfig:
+        paths:
+          media_management_payload: "/path/to/your/payload-media_management.json"
 EOF
+  exit 1
 fi
 
 # --- 4. Read payload from file ---
-log_info "Reading media management settings from $PAYLOAD_PATH"
+# Log to file only, not terminal
 payload=$(cat "$PAYLOAD_PATH")
-
 printf '[Arrbit] Media Management payload:\n%s\n' "$payload" | arrbitLogClean >> "$LOG_FILE"
 
 # --- 5. Check if settings already match ---
-log_info "Checking current media management settings"
+# Log to file only, not terminal
 current_settings=$(arr_api "${arrUrl}/api/${arrApiVersion}/config/mediamanagement")
+printf '[Arrbit] Current settings:\n%s\n' "$current_settings" | arrbitLogClean >> "$LOG_FILE"
 
 # Compare current settings with payload (ignoring id field)
 current_without_id=$(echo "$current_settings" | jq 'del(.id)')
@@ -86,17 +70,18 @@ payload_without_id=$(echo "$payload" | jq 'del(.id)')
 if [[ "$current_without_id" == "$payload_without_id" ]]; then
   log_info "Predefined settings already present. Skipping..."
   log_info "Log saved to $LOG_FILE"
-  log_info "Done with ${SCRIPT_NAME} module"
+  log_info "Done."
   exit 0
 fi
 
 # --- 6. Execute API call ---
-log_info "Applying media management settings"
+log_info "Importing predefined settings."
 response=$(
   arr_api -X PUT --data-raw "$payload" \
     "${arrUrl}/api/${arrApiVersion}/config/mediamanagement"
 )
 
+# Log response to file only, not terminal
 printf '[API Response]\n%s\n[/API Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
 
 # --- 7. Check response ---
