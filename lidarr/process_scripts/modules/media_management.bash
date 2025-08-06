@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - media_management.bash
-# Version: v2.0-gs2.7.1
-# Purpose: media_management module for Arrbit (Golden Standard v2.7.1 compliant)
+# Version: v2.1-gs2.7.1
+# Purpose: Configure Lidarr Media Management settings via API (Golden Standard v2.7.1 compliant)
 # -------------------------------------------------------------------------------------------------------------
 
 SCRIPT_NAME="media_management"
-SCRIPT_VERSION="v2.0-gs2.7.1"
+SCRIPT_VERSION="v2.1-gs2.7.1"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 # Source required helpers
@@ -33,16 +33,89 @@ EOF
 fi
 
 # --- 2. Get module-specific configuration ---
-# Example: Get custom path from YAML if available, otherwise use default
-MODULE_DATA_PATH=$(get_yaml_value "autoconfig.paths.media_management_data")
-if [[ -z "$MODULE_DATA_PATH" || "$MODULE_DATA_PATH" == "null" ]]; then
-  MODULE_DATA_PATH="/config/arrbit/modules/data/payload-media_management_data.json"
+# Get payload path from YAML if available, otherwise use default
+PAYLOAD_PATH=$(get_yaml_value "autoconfig.paths.media_management_payload")
+if [[ -z "$PAYLOAD_PATH" || "$PAYLOAD_PATH" == "null" ]]; then
+  PAYLOAD_PATH="/config/arrbit/modules/data/payload-media_management.json"
 fi
 
-# --- 3. Module-specific logic ---
-# Module-specific logic for media_management\nlog_info # MODULE_SPECIFIC_LOGIC_HEREquot;Executing media_management module...# MODULE_SPECIFIC_LOGIC_HEREquot;\n\n# Add your module-specific logic here\n\nlog_success # MODULE_SPECIFIC_LOGIC_HEREquot;media_management module executed successfully# MODULE_SPECIFIC_LOGIC_HEREquot;
+# --- 3. Check if payload file exists, create default if not ---
+if [[ ! -f "$PAYLOAD_PATH" ]]; then
+  log_info "Payload file not found, creating default media management settings"
+  mkdir -p "$(dirname "$PAYLOAD_PATH")"
+  
+  # Create default media management payload
+  cat > "$PAYLOAD_PATH" <<EOF
+{
+  "autoUnmonitorPreviouslyDownloadedEpisodes": false,
+  "recycleBin": "",
+  "recycleBinCleanupDays": 7,
+  "downloadPropersAndRepacks": "preferAndUpgrade",
+  "createEmptyArtistFolders": false,
+  "deleteEmptyFolders": false,
+  "fileDate": "albumReleaseDate",
+  "rescanAfterRefresh": "always",
+  "allowFingerprinting": "allFiles",
+  "setPermissionsLinux": false,
+  "chmodFolder": "777",
+  "chownGroup": "",
+  "skipFreeSpaceCheckWhenImporting": false,
+  "minimumFreeSpaceWhenImporting": 100,
+  "copyUsingHardlinks": true,
+  "importExtraFiles": true,
+  "extraFileExtensions": "jpg,png,txt,nfo",
+  "id": 1
+}
+EOF
+fi
 
-# --- 4. Log completion and exit ---
+# --- 4. Read payload from file ---
+log_info "Reading media management settings from $PAYLOAD_PATH"
+payload=$(cat "$PAYLOAD_PATH")
+
+printf '[Arrbit] Media Management payload:\n%s\n' "$payload" | arrbitLogClean >> "$LOG_FILE"
+
+# --- 5. Check if settings already match ---
+log_info "Checking current media management settings"
+current_settings=$(arr_api "${arrUrl}/api/${arrApiVersion}/config/mediamanagement")
+
+# Compare current settings with payload (ignoring id field)
+current_without_id=$(echo "$current_settings" | jq 'del(.id)')
+payload_without_id=$(echo "$payload" | jq 'del(.id)')
+
+if [[ "$current_without_id" == "$payload_without_id" ]]; then
+  log_info "Predefined settings already present. Skipping..."
+  log_info "Log saved to $LOG_FILE"
+  log_info "Done with ${SCRIPT_NAME} module"
+  exit 0
+fi
+
+# --- 6. Execute API call ---
+log_info "Applying media management settings"
+response=$(
+  arr_api -X PUT --data-raw "$payload" \
+    "${arrUrl}/api/${arrApiVersion}/config/mediamanagement"
+)
+
+printf '[API Response]\n%s\n[/API Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
+
+# --- 7. Check response ---
+if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
+  log_info "The module was configured successfully."
+else
+  log_error "Media management API call failed (see log at /config/logs)"
+  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR Media management API call failed
+[WHY]: API response did not validate (expected fields missing)
+[FIX]: Check ARR API connectivity and payload structure. See [API Response] section above for details.
+[API Response]
+$response
+[/API Response]
+EOF
+  exit 1
+fi
+
+# --- 8. Log completion and exit ---
 log_info "Log saved to $LOG_FILE"
-log_info "Done with ${SCRIPT_NAME} module"
+log_info "Done."
 exit 0
