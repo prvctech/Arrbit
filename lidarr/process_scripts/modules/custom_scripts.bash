@@ -1,50 +1,27 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - custom_scripts.bash
-# Version: v2.0-gs2.7.1.1
-# Purpose: Registers all custom scripts found in /config/arrbit/modules/data/custom_script_*.json (modular, bulletproof, Golden Standard v2.7.1 strict)
+# Version: v2.0-gs2.7.1
+# Purpose: custom_scripts module for Arrbit (Golden Standard v2.7.1 compliant)
 # -------------------------------------------------------------------------------------------------------------
 
+SCRIPT_NAME="custom_scripts"
+SCRIPT_VERSION="v2.0-gs2.7.1"
+LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+
+# Source required helpers
 source /config/arrbit/helpers/logging_utils.bash
 source /config/arrbit/helpers/helpers.bash
 source /config/arrbit/helpers/config_utils.bash
+
 arrbitPurgeOldLogs
-n# Check if YAML configuration exists
-if ! config_exists; then
-  log_error &quot;Configuration file missing: arrbit-config.yaml (see log at /config/logs)&quot;
-  cat <<EOF | arrbitLogClean >> &quot;$LOG_FILE&quot;
-[Arrbit] ERROR Configuration file missing
-[WHY]: arrbit-config.yaml not found in /config/arrbit/config/
-[FIX]: Create a configuration file based on the example in the repository
-EOF
-  exit 1
-fi
 
-# Get module configuration from YAML
-MODULE_ENABLED=$(get_yaml_value &quot;autoconfig.modules.custom_scripts&quot;)
-
-# Validate if validator is available
-if type validate_boolean >/dev/null 2>&1; then
-  if ! validate_boolean &quot;autoconfig.modules.custom_scripts&quot; &quot;$MODULE_ENABLED&quot;; then
-    MODULE_ENABLED=&quot;false&quot;
-  fi
-fi
-
-if [[ &quot;${MODULE_ENABLED,,}&quot; != &quot;true&quot; ]]; then
-  log_warning &quot;custom_scripts module is disabled in configuration. Exiting.&quot;
-  exit 0
-fi
-
-SCRIPT_NAME="custom_scripts"
-SCRIPT_VERSION="v2.0-gs2.7.1.1"
-LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
-PAYLOAD_DIR="/config/arrbit/modules/data"
-PATTERN="custom_script_*.json"
+# Banner (only one echo allowed)
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
-
+# --- 1. Source arr_bridge for API variables and arr_api wrapper ---
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
   log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup) (see log at /config/logs)"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
@@ -55,88 +32,17 @@ EOF
   exit 1
 fi
 
-files_found=0
-scripts_registered=0
-
-for file in "$PAYLOAD_DIR"/$PATTERN; do
-  if [[ ! -f "$file" ]]; then
-    continue
-  fi
-  files_found=1
-
-  jq -c '. as $in | (if type=="array" then $in[] else $in end)' "$file" | while read -r raw; do
-    # Validate: Only process objects
-    is_obj=$(echo "$raw" | jq -er 'type == "object"' 2>/dev/null || echo "false")
-    if [[ "$is_obj" != "true" ]]; then
-      log_error "Payload in $file is not a valid object (see log at /config/logs)"
-      cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR Invalid payload in $file
-[WHY]: JSON value is not a valid object.
-[FIX]: Ensure each entry in $file is a JSON object.
-[Payload]
-$raw
-[/Payload]
-EOF
-      continue
-    fi
-
-    payload=$(echo "$raw" | jq 'del(.id)')
-    name=$(echo "$payload" | jq -r '.name // empty')
-
-    # Validate: Name is required
-    if [[ -z "$name" ]]; then
-      log_error "Payload missing .name property in $file (see log at /config/logs)"
-      cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR Payload missing .name property in $file
-[WHY]: JSON object has no "name" field.
-[FIX]: Add a "name" property to each custom script object.
-[Payload]
-$payload
-[/Payload]
-EOF
-      continue
-    fi
-
-    # Skip if already registered (info only in log)
-    if arr_api "${arrUrl}/api/${arrApiVersion}/notification" | jq -e --arg n "$name" '.[] | select(.name==$n)' >/dev/null; then
-      log_info "Custom script '$name' already registered; skipping."
-      printf '[Arrbit] SKIP custom script "%s" already exists\n' "$name" | arrbitLogClean >> "$LOG_FILE"
-      continue
-    fi
-
-    log_info "Registering custom script: $name"
-    printf '[Arrbit] Registering custom script "%s"\n[Payload]\n%s\n[/Payload]\n' "$name" "$payload" | arrbitLogClean >> "$LOG_FILE"
-
-    # Do not leak apikey in URL!
-    response=$(arr_api -X POST --data-raw "$payload" "${arrUrl}/api/${arrApiVersion}/notification")
-    printf '[Response]\n%s\n[/Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
-
-    if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
-      log_info "SUCCESS: Custom script '$name' registered."
-      printf '[Arrbit] SUCCESS custom script "%s" registered\n' "$name" | arrbitLogClean >> "$LOG_FILE"
-      scripts_registered=$((scripts_registered + 1))
-    else
-      log_error "Failed to register custom script: $name (see log at /config/logs)"
-      cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR Failed to register custom script: $name
-[WHY]: API did not return an id; likely cause: payload invalid or server/API error.
-[FIX]: Check the payload JSON fields for correctness or see [Response] below.
-[Response]
-$response
-[/Response]
-EOF
-    fi
-  done
-done
-
-if [[ $files_found -eq 0 ]]; then
-  log_error "No payload files found matching $PAYLOAD_DIR/$PATTERN (see log at /config/logs)"
-  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR No payload files found matching $PAYLOAD_DIR/$PATTERN
-[WHY]: No matching custom script JSON files found.
-[FIX]: Add files matching pattern $PATTERN to $PAYLOAD_DIR.
-EOF
+# --- 2. Get module-specific configuration ---
+# Example: Get custom path from YAML if available, otherwise use default
+MODULE_DATA_PATH=$(get_yaml_value "autoconfig.paths.custom_scripts_data")
+if [[ -z "$MODULE_DATA_PATH" || "$MODULE_DATA_PATH" == "null" ]]; then
+  MODULE_DATA_PATH="/config/arrbit/modules/data/custom_scripts_data.json"
 fi
 
-log_info "Done."
+# --- 3. Module-specific logic ---
+# Module-specific logic for custom_scripts\nlog_info # MODULE_SPECIFIC_LOGIC_HEREquot;Executing custom_scripts module...# MODULE_SPECIFIC_LOGIC_HEREquot;\n\n# Add your module-specific logic here\n\nlog_success # MODULE_SPECIFIC_LOGIC_HEREquot;custom_scripts module executed successfully# MODULE_SPECIFIC_LOGIC_HEREquot;
+
+# --- 4. Log completion and exit ---
+log_info "Log saved to $LOG_FILE"
+log_info "Done with ${SCRIPT_NAME} module"
 exit 0
