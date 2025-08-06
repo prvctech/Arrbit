@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - enhanced_config_validator.bash
-# Version: v1.1-gs2.7.1
+# Version: v1.0-gs2.7.1
 # Purpose: Comprehensive YAML configuration validator using schema definitions
 # -------------------------------------------------------------------------------------------------------------
 
