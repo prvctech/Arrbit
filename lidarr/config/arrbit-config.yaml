@@ -1,13 +1,13 @@
 # Arrbit Main Configuration
-# YAML version of arrbit-config.conf
+# YAML version with enhanced options
 
 # Master ON/OFF switch
-enable_arrbit: false
+enable_arrbit: true
 
 # Plugin Settings
 plugins:
   # Master ON/OFF switch for plugins
-  enable: false
+  enable: true
   
   # Plugin Installation Options
   install:
@@ -27,21 +27,34 @@ plugins:
 # Autoconfig Settings
 autoconfig:
   # Master ON/OFF switch for autoconfig service
-  enable: false
+  enable: true
   
   # Module Configuration
   modules:
     media_management: true    # Import extra files, file management, permissions
     metadata_consumer: true   # Kodi, artist/album images, nfo files
     metadata_write: true      # Scrub existing tags, disables musicbrainz
-    metadata_plugin: false    # 
+    metadata_plugin: false    # Plugin metadata settings
     metadata_profiles: true   # Profiles for edm, classical music, hip-hop, standard
     track_naming: true        # File naming, multidisc naming
     ui_settings: true         # Calendar, dates, style - expand items by default
     custom_scripts: true      # Custom scripts created by Arrbit (tagger, videos, etc)
     quality_definitions: true # Sets min, preferred, max kbps for all codecs
-    custom_formats: false     # Arrbit's predefined custom formats
-    quality_profiles: false   # Adds Arrbit's profiles - HI-FI, HI-Res, Apple, Loosy
+    custom_formats: true      # Arrbit's predefined custom formats
+    quality_profiles: true    # Adds Arrbit's profiles - HI-FI, HI-Res, Apple, Loosy
+  
+  # Path Configuration (optional)
+  paths:
+    custom_formats_json: "/config/arrbit/modules/data/payload-custom_formats.json"
+    quality_definitions_json: "/config/arrbit/modules/data/payload-quality_definitions.json"
+    quality_profiles_json: "/config/arrbit/modules/data/payload-quality_profiles.json"
+
+# API Configuration (optional, overrides config.xml values)
+api:
+  # url: "http://127.0.0.1:8686"  # Custom API URL (uncomment to use)
+  # key: "your-api-key-here"      # API key (uncomment to use)
+  # port: "8686"                  # API port (uncomment to use)
+  # instance_name: "Lidarr"       # Instance name (uncomment to use)
 
 # Beets Integration
 # If you use Beets for tagging/organizing, point to your config here:
