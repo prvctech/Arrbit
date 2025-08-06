@@ -1,17 +1,43 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - quality_profiles.bash
-# Version: v1.7-gs2.7.1
+# Version: v2.0-gs2.7.1.1
 # Purpose: Import new quality profiles, always map live custom format IDs, skip duplicates, no deletion logic.
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/logging_utils.bash
 source /config/arrbit/helpers/helpers.bash
+source /config/arrbit/helpers/config_utils.bash
 
 arrbitPurgeOldLogs
+n# Check if YAML configuration exists
+if ! config_exists; then
+  log_error &quot;Configuration file missing: arrbit-config.yaml (see log at /config/logs)&quot;
+  cat <<EOF | arrbitLogClean >> &quot;$LOG_FILE&quot;
+[Arrbit] ERROR Configuration file missing
+[WHY]: arrbit-config.yaml not found in /config/arrbit/config/
+[FIX]: Create a configuration file based on the example in the repository
+EOF
+  exit 1
+fi
+
+# Get module configuration from YAML
+MODULE_ENABLED=$(get_yaml_value &quot;autoconfig.modules.quality_profiles&quot;)
+
+# Validate if validator is available
+if type validate_boolean >/dev/null 2>&1; then
+  if ! validate_boolean &quot;autoconfig.modules.quality_profiles&quot; &quot;$MODULE_ENABLED&quot;; then
+    MODULE_ENABLED=&quot;false&quot;
+  fi
+fi
+
+if [[ &quot;${MODULE_ENABLED,,}&quot; != &quot;true&quot; ]]; then
+  log_warning &quot;quality_profiles module is disabled in configuration. Exiting.&quot;
+  exit 0
+fi
 
 SCRIPT_NAME="quality_profiles"
-SCRIPT_VERSION="v1.7-gs2.7.1"
+SCRIPT_VERSION="v2.0-gs2.7.1.1"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
@@ -28,7 +54,7 @@ EOF
   exit 1
 fi
 
-CUSTOM_FORMATS_ENABLED=$(getFlag "CONFIGURE_CUSTOM_FORMATS")
+CUSTOM_FORMATS_ENABLED=$(get_yaml_value $(getFlag "CONFIGURE_CUSTOM_FORMATS")quot;autoconfig.modules.quality_profiles$(getFlag "CONFIGURE_CUSTOM_FORMATS")quot;)
 if [[ "${CUSTOM_FORMATS_ENABLED,,}" == "true" ]]; then
   # Payloads WITH custom formats
   REPLACE_JSON="/config/arrbit/modules/data/payload-quality_profiles-with_custom_formats.json"
