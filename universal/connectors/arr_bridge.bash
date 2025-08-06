@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - arr_bridge.bash
-# Version: v1.7-gs2.7
-# Purpose: Golden Standard ARR API connector with fully dynamic API URL, port, and version detection.
+# Version: v2.0-gs2.7.1
+# Purpose: Golden Standard ARR API connector with dynamic API URL, port, and version detection.
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/logging_utils.bash
@@ -10,7 +10,13 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="arr_bridge"
-SCRIPT_VERSION="v1.7-gs2.7"
+SCRIPT_VERSION="v2.0-gs2.7.1"
+LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+
+# Banner (only one echo allowed)
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} connector${NC} ${SCRIPT_VERSION}..."
+
+mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
 CONFIG_XML="/config/config.xml"
 
@@ -19,7 +25,7 @@ if [[ ! -f "$CONFIG_XML" ]]; then
   exit 11
 fi
 
-# --- Extract ARR config values (url base, key, instance, port) ---
+# --- Extract ARR config values (url base, key, port) ---
 arr_url_base="$(cat "$CONFIG_XML" | xq | jq -r .Config.UrlBase)"
 if [[ "$arr_url_base" == "null" || -z "$arr_url_base" ]]; then
   arr_url_base=""
@@ -33,19 +39,10 @@ if [[ -z "$arr_api_key" || "$arr_api_key" == "null" ]]; then
   exit 12
 fi
 
-arr_instance_name="$(cat "$CONFIG_XML" | xq | jq -r .Config.InstanceName)"
-if [[ "$arr_instance_name" == "null" || -z "$arr_instance_name" ]]; then
-  arr_instance_name="Lidarr"  # fallback
-fi
-
 arr_port="$(cat "$CONFIG_XML" | xq | jq -r .Config.Port)"
 if [[ -z "$arr_port" || "$arr_port" == "null" ]]; then
-  case "${arr_instance_name,,}" in
-    *sonarr*)  arr_port="8989";  log_warning "API port not found in config.xml, falling back to :8989 (Sonarr default)." ;;
-    *radarr*)  arr_port="7878";  log_warning "API port not found in config.xml, falling back to :7878 (Radarr default)." ;;
-    *readarr*) arr_port="8787";  log_warning "API port not found in config.xml, falling back to :8787 (Readarr default)." ;;
-    *)         arr_port="8686";  log_warning "API port not found in config.xml, falling back to :8686 (Lidarr default)." ;;
-  esac
+  log_error "Port not found in $CONFIG_XML"
+  exit 13
 fi
 
 # Allow ARR_URL override, else build from config
@@ -64,7 +61,7 @@ done
 
 if [[ -z "$arrApiVersion" ]]; then
   log_error "Unable to detect working API version at $arrUrl (tried v3, v1)."
-  exit 13
+  exit 14
 fi
 
 export arrApiKey arrUrl arrApiVersion
@@ -80,7 +77,7 @@ waitForArrApi() {
     sleep 5
   done
   log_error "Could not connect to Arr API after $retries attempts. (Checked: $url)"
-  exit 14
+  exit 15
 }
 waitForArrApi
 
@@ -93,4 +90,8 @@ arr_api() {
 }
 export -f arr_api
 
-log_info "Connected to ${arr_instance_name}"
+# Get instance name for logging
+instance_response="$(arr_api "${arrUrl}/api/${arrApiVersion}/system/status")"
+instance_name="$(echo "$instance_response" | jq -r '.instanceName // "ARR Service"')"
+
+log_info "Connected to ${instance_name}"
