@@ -1,17 +1,25 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - arr_bridge.bash
-# Version: v2.0-gs2.7.1
+# Version: v2.1-gs2.7.1
 # Purpose: Golden Standard ARR API connector with dynamic API URL, port, and version detection.
 # -------------------------------------------------------------------------------------------------------------
+
+# Save the caller's LOG_FILE if it exists
+if [[ -n "${LOG_FILE:-}" ]]; then
+  CALLER_LOG_FILE="$LOG_FILE"
+fi
 
 source /config/arrbit/helpers/logging_utils.bash
 source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="arr_bridge"
-SCRIPT_VERSION="v2.0-gs2.7.1"
-LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+SCRIPT_VERSION="v2.1-gs2.7.1"
+ARR_BRIDGE_LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+
+# Use arr_bridge's own log file for its operations
+LOG_FILE="$ARR_BRIDGE_LOG_FILE"
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
@@ -117,3 +125,8 @@ instance_response="$(arr_api "${arrUrl}/api/${arrApiVersion}/system/status")"
 instance_name="$(echo "$instance_response" | jq -r '.instanceName // "ARR Service"')"
 
 log_info "Connected to ${instance_name}"
+
+# Restore the caller's LOG_FILE if it was set
+if [[ -n "${CALLER_LOG_FILE:-}" ]]; then
+  LOG_FILE="$CALLER_LOG_FILE"
+fi
