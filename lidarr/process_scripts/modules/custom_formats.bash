@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - custom_formats.bash
-# Version: v2.0-gs2.7.1
+# Version: v2.1-gs2.7.1
 # Purpose: Import custom formats from JSON into Lidarr (Golden Standard v2.7.1 strict)
 # -------------------------------------------------------------------------------------------------------------
 
 SCRIPT_NAME="custom_formats"
-SCRIPT_VERSION="v2.0-gs2.7.1"
+SCRIPT_VERSION="v2.1-gs2.7.1"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 # Source required helpers
@@ -37,9 +37,8 @@ fi
 JSON_PATH=$(get_yaml_value "autoconfig.paths.custom_formats_json")
 if [[ -z "$JSON_PATH" || "$JSON_PATH" == "null" ]]; then
   JSON_PATH="/config/arrbit/modules/data/payload-custom_formats.json"
-  log_info "Using default JSON path: $JSON_PATH"
-else
-  log_info "Using configured JSON path: $JSON_PATH"
+  # Log to file only, not terminal
+  printf '[Arrbit] Using default JSON path: %s\n' "$JSON_PATH" | arrbitLogClean >> "$LOG_FILE"
 fi
 
 # --- 3. Check that payload JSON exists ---
@@ -57,7 +56,8 @@ EOF
 fi
 
 # --- 4. Query custom formats API, robust error detection ---
-log_info "Querying API for existing custom formats..."
+# Log to file only, not terminal
+printf '[Arrbit] Querying API for existing custom formats...\n' | arrbitLogClean >> "$LOG_FILE"
 api_response=$(arr_api "${arrUrl}/api/${arrApiVersion}/customformat")
 if ! echo "$api_response" | jq . >/dev/null 2>&1; then
   log_error "Failed to parse custom format list from API (see log at /config/logs)"
@@ -75,11 +75,13 @@ fi
 # --- 5. Extract names (can be empty if no custom formats exist) ---
 existing_names=$(echo "$api_response" | jq -r '.[].name' | tr '[:upper:]' '[:lower:]')
 existing_count=$(echo "$existing_names" | grep -v '^$' | wc -l)
-log_info "Found $existing_count existing custom formats"
+# Log to file only, not terminal
+printf '[Arrbit] Found %s existing custom formats\n' "$existing_count" | arrbitLogClean >> "$LOG_FILE"
 
 # --- 6. Read all custom formats from JSON ---
-log_info "Reading custom formats from JSON file: $JSON_PATH"
-if ! mapfile -t JSON_FORMATS < <(jq -c '.[]' "$JSON_PATH" 2>/dev/null); then
+# Log to file only, not terminal
+printf '[Arrbit] Reading custom formats from JSON file: %s\n' "$JSON_PATH" | arrbitLogClean >> "$LOG_FILE"
+if ! mapfile -t JSON_FORMATS < <(jq -c '.[].name' "$JSON_PATH" 2>/dev/null); then
   log_error "Failed to parse JSON file: $JSON_PATH (see log at /config/logs)"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
 [Arrbit] ERROR Failed to parse JSON file: $JSON_PATH
@@ -89,19 +91,28 @@ EOF
   exit 1
 fi
 
+# Get full format objects for later use
+if ! mapfile -t JSON_FORMAT_OBJECTS < <(jq -c '.[].name' "$JSON_PATH" 2>/dev/null); then
+  log_error "Failed to parse JSON file: $JSON_PATH (see log at /config/logs)"
+  exit 1
+fi
+
 # --- 7. Check if all exist already ---
 format_count=${#JSON_FORMATS[@]}
-log_info "Found $format_count custom formats in JSON file"
+# Log to file only, not terminal
+printf '[Arrbit] Found %s custom formats in JSON file\n' "$format_count" | arrbitLogClean >> "$LOG_FILE"
 
 if [[ $format_count -eq 0 ]]; then
-  log_warning "No custom formats found in JSON file. Nothing to import."
+  log_info "No custom formats found in JSON file. Nothing to import."
   log_info "Log saved to $LOG_FILE"
+  log_info "Done."
   exit 0
 fi
 
 all_exist=true
-for format in "${JSON_FORMATS[@]}"; do
-  format_name=$(echo "$format" | jq -r '.name')
+for format_name in "${JSON_FORMATS[@]}"; do
+  # Remove quotes if present
+  format_name=$(echo "$format_name" | sed 's/^"//;s/"$//')
   lowercase_name=$(echo "$format_name" | tr '[:upper:]' '[:lower:]')
   if ! echo "$existing_names" | grep -Fxq "$lowercase_name"; then
     all_exist=false
@@ -110,25 +121,33 @@ for format in "${JSON_FORMATS[@]}"; do
 done
 
 if $all_exist; then
-  log_info "All custom formats already exist - skipping."
+  log_info "Predefined settings already present. Skipping..."
   log_info "Log saved to $LOG_FILE"
+  log_info "Done."
   exit 0
 fi
 
 # --- 8. Import only missing formats ---
-log_info "Importing missing custom formats..."
+log_info "Importing predefined settings."
 success_count=0
 failure_count=0
 
-for format in "${JSON_FORMATS[@]}"; do
-  format_name=$(echo "$format" | jq -r '.name')
+# Get the full JSON array
+json_array=$(jq '.' "$JSON_PATH")
+
+for i in "${!JSON_FORMATS[@]}"; do
+  format_name=$(echo "${JSON_FORMATS[$i]}" | sed 's/^"//;s/"$//')
   lowercase_name=$(echo "$format_name" | tr '[:upper:]' '[:lower:]')
   
   # Skip if format already exists
   if echo "$existing_names" | grep -Fxq "$lowercase_name"; then
-    log_info "Custom format already exists: ${format_name} - skipping"
+    # Log to file only, not terminal
+    printf '[Arrbit] Custom format already exists: %s - skipping\n' "$format_name" | arrbitLogClean >> "$LOG_FILE"
     continue
   fi
+  
+  # Get the full format object
+  format=$(echo "$json_array" | jq -c ".[$i]")
   
   # Prepare payload (remove id field if present)
   payload=$(echo "$format" | jq 'del(.id)')
@@ -140,8 +159,8 @@ for format in "${JSON_FORMATS[@]}"; do
   
   # Check if import was successful
   if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
-    log_success "Custom format created: ${format_name}"
-    printf '[Arrbit] SUCCESS Custom format created: %s\n' "$format_name" | arrbitLogClean >> "$LOG_FILE"
+    # Log to file only, not terminal
+    printf '[Arrbit] Custom format created: %s\n' "$format_name" | arrbitLogClean >> "$LOG_FILE"
     ((success_count++))
   else
     log_error "Failed to import format: ${format_name} (see log at /config/logs)"
@@ -159,7 +178,7 @@ done
 
 # --- 9. Log summary and exit ---
 if [[ $success_count -gt 0 ]]; then
-  log_success "Successfully imported $success_count custom format(s)"
+  log_info "The module was configured successfully."
 fi
 
 if [[ $failure_count -gt 0 ]]; then
@@ -167,5 +186,5 @@ if [[ $failure_count -gt 0 ]]; then
 fi
 
 log_info "Log saved to $LOG_FILE"
-log_info "Done with ${SCRIPT_NAME} module"
+log_info "Done."
 exit 0
