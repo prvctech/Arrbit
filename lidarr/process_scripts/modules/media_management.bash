@@ -60,6 +60,7 @@ printf '[Arrbit] Media Management payload:\n%s\n' "$payload" | arrbitLogClean >>
 
 # --- 5. Check if settings already match ---
 # Log to file only, not terminal
+printf '[Arrbit] Checking current media management settings\n' | arrbitLogClean >> "$LOG_FILE"
 current_settings=$(arr_api "${arrUrl}/api/${arrApiVersion}/config/mediamanagement")
 printf '[Arrbit] Current settings:\n%s\n' "$current_settings" | arrbitLogClean >> "$LOG_FILE"
 
