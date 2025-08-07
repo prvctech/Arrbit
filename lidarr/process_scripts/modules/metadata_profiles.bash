@@ -13,6 +13,7 @@ LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 source /config/arrbit/helpers/logging_utils.bash
 source /config/arrbit/helpers/helpers.bash
 source /config/arrbit/helpers/config_utils.bash
+source /config/arrbit/helpers/jq_helper.bash
 
 arrbitPurgeOldLogs
 
@@ -64,17 +65,14 @@ printf '[Arrbit] Checking current metadata profiles\n' | arrbitLogClean >> "$LOG
 current_profiles=$(arr_api "${arrUrl}/api/${arrApiVersion}/metadataprofile")
 printf '[Arrbit] Current profiles:\n%s\n' "$current_profiles" | arrbitLogClean >> "$LOG_FILE"
 
-# --- 6. Process profiles ---
 # Parse the payload to determine if it's a single object or an array
 if [[ $(echo "$payload" | jq 'type') == '"array"' ]]; then
   # It's an array of metadata profiles
+  # Check which profiles need to be added
   profile_count=$(echo "$payload" | jq 'length')
   
-  # Get all existing profile names for comparison
-  existing_names=()
-  while read -r name; do
-    existing_names+=("$name")
-  done < <(echo "$current_profiles" | jq -r '.[].name')
+  # Get all existing profile names
+  existing_names=$(jq_get_names "$current_profiles")
   
   # Process each profile in the array
   success_count=0
@@ -92,20 +90,10 @@ if [[ $(echo "$payload" | jq 'type') == '"array"' ]]; then
       continue
     fi
     
-    # Check if profile exists by comparing names directly
-    profile_exists=false
-    existing_id=""
+    # Check if profile exists
+    profile_exists=$(jq_check_name_exists "$current_profiles" "$profile_name")
     
-    for existing_name in "${existing_names[@]}"; do
-      if [[ "$existing_name" == "$profile_name" ]]; then
-        profile_exists=true
-        # Get the ID of the existing profile
-        existing_id=$(echo "$current_profiles" | jq -r ".[] | select(.name == &quot;$profile_name&quot;) | .id")
-        break
-      fi
-    done
-    
-    if $profile_exists; then
+    if [[ "$profile_exists" == "true" ]]; then
       # Log to file only, not terminal
       printf '[Arrbit] Profile already exists: %s - skipping\n' "$profile_name" | arrbitLogClean >> "$LOG_FILE"
       ((skipped_count++))
@@ -182,20 +170,10 @@ else
     exit 0
   fi
   
-  # Check if profile exists by comparing names directly
-  profile_exists=false
-  existing_id=""
+  # Check if profile exists
+  profile_exists=$(jq_check_name_exists "$current_profiles" "$profile_name")
   
-  while read -r existing_name; do
-    if [[ "$existing_name" == "$profile_name" ]]; then
-      profile_exists=true
-      # Get the ID of the existing profile
-      existing_id=$(echo "$current_profiles" | jq -r ".[] | select(.name == &quot;$profile_name&quot;) | .id")
-      break
-    fi
-  done < <(echo "$current_profiles" | jq -r '.[].name')
-  
-  if $profile_exists; then
+  if [[ "$profile_exists" == "true" ]]; then
     log_info "Predefined settings already present. Skipping..."
     log_info "Log saved to $LOG_FILE"
     log_info "Done."
@@ -247,7 +225,7 @@ EOF
   fi
 fi
 
-# --- 7. Log completion and exit ---
+# --- 6. Log completion and exit ---
 log_info "Log saved to $LOG_FILE"
 log_info "Done."
 exit 0
