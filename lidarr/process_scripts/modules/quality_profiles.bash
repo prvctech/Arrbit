@@ -1,49 +1,27 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - quality_profiles.bash
-# Version: v2.0-gs2.7.1.1
-# Purpose: Import new quality profiles, always map live custom format IDs, skip duplicates, no deletion logic.
+# Version: v2.1-gs2.7.1
+# Purpose: Configure Lidarr Quality Profiles via API (Golden Standard v2.7.1 compliant)
 # -------------------------------------------------------------------------------------------------------------
 
+SCRIPT_NAME="quality_profiles"
+SCRIPT_VERSION="v2.1-gs2.7.1"
+LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+
+# Source required helpers
 source /config/arrbit/helpers/logging_utils.bash
 source /config/arrbit/helpers/helpers.bash
 source /config/arrbit/helpers/config_utils.bash
 
 arrbitPurgeOldLogs
-n# Check if YAML configuration exists
-if ! config_exists; then
-  log_error &quot;Configuration file missing: arrbit-config.yaml (see log at /config/logs)&quot;
-  cat <<EOF | arrbitLogClean >> &quot;$LOG_FILE&quot;
-[Arrbit] ERROR Configuration file missing
-[WHY]: arrbit-config.yaml not found in /config/arrbit/config/
-[FIX]: Create a configuration file based on the example in the repository
-EOF
-  exit 1
-fi
 
-# Get module configuration from YAML
-MODULE_ENABLED=$(get_yaml_value &quot;autoconfig.modules.quality_profiles&quot;)
-
-# Validate if validator is available
-if type validate_boolean >/dev/null 2>&1; then
-  if ! validate_boolean &quot;autoconfig.modules.quality_profiles&quot; &quot;$MODULE_ENABLED&quot;; then
-    MODULE_ENABLED=&quot;false&quot;
-  fi
-fi
-
-if [[ &quot;${MODULE_ENABLED,,}&quot; != &quot;true&quot; ]]; then
-  log_warning &quot;quality_profiles module is disabled in configuration. Exiting.&quot;
-  exit 0
-fi
-
-SCRIPT_NAME="quality_profiles"
-SCRIPT_VERSION="v2.0-gs2.7.1.1"
-LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+# Banner (only one echo allowed)
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
-
+# --- 1. Source arr_bridge for API variables and arr_api wrapper ---
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
   log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup) (see log at /config/logs)"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
@@ -54,115 +32,167 @@ EOF
   exit 1
 fi
 
-CUSTOM_FORMATS_ENABLED=$(get_yaml_value $(getFlag "CONFIGURE_CUSTOM_FORMATS")quot;autoconfig.modules.quality_profiles$(getFlag "CONFIGURE_CUSTOM_FORMATS")quot;)
-if [[ "${CUSTOM_FORMATS_ENABLED,,}" == "true" ]]; then
-  # Payloads WITH custom formats
-  REPLACE_JSON="/config/arrbit/modules/data/payload-quality_profiles-with_custom_formats.json"
-
-  # Get custom formats from Lidarr
-  log_info "Fetching live custom format IDs from Lidarr..."
-  CUSTOM_FORMATS_RAW=$(arr_api "${arrUrl}/api/${arrApiVersion}/customformat")
-  if [[ -z "$CUSTOM_FORMATS_RAW" ]]; then
-    log_error "Could not retrieve custom formats from Lidarr. (see log at /config/logs)"
-    cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR Could not retrieve custom formats from Lidarr.
-[WHY]: API call for custom formats failed.
-[FIX]: Ensure Lidarr is running and API is accessible. See log for details.
-EOF
-    exit 1
-  fi
-
-  # Build a jq map for name → id
-  CF_JQ_MAP=$(echo "$CUSTOM_FORMATS_RAW" | jq -r 'map({(.name): .id}) | add')
-
-  # Check that all names from payload exist in live formats
-  REMAPPED_JSON=$(jq --argjson cfmap "$CF_JQ_MAP" '
-    map(
-      .formatItems |= map(
-        .format = ($cfmap[.name] // -1)
-      )
-    )
-  ' "$REPLACE_JSON")
-
-  # Validate: if any .format == -1, error!
-  if echo "$REMAPPED_JSON" | jq '.[]|.formatItems[]|select(.format == -1)' | grep -q .; then
-    log_error "Mismatch: One or more custom formats in your profile payload do not exist in Lidarr. Check for typos or import order. (see log at /config/logs)"
-    cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR Mismatched custom formats in payload
-[WHY]: One or more custom formats in your profile payload do not exist in Lidarr.
-[FIX]: Check for typos in your payload or verify that all custom formats are present in Lidarr before running this script.
-EOF
-    exit 1
-  fi
-
-  REPLACEMENTS_JSON="$REMAPPED_JSON"
-else
-  # Payloads WITHOUT custom formats
-  REPLACE_JSON="/config/arrbit/modules/data/payload-quality_profiles-no_custom_formats.json"
-  if [[ ! -f "$REPLACE_JSON" ]]; then
-    log_error "File not found: ${REPLACE_JSON} (see log at /config/logs)"
-    cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR File not found: $REPLACE_JSON
-[WHY]: The file does not exist at the specified path.
-[FIX]: Place a valid payload-quality_profiles-no_custom_formats.json in $(dirname "$REPLACE_JSON").
-EOF
-    exit 1
-  fi
-  REPLACEMENTS_JSON=$(cat "$REPLACE_JSON")
+# --- 2. Get module-specific configuration ---
+# Get payload path from YAML if available, otherwise use default
+PAYLOAD_PATH=$(get_yaml_value "autoconfig.paths.quality_profiles_payload")
+if [[ -z "$PAYLOAD_PATH" || "$PAYLOAD_PATH" == "null" ]]; then
+  PAYLOAD_PATH="/config/arrbit/modules/data/payload-quality_profiles.json"
 fi
 
-log_info "Reading replacement profiles from: ${REPLACE_JSON}"
-
-existing_profiles=$(arr_api "${arrUrl}/api/${arrApiVersion}/qualityprofile")
-if [[ -z "$existing_profiles" ]]; then
-  log_error "Could not retrieve existing quality profiles from Lidarr. (see log at /config/logs)"
+# --- 3. Check if payload file exists ---
+if [[ ! -f "$PAYLOAD_PATH" ]]; then
+  log_error "Payload file not found: ${PAYLOAD_PATH} (see log at /config/logs)"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR Could not retrieve existing quality profiles from Lidarr.
-[WHY]: API call for quality profiles failed.
-[FIX]: Ensure Lidarr is running and API is accessible. See log for details.
+[Arrbit] ERROR Payload file not found: $PAYLOAD_PATH
+[WHY]: The file does not exist at the specified path.
+[FIX]: Place a valid payload-quality_profiles.json in $(dirname "$PAYLOAD_PATH") or update the path in configuration:
+      autoconfig:
+        paths:
+          quality_profiles_payload: "/path/to/your/payload-quality_profiles.json"
 EOF
   exit 1
 fi
 
-mapfile -t EXISTING_NAMES < <(echo "$existing_profiles" | jq -r '.[].name' | tr '[:upper:]' '[:lower:]')
-mapfile -t REPLACEMENTS < <(echo "$REPLACEMENTS_JSON" | jq -c '.[]')
+# --- 4. Read payload from file ---
+# Log to file only, not terminal
+payload=$(cat "$PAYLOAD_PATH")
+printf '[Arrbit] Quality Profiles payload:\n%s\n' "$payload" | arrbitLogClean >> "$LOG_FILE"
 
-skipped_any=false
+# --- 5. Check if settings already match ---
+# Log to file only, not terminal
+printf '[Arrbit] Checking current quality profiles\n' | arrbitLogClean >> "$LOG_FILE"
+current_profiles=$(arr_api "${arrUrl}/api/${arrApiVersion}/qualityprofile")
+printf '[Arrbit] Current profiles:\n%s\n' "$current_profiles" | arrbitLogClean >> "$LOG_FILE"
 
-for profile in "${REPLACEMENTS[@]}"; do
-  name=$(echo "$profile" | jq -r '.name')
-  lname=$(echo "$name" | tr '[:upper:]' '[:lower:]')
-
-  if printf '%s\n' "${EXISTING_NAMES[@]}" | grep -Fxq "$lname"; then
-    skipped_any=true
-    continue
+# Parse the payload to determine if it's a single object or an array
+if [[ $(echo "$payload" | jq 'type') == '"array"' ]]; then
+  # It's an array of quality profiles
+  # Check if all profiles already exist with the same settings
+  all_exist=true
+  profile_count=$(echo "$payload" | jq 'length')
+  
+  for ((i=0; i<profile_count; i++)); do
+    profile=$(echo "$payload" | jq ".[$i]")
+    profile_name=$(echo "$profile" | jq -r '.name')
+    
+    # Check if profile exists
+    existing_profile=$(echo "$current_profiles" | jq ".[] | select(.name == &quot;$profile_name&quot;)")
+    if [[ -z "$existing_profile" ]]; then
+      all_exist=false
+      break
+    fi
+    
+    # Compare settings (ignoring id)
+    existing_without_id=$(echo "$existing_profile" | jq 'del(.id)')
+    profile_without_id=$(echo "$profile" | jq 'del(.id)')
+    
+    if [[ "$existing_without_id" != "$profile_without_id" ]]; then
+      all_exist=false
+      break
+    fi
+  done
+  
+  if $all_exist; then
+    log_info "Predefined settings already present. Skipping..."
+    log_info "Log saved to $LOG_FILE"
+    log_info "Done."
+    exit 0
   fi
-
-  payload=$(echo "$profile" | jq 'del(.id)')
-
-  log_info "Importing replacement quality profile: $name"
-  printf '[Arrbit] Importing replacement profile: %s\n[Payload]\n%s\n[/Payload]\n' "$name" "$payload" | arrbitLogClean >> "$LOG_FILE"
-  response=$(arr_api -X POST --data-raw "$payload" "${arrUrl}/api/${arrApiVersion}/qualityprofile")
-  printf '[Response]\n%s\n[/Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
-  if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
-    printf '[Arrbit] SUCCESS Replacement profile created: %s\n' "$name" | arrbitLogClean >> "$LOG_FILE"
-    EXISTING_NAMES+=("$lname")
+  
+  # Import profiles
+  log_info "Importing predefined settings."
+  success_count=0
+  failure_count=0
+  
+  for ((i=0; i<profile_count; i++)); do
+    profile=$(echo "$payload" | jq ".[$i]")
+    profile_name=$(echo "$profile" | jq -r '.name')
+    
+    # Check if profile exists
+    existing_profile=$(echo "$current_profiles" | jq ".[] | select(.name == &quot;$profile_name&quot;)")
+    if [[ -n "$existing_profile" ]]; then
+      existing_id=$(echo "$existing_profile" | jq -r '.id')
+      
+      # Update existing profile
+      log_info "Updating quality profile: ${profile_name}"
+      response=$(arr_api -X PUT --data-raw "$profile" "${arrUrl}/api/${arrApiVersion}/qualityprofile/$existing_id")
+    else
+      # Create new profile
+      log_info "Creating quality profile: ${profile_name}"
+      profile_without_id=$(echo "$profile" | jq 'del(.id)')
+      response=$(arr_api -X POST --data-raw "$profile_without_id" "${arrUrl}/api/${arrApiVersion}/qualityprofile")
+    fi
+    
+    # Log response to file only, not terminal
+    printf '[API Response for %s]\n%s\n[/API Response]\n' "$profile_name" "$response" | arrbitLogClean >> "$LOG_FILE"
+    
+    # Check if operation was successful
+    if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
+      ((success_count++))
+    else
+      log_error "Failed to configure quality profile: ${profile_name} (see log at /config/logs)"
+      ((failure_count++))
+    fi
+  done
+  
+  # Log summary
+  if [[ $success_count -gt 0 && $failure_count -eq 0 ]]; then
+    log_info "The module was configured successfully."
+  elif [[ $failure_count -gt 0 ]]; then
+    log_warning "Failed to configure $failure_count quality profile(s)"
+  fi
+else
+  # It's a single quality profile
+  profile_name=$(echo "$payload" | jq -r '.name')
+  
+  # Check if profile exists
+  existing_profile=$(echo "$current_profiles" | jq ".[] | select(.name == &quot;$profile_name&quot;)")
+  
+  if [[ -n "$existing_profile" ]]; then
+    existing_id=$(echo "$existing_profile" | jq -r '.id')
+    
+    # Compare settings (ignoring id)
+    existing_without_id=$(echo "$existing_profile" | jq 'del(.id)')
+    payload_without_id=$(echo "$payload" | jq 'del(.id)')
+    
+    if [[ "$existing_without_id" == "$payload_without_id" ]]; then
+      log_info "Predefined settings already present. Skipping..."
+      log_info "Log saved to $LOG_FILE"
+      log_info "Done."
+      exit 0
+    fi
+    
+    # Update existing profile
+    log_info "Importing predefined settings."
+    response=$(arr_api -X PUT --data-raw "$payload" "${arrUrl}/api/${arrApiVersion}/qualityprofile/$existing_id")
   else
-    log_error "Failed to create replacement profile: $name (see log at /config/logs)"
-    cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR Failed to create replacement profile: $name
-[WHY]: API POST request failed or invalid response.
-[FIX]: Check payload and Lidarr server status. See [Response] section below.
-[Response]
-$response
-[/Response]
-EOF
+    # Create new profile
+    log_info "Importing predefined settings."
+    payload_without_id=$(echo "$payload" | jq 'del(.id)')
+    response=$(arr_api -X POST --data-raw "$payload_without_id" "${arrUrl}/api/${arrApiVersion}/qualityprofile")
   fi
-done
-
-if $skipped_any; then
-  log_info "Quality profiles already exist - skipping."
+  
+  # Log response to file only, not terminal
+  printf '[API Response]\n%s\n[/API Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
+  
+  # Check if operation was successful
+  if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
+    log_info "The module was configured successfully."
+  else
+    log_error "Quality Profiles API call failed (see log at /config/logs)"
+    cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR Quality Profiles API call failed
+[WHY]: API response did not validate (expected fields missing)
+[FIX]: Check ARR API connectivity and payload structure. See [API Response] section above for details.
+[API Response]
+$response
+[/API Response]
+EOF
+    exit 1
+  fi
 fi
 
+# --- 6. Log completion and exit ---
+log_info "Log saved to $LOG_FILE"
 log_info "Done."
 exit 0
