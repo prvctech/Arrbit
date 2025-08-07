@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - metadata_profiles.bash
-# Version: v2.2-gs2.7.1
+# Version: v2.3-gs2.7.1
 # Purpose: Configure Lidarr Metadata Profiles via API (Golden Standard v2.7.1 compliant)
 # -------------------------------------------------------------------------------------------------------------
 
 SCRIPT_NAME="metadata_profiles"
-SCRIPT_VERSION="v2.2-gs2.7.1"
+SCRIPT_VERSION="v2.3-gs2.7.1"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 # Source required helpers
@@ -64,10 +64,17 @@ printf '[Arrbit] Checking current metadata profiles\n' | arrbitLogClean >> "$LOG
 current_profiles=$(arr_api "${arrUrl}/api/${arrApiVersion}/metadataprofile")
 printf '[Arrbit] Current profiles:\n%s\n' "$current_profiles" | arrbitLogClean >> "$LOG_FILE"
 
+# --- 6. Process profiles ---
 # Parse the payload to determine if it's a single object or an array
 if [[ $(echo "$payload" | jq 'type') == '"array"' ]]; then
   # It's an array of metadata profiles
   profile_count=$(echo "$payload" | jq 'length')
+  
+  # Get all existing profile names for comparison
+  existing_names=()
+  while read -r name; do
+    existing_names+=("$name")
+  done < <(echo "$current_profiles" | jq -r '.[].name')
   
   # Process each profile in the array
   success_count=0
@@ -85,99 +92,60 @@ if [[ $(echo "$payload" | jq 'type') == '"array"' ]]; then
       continue
     fi
     
-    # Check if profile exists
-    existing_profile=$(echo "$current_profiles" | jq ".[] | select(.name == &quot;$profile_name&quot;)")
+    # Check if profile exists by comparing names directly
+    profile_exists=false
+    existing_id=""
     
-    if [[ -n "$existing_profile" ]]; then
-      existing_id=$(echo "$existing_profile" | jq -r '.id')
-      
-      # Compare settings (ignoring id)
-      existing_without_id=$(echo "$existing_profile" | jq 'del(.id)')
-      profile_without_id=$(echo "$profile" | jq 'del(.id)')
-      
-      if [[ "$(echo "$existing_without_id" | jq -S .)" == "$(echo "$profile_without_id" | jq -S .)" ]]; then
-        # Log to file only, not terminal
-        printf '[Arrbit] Profile already exists and matches: %s - skipping\n' "$profile_name" | arrbitLogClean >> "$LOG_FILE"
-        ((skipped_count++))
-        continue
+    for existing_name in "${existing_names[@]}"; do
+      if [[ "$existing_name" == "$profile_name" ]]; then
+        profile_exists=true
+        # Get the ID of the existing profile
+        existing_id=$(echo "$current_profiles" | jq -r ".[] | select(.name == &quot;$profile_name&quot;) | .id")
+        break
       fi
-      
-      # Ensure required fields are present
-      # Check for primary album types
-      if [[ $(echo "$profile_without_id" | jq '.primaryAlbumTypes | length') -eq 0 ]]; then
-        log_warning "Adding required primary album types to profile: ${profile_name}"
-        profile_without_id=$(echo "$profile_without_id" | jq '.primaryAlbumTypes = [{"albumType": "Album", "allowed": true}]')
-      fi
-      
-      # Check for secondary album types
-      if [[ $(echo "$profile_without_id" | jq '.secondaryAlbumTypes | length') -eq 0 ]]; then
-        log_warning "Adding required secondary album types to profile: ${profile_name}"
-        profile_without_id=$(echo "$profile_without_id" | jq '.secondaryAlbumTypes = [{"albumType": "Studio", "allowed": true}]')
-      fi
-      
-      # Check for release statuses
-      if [[ $(echo "$profile_without_id" | jq '.releaseStatuses | length') -eq 0 ]]; then
-        log_warning "Adding required release statuses to profile: ${profile_name}"
-        profile_without_id=$(echo "$profile_without_id" | jq '.releaseStatuses = [{"releaseStatus": "Official", "allowed": true}]')
-      fi
-      
-      # Update existing profile
-      log_info "Updating metadata profile: ${profile_name}"
-      response=$(arr_api -X PUT --data-raw "$profile_without_id" "${arrUrl}/api/${arrApiVersion}/metadataprofile/$existing_id")
-      
-      # Log response to file only, not terminal
-      printf '[API Response for %s]\n%s\n[/API Response]\n' "$profile_name" "$response" | arrbitLogClean >> "$LOG_FILE"
-      
-      # Check if operation was successful
-      if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
-        ((success_count++))
-      else
-        log_error "Failed to update metadata profile: ${profile_name} (see log at /config/logs)"
-        cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR Failed to update metadata profile: $profile_name
-[WHY]: API response did not validate (expected fields missing or invalid)
-[FIX]: Check payload JSON fields for correctness, or see [API Response] section below for more info.
-[API Response]
-$response
-[/API Response]
-EOF
-        ((failure_count++))
-      fi
+    done
+    
+    if $profile_exists; then
+      # Log to file only, not terminal
+      printf '[Arrbit] Profile already exists: %s - skipping\n' "$profile_name" | arrbitLogClean >> "$LOG_FILE"
+      ((skipped_count++))
+      continue
+    fi
+    
+    # Create new profile
+    log_info "Creating metadata profile: ${profile_name}"
+    profile_without_id=$(echo "$profile" | jq 'del(.id)')
+    
+    # Ensure required fields are present
+    # Check for primary album types
+    if [[ $(echo "$profile_without_id" | jq '.primaryAlbumTypes | length') -eq 0 ]]; then
+      log_warning "Adding required primary album types to profile: ${profile_name}"
+      profile_without_id=$(echo "$profile_without_id" | jq '.primaryAlbumTypes = [{"albumType": "Album", "allowed": true}]')
+    fi
+    
+    # Check for secondary album types
+    if [[ $(echo "$profile_without_id" | jq '.secondaryAlbumTypes | length') -eq 0 ]]; then
+      log_warning "Adding required secondary album types to profile: ${profile_name}"
+      profile_without_id=$(echo "$profile_without_id" | jq '.secondaryAlbumTypes = [{"albumType": "Studio", "allowed": true}]')
+    fi
+    
+    # Check for release statuses
+    if [[ $(echo "$profile_without_id" | jq '.releaseStatuses | length') -eq 0 ]]; then
+      log_warning "Adding required release statuses to profile: ${profile_name}"
+      profile_without_id=$(echo "$profile_without_id" | jq '.releaseStatuses = [{"releaseStatus": "Official", "allowed": true}]')
+    fi
+    
+    response=$(arr_api -X POST --data-raw "$profile_without_id" "${arrUrl}/api/${arrApiVersion}/metadataprofile")
+    
+    # Log response to file only, not terminal
+    printf '[API Response for %s]\n%s\n[/API Response]\n' "$profile_name" "$response" | arrbitLogClean >> "$LOG_FILE"
+    
+    # Check if operation was successful
+    if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
+      ((success_count++))
     else
-      # Create new profile
-      log_info "Creating metadata profile: ${profile_name}"
-      profile_without_id=$(echo "$profile" | jq 'del(.id)')
-      
-      # Ensure required fields are present
-      # Check for primary album types
-      if [[ $(echo "$profile_without_id" | jq '.primaryAlbumTypes | length') -eq 0 ]]; then
-        log_warning "Adding required primary album types to profile: ${profile_name}"
-        profile_without_id=$(echo "$profile_without_id" | jq '.primaryAlbumTypes = [{"albumType": "Album", "allowed": true}]')
-      fi
-      
-      # Check for secondary album types
-      if [[ $(echo "$profile_without_id" | jq '.secondaryAlbumTypes | length') -eq 0 ]]; then
-        log_warning "Adding required secondary album types to profile: ${profile_name}"
-        profile_without_id=$(echo "$profile_without_id" | jq '.secondaryAlbumTypes = [{"albumType": "Studio", "allowed": true}]')
-      fi
-      
-      # Check for release statuses
-      if [[ $(echo "$profile_without_id" | jq '.releaseStatuses | length') -eq 0 ]]; then
-        log_warning "Adding required release statuses to profile: ${profile_name}"
-        profile_without_id=$(echo "$profile_without_id" | jq '.releaseStatuses = [{"releaseStatus": "Official", "allowed": true}]')
-      fi
-      
-      response=$(arr_api -X POST --data-raw "$profile_without_id" "${arrUrl}/api/${arrApiVersion}/metadataprofile")
-      
-      # Log response to file only, not terminal
-      printf '[API Response for %s]\n%s\n[/API Response]\n' "$profile_name" "$response" | arrbitLogClean >> "$LOG_FILE"
-      
-      # Check if operation was successful
-      if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
-        ((success_count++))
-      else
-        log_error "Failed to create metadata profile: ${profile_name} (see log at /config/logs)"
-        cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+      log_error "Failed to create metadata profile: ${profile_name} (see log at /config/logs)"
+      cat <<EOF | arrbitLogClean >> "$LOG_FILE"
 [Arrbit] ERROR Failed to create metadata profile: $profile_name
 [WHY]: API response did not validate (expected fields missing or invalid)
 [FIX]: Check payload JSON fields for correctness, or see [API Response] section below for more info.
@@ -185,8 +153,7 @@ EOF
 $response
 [/API Response]
 EOF
-        ((failure_count++))
-      fi
+      ((failure_count++))
     fi
   done
   
@@ -197,7 +164,7 @@ EOF
       log_info "Skipped $skipped_count profiles (already exist or reserved names)."
     fi
   elif [[ $success_count -gt 0 && $failure_count -gt 0 ]]; then
-    log_warning "Partially successful: Added/updated $success_count profiles, failed to add/update $failure_count profiles"
+    log_warning "Partially successful: Added $success_count profiles, failed to add $failure_count profiles"
   elif [[ $failure_count -gt 0 ]]; then
     log_warning "Failed to configure $failure_count metadata profile(s)"
   elif [[ $skipped_count -gt 0 && $success_count -eq 0 && $failure_count -eq 0 ]]; then
@@ -215,71 +182,50 @@ else
     exit 0
   fi
   
-  # Check if profile exists
-  existing_profile=$(echo "$current_profiles" | jq ".[] | select(.name == &quot;$profile_name&quot;)")
+  # Check if profile exists by comparing names directly
+  profile_exists=false
+  existing_id=""
   
-  if [[ -n "$existing_profile" ]]; then
-    existing_id=$(echo "$existing_profile" | jq -r '.id')
-    
-    # Compare settings (ignoring id)
-    existing_without_id=$(echo "$existing_profile" | jq 'del(.id)')
-    payload_without_id=$(echo "$payload" | jq 'del(.id)')
-    
-    if [[ "$(echo "$existing_without_id" | jq -S .)" == "$(echo "$payload_without_id" | jq -S .)" ]]; then
-      log_info "Predefined settings already present. Skipping..."
-      log_info "Log saved to $LOG_FILE"
-      log_info "Done."
-      exit 0
+  while read -r existing_name; do
+    if [[ "$existing_name" == "$profile_name" ]]; then
+      profile_exists=true
+      # Get the ID of the existing profile
+      existing_id=$(echo "$current_profiles" | jq -r ".[] | select(.name == &quot;$profile_name&quot;) | .id")
+      break
     fi
-    
-    # Ensure required fields are present
-    # Check for primary album types
-    if [[ $(echo "$payload_without_id" | jq '.primaryAlbumTypes | length') -eq 0 ]]; then
-      log_warning "Adding required primary album types to profile: ${profile_name}"
-      payload_without_id=$(echo "$payload_without_id" | jq '.primaryAlbumTypes = [{"albumType": "Album", "allowed": true}]')
-    fi
-    
-    # Check for secondary album types
-    if [[ $(echo "$payload_without_id" | jq '.secondaryAlbumTypes | length') -eq 0 ]]; then
-      log_warning "Adding required secondary album types to profile: ${profile_name}"
-      payload_without_id=$(echo "$payload_without_id" | jq '.secondaryAlbumTypes = [{"albumType": "Studio", "allowed": true}]')
-    fi
-    
-    # Check for release statuses
-    if [[ $(echo "$payload_without_id" | jq '.releaseStatuses | length') -eq 0 ]]; then
-      log_warning "Adding required release statuses to profile: ${profile_name}"
-      payload_without_id=$(echo "$payload_without_id" | jq '.releaseStatuses = [{"releaseStatus": "Official", "allowed": true}]')
-    fi
-    
-    # Update existing profile
-    log_info "Updating metadata profile: ${profile_name}"
-    response=$(arr_api -X PUT --data-raw "$payload_without_id" "${arrUrl}/api/${arrApiVersion}/metadataprofile/$existing_id")
-  else
-    # Create new profile
-    log_info "Creating metadata profile: ${profile_name}"
-    payload_without_id=$(echo "$payload" | jq 'del(.id)')
-    
-    # Ensure required fields are present
-    # Check for primary album types
-    if [[ $(echo "$payload_without_id" | jq '.primaryAlbumTypes | length') -eq 0 ]]; then
-      log_warning "Adding required primary album types to profile: ${profile_name}"
-      payload_without_id=$(echo "$payload_without_id" | jq '.primaryAlbumTypes = [{"albumType": "Album", "allowed": true}]')
-    fi
-    
-    # Check for secondary album types
-    if [[ $(echo "$payload_without_id" | jq '.secondaryAlbumTypes | length') -eq 0 ]]; then
-      log_warning "Adding required secondary album types to profile: ${profile_name}"
-      payload_without_id=$(echo "$payload_without_id" | jq '.secondaryAlbumTypes = [{"albumType": "Studio", "allowed": true}]')
-    fi
-    
-    # Check for release statuses
-    if [[ $(echo "$payload_without_id" | jq '.releaseStatuses | length') -eq 0 ]]; then
-      log_warning "Adding required release statuses to profile: ${profile_name}"
-      payload_without_id=$(echo "$payload_without_id" | jq '.releaseStatuses = [{"releaseStatus": "Official", "allowed": true}]')
-    fi
-    
-    response=$(arr_api -X POST --data-raw "$payload_without_id" "${arrUrl}/api/${arrApiVersion}/metadataprofile")
+  done < <(echo "$current_profiles" | jq -r '.[].name')
+  
+  if $profile_exists; then
+    log_info "Predefined settings already present. Skipping..."
+    log_info "Log saved to $LOG_FILE"
+    log_info "Done."
+    exit 0
   fi
+  
+  # Create new profile
+  log_info "Creating metadata profile: ${profile_name}"
+  payload_without_id=$(echo "$payload" | jq 'del(.id)')
+  
+  # Ensure required fields are present
+  # Check for primary album types
+  if [[ $(echo "$payload_without_id" | jq '.primaryAlbumTypes | length') -eq 0 ]]; then
+    log_warning "Adding required primary album types to profile: ${profile_name}"
+    payload_without_id=$(echo "$payload_without_id" | jq '.primaryAlbumTypes = [{"albumType": "Album", "allowed": true}]')
+  fi
+  
+  # Check for secondary album types
+  if [[ $(echo "$payload_without_id" | jq '.secondaryAlbumTypes | length') -eq 0 ]]; then
+    log_warning "Adding required secondary album types to profile: ${profile_name}"
+    payload_without_id=$(echo "$payload_without_id" | jq '.secondaryAlbumTypes = [{"albumType": "Studio", "allowed": true}]')
+  fi
+  
+  # Check for release statuses
+  if [[ $(echo "$payload_without_id" | jq '.releaseStatuses | length') -eq 0 ]]; then
+    log_warning "Adding required release statuses to profile: ${profile_name}"
+    payload_without_id=$(echo "$payload_without_id" | jq '.releaseStatuses = [{"releaseStatus": "Official", "allowed": true}]')
+  fi
+  
+  response=$(arr_api -X POST --data-raw "$payload_without_id" "${arrUrl}/api/${arrApiVersion}/metadataprofile")
   
   # Log response to file only, not terminal
   printf '[API Response]\n%s\n[/API Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
@@ -301,7 +247,7 @@ EOF
   fi
 fi
 
-# --- 6. Log completion and exit ---
+# --- 7. Log completion and exit ---
 log_info "Log saved to $LOG_FILE"
 log_info "Done."
 exit 0
