@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - quality_profiles.bash
-# Version: v1.0.1-gs2.8.2
+# Version: v1.0.2-gs2.8.2
 # Purpose: Import new quality profiles, always map live custom format IDs, skip duplicates, no deletion logic.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -11,7 +11,7 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="quality_profiles"
-SCRIPT_VERSION="v1.0.1-gs2.8.2"
+SCRIPT_VERSION="v1.0.2-gs2.8.2"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
@@ -36,6 +36,17 @@ if [[ "${CUSTOM_FORMATS_ENABLED,,}" == "true" ]]; then
   # Payloads WITH custom formats
   REPLACE_JSON="/config/arrbit/modules/data/payload-quality_profiles-with_custom_formats.json"
 
+  # Ensure payload exists
+  if [[ ! -f "$REPLACE_JSON" ]]; then
+    log_error "File not found: ${REPLACE_JSON} (see log at /config/logs)"
+    cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR File not found: $REPLACE_JSON
+[WHY]: The file does not exist at the specified path.
+[FIX]: Place a valid payload-quality_profiles-with_custom_formats.json in $(dirname "$REPLACE_JSON").
+EOF
+    exit 1
+  fi
+
   # Get custom formats from Lidarr
   log_info "Fetching live custom format IDs from Lidarr..."
   CUSTOM_FORMATS_RAW=$(arr_api "${arrUrl}/api/${arrApiVersion}/customformat")
@@ -52,7 +63,7 @@ EOF
   # Build a jq map for name → id
   CF_JQ_MAP=$(echo "$CUSTOM_FORMATS_RAW" | jq -r 'map({(.name): .id}) | add')
 
-  # Check that all names from payload exist in live formats
+  # Remap payload formatItems names → live ids
   REMAPPED_JSON=$(jq --argjson cfmap "$CF_JQ_MAP" '
     map(
       .formatItems |= map(
@@ -88,7 +99,6 @@ EOF
   REPLACEMENTS_JSON=$(cat "$REPLACE_JSON")
 fi
 
-log_info "Reading replacement profiles from: ${REPLACE_JSON}"
 
 existing_profiles=$(arr_api "${arrUrl}/api/${arrApiVersion}/qualityprofile")
 if [[ -z "$existing_profiles" ]]; then
@@ -103,6 +113,22 @@ fi
 
 mapfile -t EXISTING_NAMES < <(echo "$existing_profiles" | jq -r '.[].name' | tr '[:upper:]' '[:lower:]')
 mapfile -t REPLACEMENTS < <(echo "$REPLACEMENTS_JSON" | jq -c '.[]')
+
+# If everything already exists, standard skip message
+all_exist=true
+for profile in "${REPLACEMENTS[@]}"; do
+  name=$(echo "$profile" | jq -r '.name')
+  lname=$(echo "$name" | tr '[:upper:]' '[:lower:]')
+  if ! printf '%s\n' "${EXISTING_NAMES[@]}" | grep -Fxq "$lname"; then
+    all_exist=false
+    break
+  fi
+done
+if $all_exist; then
+  log_info "Predefined settings already present. Skipping..."
+  log_info "Done."
+  exit 0
+fi
 
 skipped_any=false
 
@@ -129,10 +155,10 @@ for profile in "${REPLACEMENTS[@]}"; do
     cat <<EOF | arrbitLogClean >> "$LOG_FILE"
 [Arrbit] ERROR Failed to create replacement profile: $name
 [WHY]: API POST request failed or invalid response.
-[FIX]: Check payload and Lidarr server status. See [Response] section below.
-[Response]
+[FIX]: Check payload and Lidarr server status. See [API Response] section below.
+[API Response]
 $response
-[/Response]
+[/API Response]
 EOF
   fi
 done
