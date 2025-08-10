@@ -1,10 +1,10 @@
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - logging_utils.bash
-# Version: v1.0.0-gs2.8.2
+# Version: v1.0.1-gs2.8.2
 # Purpose:
 #   • log_info, log_error, log_warning : Standardized, colorized logging for Arrbit scripts (with neon/bright colors).
 #   • arrbitLogClean       : strip ANSI colours and normalise spacing.
-#   • arrbitPurgeOldLogs   : delete old Arrbit logs (default >2 days).
+#   • arrbitPurgeOldLogs   : keep only the newest N logs per script prefix (default 3).
 # -------------------------------------------------------------------------------------------------------------
 
 # Neon/Bright ANSI color codes (for terminals with 256-color or better support)
@@ -68,17 +68,21 @@ arrbitLogClean() {
 
 # ------------------------------------------------
 # arrbitPurgeOldLogs  [max_files]
+# Keep only the newest max_files per prefix (arrbit-<name>-YYYY_MM_DD-HH_MM.log), default 3
 # ------------------------------------------------
 arrbitPurgeOldLogs() {
-  local max_files="${1:-2}"
+  local max_files="${1:-3}"
   local log_dir="/config/logs"
-  
-  if [[ -d "$log_dir" ]]; then
-    # Get all arrbit log files, sort by modification time (oldest first), and delete all but the newest max_files
-    find "$log_dir" -type f -name 'arrbit-*' -printf '%T@ %p\n' | \
-    sort -n | \
-    head -n -"$max_files" | \
-    cut -d' ' -f2- | \
-    xargs -r rm -f
-  fi
+
+  [[ ! -d "$log_dir" ]] && return 0
+
+  # Build unique prefixes (arrbit-<name>) from existing log files
+  local prefixes
+  prefixes=$(ls -1 "$log_dir"/arrbit-*.log 2>/dev/null | sed -E 's#.*/(arrbit-[^-]+)-.*#\1#' | sort -u || true)
+  [[ -z "$prefixes" ]] && return 0
+
+  while IFS= read -r prefix; do
+    # List files for this prefix newest-first; delete anything older than max_files
+    ls -1t "$log_dir"/"${prefix}"-*.log 2>/dev/null | tail -n +$((max_files + 1)) | xargs -r rm -f
+  done <<< "$prefixes"
 }
