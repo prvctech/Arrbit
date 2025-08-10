@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - arr_bridge.bash
-# Version: v1.0.0-gs2.8.2
+# Version: v1.1.0-gs2.8.2
 # Purpose: Golden Standard ARR API connector with fully dynamic API URL, port, and version detection.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -10,7 +10,7 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="arr_bridge"
-SCRIPT_VERSION="v1.0.0-gs2.8.2"
+SCRIPT_VERSION="v1.1.0-gs2.8.2"
 # Respect caller's LOG_FILE if already set, otherwise initialize our own
 if [[ -z "${LOG_FILE:-}" ]]; then
   LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
