@@ -11,7 +11,10 @@ arrbitPurgeOldLogs
 
 SCRIPT_NAME="arr_bridge"
 SCRIPT_VERSION="v1.0.0-gs2.8.2"
-LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+# Respect caller's LOG_FILE if already set, otherwise initialize our own
+if [[ -z "${LOG_FILE:-}" ]]; then
+  LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+fi
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
@@ -24,7 +27,7 @@ if [[ ! -f "$CONFIG_XML" ]]; then
 [WHY]: The config.xml file does not exist at $CONFIG_XML
 [FIX]: Verify your ARR application is properly installed and configured
 EOF
-  exit 11
+  return 11 2>/dev/null || exit 11
 fi
 
 # --- Extract ARR config values (url base, key, instance, port) ---
@@ -43,7 +46,7 @@ if [[ -z "$arr_api_key" || "$arr_api_key" == "null" ]]; then
 [WHY]: The ApiKey field is missing or empty in the config.xml file
 [FIX]: Check your ARR application configuration and ensure the API key is properly set
 EOF
-  exit 12
+  return 12 2>/dev/null || exit 12
 fi
 
 arr_instance_name="$(cat "$CONFIG_XML" | xq | jq -r .Config.InstanceName)"
@@ -85,7 +88,7 @@ ${arrUrl}/api/v3/system/status
 ${arrUrl}/api/v1/system/status
 [/Tested URLs]
 EOF
-  exit 13
+  return 13 2>/dev/null || exit 13
 fi
 
 export arrApiKey arrUrl arrApiVersion
@@ -111,7 +114,7 @@ Port: $arr_port
 Instance: $arr_instance_name
 [/Connection Details]
 EOF
-  exit 14
+  return 14 2>/dev/null || exit 14
 }
 waitForArrApi
 
@@ -125,4 +128,5 @@ arr_api() {
 export -f arr_api
 
 log_info "Connected to ${arr_instance_name}"
-exit 0
+# If sourced, return; if executed directly, exit
+return 0 2>/dev/null || exit 0

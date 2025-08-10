@@ -36,7 +36,6 @@ MODULES=(
   custom_scripts  
   media_management
   metadata_consumer
-  metadata_plugin
   metadata_profiles
   metadata_write
   quality_definitions    # new
@@ -55,8 +54,13 @@ for NAME in "${MODULES[@]}"; do
   fi
 done
 if (( ENABLED_COUNT == 0 )); then
-  log_error "Autoconfig stopped: no CONFIGURE_* modules enabled. Update your configuration."
-  exit 0
+  log_error "Autoconfig stopped: no CONFIGURE_* modules enabled. Update your configuration. (see log at /config/logs)"
+  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR No modules enabled
+[WHY]: All CONFIGURE_* flags are set to false in arrbit-config.conf
+[FIX]: Edit /config/arrbit/config/arrbit-config.conf and set desired CONFIGURE_* flags to true
+EOF
+  exit 1
 fi
 
 # --- 4. RUN ENABLED MODULES ONLY (no internal flag logic in modules) ---
@@ -65,18 +69,11 @@ log_info "Starting modules..."
 for NAME in "${MODULES[@]}"; do
   FLAG="CONFIGURE_$(echo "$NAME" | tr '[:lower:]' '[:upper:]')"
   VAL=$(getFlag "$FLAG")
-  if [[ -z "${VAL}" || "${VAL,,}" != "true" ]]; then
-    log_warning "${NAME} module is disabled by config; skipping."
-    continue
-  fi
+  [[ -z "${VAL}" || "${VAL,,}" != "true" ]] && continue
 
   SCRIPT="$MODULES_DIR/${NAME}.bash"
-  if [ -x "$SCRIPT" ]; then
-    if ! bash "$SCRIPT"; then
-      log_warning "${NAME} module failed. See log for details."
-    fi
-  else
-    log_warning "${NAME} module not found or not executable; skipped."
+  if [ -f "$SCRIPT" ]; then
+    bash "$SCRIPT" || true
   fi
 done
 

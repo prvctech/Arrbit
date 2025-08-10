@@ -23,7 +23,7 @@ CONFIG_FILE="/config/arrbit/config/arrbit-config.conf"
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
 # --- Banner (color allowed on first line) ---
-echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} service${NC} ${MAGENTA}Deezer, Tidal, Tubifarry${NC} ${SCRIPT_VERSION}"
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} service${NC} ${SCRIPT_VERSION}"
 
 # --- Get config flags (robust: trims whitespace, lowercase for test) ---
 ENABLE_PLUGINS=$(getFlag ENABLE_PLUGINS | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')

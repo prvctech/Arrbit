@@ -13,7 +13,7 @@ arrbitPurgeOldLogs
 SCRIPT_NAME="quality_definitions"
 SCRIPT_VERSION="v1.0.0-gs2.8.2"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
-JSON_PATH="/config/arrbit/modules/data/quality_definitions.json"
+JSON_PATH="/config/arrbit/modules/data/payload-quality_definitions.json"
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
