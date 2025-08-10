@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - autoconfig.bash
-# Version: v1.0.1-gs2.8.2
+# Version: v1.0.2-gs2.8.2
 # Purpose: Orchestrates Arrbit modules based on config flags in arrbit-config.conf (Golden Standard v2.8.2 enforced)
 # -------------------------------------------------------------------------------------------------------------
 
@@ -11,7 +11,7 @@ source /config/arrbit/helpers/logging_utils.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="autoconfig"
-SCRIPT_VERSION="v1.0.1-gs2.8.2"
+SCRIPT_VERSION="v1.0.2-gs2.8.2"
 ARRBIT_ROOT="/config/arrbit"
 CONFIG_FILE="$ARRBIT_ROOT/config/arrbit-config.conf"
 MODULES_DIR="$ARRBIT_ROOT/modules"
@@ -73,9 +73,9 @@ for NAME in "${MODULES[@]}"; do
 
   SCRIPT="$MODULES_DIR/${NAME}.bash"
   if [ -f "$SCRIPT" ]; then
-    # Verbose to log file only (do not print to terminal)
+    # Log orchestration details only (modules write to their own logs)
     printf '[Arrbit] Executing module: %s\n' "$NAME" | arrbitLogClean >> "$LOG_FILE"
-    if bash "$SCRIPT" >>"$LOG_FILE" 2>&1; then
+    if bash "$SCRIPT"; then
       printf '[Arrbit] Module finished: %s (ok)\n' "$NAME" | arrbitLogClean >> "$LOG_FILE"
     else
       printf '[Arrbit] Module finished: %s (failed)\n' "$NAME" | arrbitLogClean >> "$LOG_FILE"
