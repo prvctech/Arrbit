@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - run module
-# Version: v1.0.4-gs2.8.2
+# Version: v1.0.5-gs2.8.2
 # Purpose: Orchestrator – runs setup first, then executes all Arrbit service modules (silent except WARNING/ERROR).
 # -------------------------------------------------------------------------------------------------------------
 
@@ -22,7 +22,7 @@ sleep 8
 
 # --- Prepare logging early (silent to terminal, but log file available immediately) ---
 SCRIPT_NAME="run"
-SCRIPT_VERSION="v1.0.4-gs2.8.2"
+SCRIPT_VERSION="v1.0.5-gs2.8.2"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date '+%Y_%m_%d-%H_%M').log"
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 echo "[Arrbit] run service initializing…" >> "$LOG_FILE"
@@ -51,26 +51,25 @@ else
 
   if [[ "${ENABLE_ARRBIT,,}" != "true" ]]; then
     printf '[Arrbit] WARNING Arrbit services are OFF. Set ENABLE_ARRBIT to "true" in arrbit-config.conf to enable automation.\n' | arrbitLogClean >> "$LOG_FILE"
-    echo "[Arrbit] WARNING: Arrbit services are OFF. Set ENABLE_ARRBIT to 'true' in arrbit-config.conf to enable automation." >&2
     cat <<EOF | arrbitLogClean >> "$LOG_FILE"
 [Arrbit] WARNING Arrbit services are OFF.
 [WHY]: ENABLE_ARRBIT is set to false in arrbit-config.conf.
 [FIX]: Edit /config/arrbit/config/arrbit-config.conf and set ENABLE_ARRBIT=true to enable Arrbit automation.
 EOF
   else
-    # --- 5. Execute scripts silently (no terminal output), log to run log for orchestration ---
+    # --- 5. Execute scripts without redirection so they can show terminal output; they log to their own files ---
     if [[ -x "$DEPENDENCIES_SCRIPT" ]]; then
-      bash "$DEPENDENCIES_SCRIPT" >>"$LOG_FILE" 2>&1
+      bash "$DEPENDENCIES_SCRIPT"
     else
       echo "[Arrbit] ERROR Dependencies script not found/executable: $DEPENDENCIES_SCRIPT" >>"$LOG_FILE"
     fi
 
     if [[ -x "$PLUGINS_SCRIPT_LOCAL" ]]; then
-      bash "$PLUGINS_SCRIPT_LOCAL" >>"$LOG_FILE" 2>&1
+      bash "$PLUGINS_SCRIPT_LOCAL"
     fi
 
     if [[ -x "$AUTOCONFIG_SCRIPT_LOCAL" ]]; then
-      bash "$AUTOCONFIG_SCRIPT_LOCAL" >>"$LOG_FILE" 2>&1
+      bash "$AUTOCONFIG_SCRIPT_LOCAL"
     fi
   fi
 fi
