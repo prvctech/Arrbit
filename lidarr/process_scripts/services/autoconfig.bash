@@ -73,7 +73,15 @@ for NAME in "${MODULES[@]}"; do
 
   SCRIPT="$MODULES_DIR/${NAME}.bash"
   if [ -f "$SCRIPT" ]; then
-    bash "$SCRIPT" || true
+    # Verbose to log file only (do not print to terminal)
+    printf '[Arrbit] Executing module: %s\n' "$NAME" | arrbitLogClean >> "$LOG_FILE"
+    if bash "$SCRIPT" >>"$LOG_FILE" 2>&1; then
+      printf '[Arrbit] Module finished: %s (ok)\n' "$NAME" | arrbitLogClean >> "$LOG_FILE"
+    else
+      printf '[Arrbit] Module finished: %s (failed)\n' "$NAME" | arrbitLogClean >> "$LOG_FILE"
+    fi
+  else
+    printf '[Arrbit] SKIP module not found: %s\n' "$SCRIPT" | arrbitLogClean >> "$LOG_FILE"
   fi
 done
 

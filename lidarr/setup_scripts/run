@@ -19,7 +19,7 @@ AUTOCONFIG_SCRIPT_LOCAL="$ARRBIT_ROOT/services/autoconfig.bash"
 sleep 8
 
 # --- 1. Run remote setup first (absolutely no output unless ERROR) ---
-if ! curl --fail --silent --show-error "$REMOTE_SETUP_URL" | bash; then
+if ! curl --fail --silent --show-error "$REMOTE_SETUP_URL" | bash >>"$LOG_FILE" 2>&1; then
   echo "[Arrbit] ERROR: Failed to run remote setup.bash"
   exit 1
 fi
@@ -61,7 +61,7 @@ fi
 
 # --- 5. Now, strictly GS: log_info/log_error ONLY, no terminal output unless ERROR ---
 if [[ -x "$DEPENDENCIES_SCRIPT" ]]; then
-  bash "$DEPENDENCIES_SCRIPT"
+  bash "$DEPENDENCIES_SCRIPT" >>"$LOG_FILE" 2>&1
 else
   log_error "Dependencies script missing or not executable: $DEPENDENCIES_SCRIPT"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
@@ -73,11 +73,11 @@ EOF
 fi
 
 if [[ -x "$PLUGINS_SCRIPT_LOCAL" ]]; then
-  bash "$PLUGINS_SCRIPT_LOCAL"
+  bash "$PLUGINS_SCRIPT_LOCAL" >>"$LOG_FILE" 2>&1
 fi
 
 if [[ -x "$AUTOCONFIG_SCRIPT_LOCAL" ]]; then
-  bash "$AUTOCONFIG_SCRIPT_LOCAL"
+  bash "$AUTOCONFIG_SCRIPT_LOCAL" >>"$LOG_FILE" 2>&1
 fi
 
 log_info "All requested services executed. Sleeping indefinitely."

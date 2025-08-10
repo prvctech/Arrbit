@@ -14,6 +14,7 @@ SCRIPT_VERSION="v1.0.0-gs2.8.2"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} service${NC} ${SCRIPT_VERSION} ..."
 
 # --- Setup version tracking (prevent re-installation) ---
 SETUP_VERSION_FILE="/config/setup_version.txt"
@@ -24,7 +25,7 @@ if [[ -f "$SETUP_VERSION_FILE" ]]; then
   if [[ "$CURRENT_VERSION" == "$setupversion" ]]; then
     # Check if key dependencies are already installed
     if apk --no-cache list | grep installed | grep opus-tools >/dev/null 2>&1; then
-      # Setup already completed - silent exit
+      printf '[Arrbit] Dependencies already installed. Skipping.\n' | arrbitLogClean >> "$LOG_FILE"
       exit 0
     fi
   fi
@@ -125,4 +126,5 @@ fi
 echo "setupversion=$CURRENT_VERSION" > "$SETUP_VERSION_FILE"
 
 # Success - silent exit (setup script rule)
+printf '[Arrbit] Dependencies installation completed successfully.\n' | arrbitLogClean >> "$LOG_FILE"
 exit 0
