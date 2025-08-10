@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - run module
-# Version: v1.0.5-gs2.8.2
+# Version: v1.0.6-gs2.8.2
 # Purpose: Orchestrator – runs setup first, then executes all Arrbit service modules (silent except WARNING/ERROR).
 # -------------------------------------------------------------------------------------------------------------
 
@@ -22,7 +22,7 @@ sleep 8
 
 # --- Prepare logging early (silent to terminal, but log file available immediately) ---
 SCRIPT_NAME="run"
-SCRIPT_VERSION="v1.0.5-gs2.8.2"
+SCRIPT_VERSION="v1.0.6-gs2.8.2"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date '+%Y_%m_%d-%H_%M').log"
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 echo "[Arrbit] run service initializing…" >> "$LOG_FILE"
@@ -43,7 +43,10 @@ else
 
   if [[ -f "$LOGO_SCRIPT_LOCAL" ]]; then
     source "$LOGO_SCRIPT_LOCAL"
-    arrbit_logo >>"$LOG_FILE" 2>&1 || true
+    # Print logo to terminal and also save a cleaned copy to the log
+    logo_output="$(arrbit_logo)"
+    echo -e "$logo_output"
+    printf '%s\n' "$logo_output" | arrbitLogClean >> "$LOG_FILE"
   fi
 
   # --- 4. Check ENABLE_ARRBIT flag, warn once if false, then sleep/exit (GS: use getFlag) ---
