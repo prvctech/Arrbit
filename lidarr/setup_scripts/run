@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# -------------------------------------------------------------------------------------------------------------
+# Arrbit - run module
+# Version: v2.1-gs2.7.1
+# Purpose: Orchestrator – runs setup first, then executes all Arrbit service modules (silent except ERROR).
+# -------------------------------------------------------------------------------------------------------------
+
+set -euo pipefail
+
+ARRBIT_ROOT="/config/arrbit"
+HELPERS_DIR="$ARRBIT_ROOT/helpers"
+LOGO_SCRIPT_LOCAL="$ARRBIT_ROOT/modules/data/arrbit_logo.bash"
+REMOTE_SETUP_URL="https://raw.githubusercontent.com/prvctech/Arrbit/main/lidarr/setup_scripts/setup.bash"
+
+DEPENDENCIES_SCRIPT="$ARRBIT_ROOT/setup/dependencies.bash"
+PLUGINS_SCRIPT_LOCAL="$ARRBIT_ROOT/services/plugins.bash"
+AUTOCONFIG_SCRIPT_LOCAL="$ARRBIT_ROOT/services/autoconfig.bash"
+
+sleep 8
+
+# --- 1. Run remote setup first (absolutely no output unless ERROR) ---
+if ! curl --fail --silent --show-error "$REMOTE_SETUP_URL" | bash; then
+  echo "[Arrbit] ERROR: Failed to run remote setup.bash"
+  exit 1
+fi
+
+# --- 2. Verify helpers exist after setup, or fatal error (silent otherwise) ---
+if [[ ! -f "$HELPERS_DIR/logging_utils.bash" || ! -f "$HELPERS_DIR/helpers.bash" ]]; then
+  echo "[Arrbit] ERROR: Arrbit helpers missing after setup. Cannot continue."
+  exit 1
+fi
+
+# --- 3. Source helpers/config, set up log file, show logo if present ---
+source "$HELPERS_DIR/logging_utils.bash"
+source "$HELPERS_DIR/helpers.bash"
+arrbitPurgeOldLogs
+
+SCRIPT_NAME="run"
+SCRIPT_VERSION="v2.1-gs2.7.1"
+LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date '+%Y_%m_%d-%H_%M').log"
+touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
+
+if [[ -f "$LOGO_SCRIPT_LOCAL" ]]; then
+  source "$LOGO_SCRIPT_LOCAL"
+  arrbit_logo
+fi
+echo
+
+# --- 4. Check ENABLE_ARRBIT flag, warn once if false, then sleep/exit (GS: use getFlag) ---
+ENABLE_ARRBIT=$(getFlag "ENABLE_ARRBIT")
+
+if [[ "${ENABLE_ARRBIT,,}" != "true" ]]; then
+  log_warning "Arrbit services are OFF. Set ENABLE_ARRBIT to 'true' in arrbit-config.conf to enable automation. (see log at /config/logs)"
+  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] WARNING Arrbit services are OFF.
+[WHY]: ENABLE_ARRBIT is set to false in arrbit-config.conf.
+[FIX]: Edit /config/arrbit/config/arrbit-config.conf and set ENABLE_ARRBIT=true to enable Arrbit automation.
+EOF
+  sleep infinity
+fi
+
+# --- 5. Now, strictly GS: log_info/log_error ONLY, no terminal output unless ERROR ---
+if [[ -x "$DEPENDENCIES_SCRIPT" ]]; then
+  bash "$DEPENDENCIES_SCRIPT"
+else
+  log_error "Dependencies script missing or not executable: $DEPENDENCIES_SCRIPT"
+  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR Dependencies script not found/executable
+[WHY]: $DEPENDENCIES_SCRIPT missing or not executable after setup.
+[FIX]: Check permissions and path. See setup logs for detail.
+EOF
+  exit 1
+fi
+
+if [[ -x "$PLUGINS_SCRIPT_LOCAL" ]]; then
+  bash "$PLUGINS_SCRIPT_LOCAL"
+fi
+
+if [[ -x "$AUTOCONFIG_SCRIPT_LOCAL" ]]; then
+  bash "$AUTOCONFIG_SCRIPT_LOCAL"
+fi
+
+log_info "All requested services executed. Sleeping indefinitely."
+sleep infinity
