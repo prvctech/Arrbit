@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - custom_scripts.bash
-# Version: v1.0.0-gs2.8.2
+# Version: v1.0.1-gs2.8.2
 # Purpose: Registers all custom scripts found in /config/arrbit/modules/data/custom_script_*.json (modular, bulletproof, Golden Standard v2.8.2 enforced)
 # -------------------------------------------------------------------------------------------------------------
 
@@ -10,7 +10,7 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="custom_scripts"
-SCRIPT_VERSION="v1.0.0-gs2.8.2"
+SCRIPT_VERSION="v1.0.1-gs2.8.2"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 PAYLOAD_DIR="/config/arrbit/modules/data"
 PATTERN="custom_script_*.json"
@@ -108,11 +108,11 @@ done
 
 if [[ $files_found -eq 0 ]]; then
   log_info "No custom script payload files found."
-  echo "[Arrbit] Done."
+  log_info "Done."
   exit 0
 fi
 
 log_info "The module was configured successfully."
-echo "[Arrbit] Done."
+log_info "Done."
 exit 0
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - quality_definitions.bash
-# Version: v1.0.0-gs2.8.2
+# Version: v1.0.1-gs2.8.2
 # Purpose: Overwrite quality definitions in Lidarr with those from JSON—skip process if all are 1:1 (Golden Standard v2.8.2 enforced)
 # -------------------------------------------------------------------------------------------------------------
 
@@ -11,7 +11,7 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="quality_definitions"
-SCRIPT_VERSION="v1.0.0-gs2.8.2"
+SCRIPT_VERSION="v1.0.1-gs2.8.2"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 JSON_PATH="/config/arrbit/modules/data/payload-quality_definitions.json"
 
@@ -90,7 +90,7 @@ done
 
 if $all_match; then
   log_info "Predefined settings already present. Skipping..."
-  echo "[Arrbit] Done."
+  log_info "Done."
   exit 0
 fi
 
@@ -157,5 +157,5 @@ EOF
 done
 
 log_info "The module was configured successfully."
-echo "[Arrbit] Done."
+log_info "Done."
 exit 0

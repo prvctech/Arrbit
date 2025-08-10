@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - track_naming.bash
-# Version: v1.0.0-gs2.8.2
+# Version: v1.0.1-gs2.8.2
 # Purpose: Configure Lidarr Track Naming profile via API (Golden Standard v2.8.2 enforced).
 # -------------------------------------------------------------------------------------------------------------
 
@@ -11,7 +11,7 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="track_naming"
-SCRIPT_VERSION="v1.0.0-gs2.8.2"
+SCRIPT_VERSION="v1.0.1-gs2.8.2"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 JSON_PATH="/config/arrbit/modules/data/payload-track_naming.json"
 
@@ -70,5 +70,5 @@ EOF
 fi
 
 log_info "The module was configured successfully."
-echo "[Arrbit] Done."
+log_info "Done."
 exit 0

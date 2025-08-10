@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - quality_profiles.bash
-# Version: v1.0.0-gs2.8.2
+# Version: v1.0.1-gs2.8.2
 # Purpose: Import new quality profiles, always map live custom format IDs, skip duplicates, no deletion logic.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -11,7 +11,7 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="quality_profiles"
-SCRIPT_VERSION="v1.0.0-gs2.8.2"
+SCRIPT_VERSION="v1.0.1-gs2.8.2"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
@@ -142,5 +142,5 @@ if $skipped_any; then
 fi
 
 log_info "The module was configured successfully."
-echo "[Arrbit] Done."
+log_info "Done."
 exit 0
