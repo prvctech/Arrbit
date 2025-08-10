@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - setup
-# Version: v1.4-gs2.7.1
+# Version: v1.0.0-gs2.8.2
 # Purpose: Bootstraps Arrbit: downloads, installs, and initializes everything into /config/arrbit. SILENT except fatal error.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -40,7 +40,7 @@ source "$HELPERS_DIR/helpers.bash"
 arrbitPurgeOldLogs 2
 
 SCRIPT_NAME="setup"
-SCRIPT_VERSION="v1.4-gs2.7.1"
+SCRIPT_VERSION="v1.0.0-gs2.8.2"
 LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 

@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - custom_formats.bash
-# Version: v1.3-gs2.7.1
-# Purpose: Import custom formats from JSON into Lidarr (Golden Standard v2.7.1 strict, ultra-minimal output)
+# Version: v1.0.0-gs2.8.2
+# Purpose: Import custom formats from JSON into Lidarr (Golden Standard v2.8.2 enforced)
 # -------------------------------------------------------------------------------------------------------------
-
-SCRIPT_NAME="custom_formats"
-SCRIPT_VERSION="v1.3-gs2.7.1"
-LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 source /config/arrbit/helpers/logging_utils.bash
 source /config/arrbit/helpers/helpers.bash
+
 arrbitPurgeOldLogs
 
-echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
-
+SCRIPT_NAME="custom_formats"
+SCRIPT_VERSION="v1.0.0-gs2.8.2"
+LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 JSON_PATH="/config/arrbit/modules/data/payload-custom_formats.json"
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
+
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION} ..."
 
 # Source arr_bridge for API variables and arr_api wrapper
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
@@ -40,6 +40,9 @@ if [[ ! -f "$JSON_PATH" ]]; then
 EOF
   exit 1
 fi
+
+# Import predefined settings
+log_info "Importing predefined settings..."
 
 # Query custom formats API, robust error detection
 api_response=$(arr_api "${arrUrl}/api/${arrApiVersion}/customformat")
@@ -74,7 +77,8 @@ for format in "${JSON_FORMATS[@]}"; do
 done
 
 if $all_exist; then
-  log_info "Custom formats already exist - skipping."  
+  log_info "Predefined settings already present. Skipping..."
+  echo "[Arrbit] Done."
   exit 0
 fi
 
@@ -104,5 +108,6 @@ EOF
   fi
 done
 
-log_info "Done."
+log_info "The module was configured successfully."
+echo "[Arrbit] Done."
 exit 0

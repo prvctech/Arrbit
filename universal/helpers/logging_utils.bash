@@ -1,7 +1,7 @@
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - logging_utils.bash
-# Version : v2.5
-# Purpose :
+# Version: v1.0.0-gs2.8.2
+# Purpose:
 #   • log_info, log_error, log_warning : Standardized, colorized logging for Arrbit scripts (with neon/bright colors).
 #   • arrbitLogClean       : strip ANSI colours and normalise spacing.
 #   • arrbitPurgeOldLogs   : delete old Arrbit logs (default >2 days).
@@ -67,10 +67,18 @@ arrbitLogClean() {
 }
 
 # ------------------------------------------------
-# arrbitPurgeOldLogs  [days]
+# arrbitPurgeOldLogs  [max_files]
 # ------------------------------------------------
 arrbitPurgeOldLogs() {
-  local days="${1:-2}"
+  local max_files="${1:-2}"
   local log_dir="/config/logs"
-  [ -d "$log_dir" ] && find "$log_dir" -type f -name 'arrbit-*' -mtime +"$days" -delete
+  
+  if [[ -d "$log_dir" ]]; then
+    # Get all arrbit log files, sort by modification time (oldest first), and delete all but the newest max_files
+    find "$log_dir" -type f -name 'arrbit-*' -printf '%T@ %p\n' | \
+    sort -n | \
+    head -n -"$max_files" | \
+    cut -d' ' -f2- | \
+    xargs -r rm -f
+  fi
 }

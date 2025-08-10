@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - quality_definitions.bash
-# Version: v1.0-gs2.7.1
-# Purpose: Overwrite quality definitions in Lidarr with those from JSON—skip process if all are 1:1 (Golden Standard)
+# Version: v1.0.0-gs2.8.2
+# Purpose: Overwrite quality definitions in Lidarr with those from JSON—skip process if all are 1:1 (Golden Standard v2.8.2 enforced)
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/logging_utils.bash
@@ -11,13 +11,13 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="quality_definitions"
-SCRIPT_VERSION="v1.0-gs2.7.1"
+SCRIPT_VERSION="v1.0.0-gs2.8.2"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 JSON_PATH="/config/arrbit/modules/data/quality_definitions.json"
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION} ..."
 
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
   log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup) (see log at /config/logs)"
@@ -38,6 +38,9 @@ if [[ ! -f "$JSON_PATH" ]]; then
 EOF
   exit 1
 fi
+
+# Import predefined settings
+log_info "Importing predefined settings..."
 
 # Get all existing quality definitions from Lidarr
 existing_defs=$(arr_api "${arrUrl}/api/${arrApiVersion}/qualitydefinition")
@@ -86,8 +89,8 @@ for definition in "${JSON_DEFS[@]}"; do
 done
 
 if $all_match; then
-  log_info "Quality definitions already exist - skipping."
-  log_info "Done."
+  log_info "Predefined settings already present. Skipping..."
+  echo "[Arrbit] Done."
   exit 0
 fi
 
@@ -112,7 +115,7 @@ for definition in "${JSON_DEFS[@]}"; do
   # Only update if different or missing
   if [[ -n "$match_payload" ]]; then
     if [[ "$(echo "$payload" | jq -S .)" != "$(echo "$match_payload" | jq -S .)" ]]; then
-      log_info "Updating quality definition: ${title} (ID: ${match_id})"
+      log_info "Importing quality definition: ${title}"
       printf '[Arrbit] Updating Quality Definition: %s (Lidarr ID: %s)\n[Payload]\n%s\n[/Payload]\n' "$title" "$match_id" "$payload" | arrbitLogClean >> "$LOG_FILE"
       response=$(arr_api -X PUT --data-raw "$payload" "${arrUrl}/api/${arrApiVersion}/qualitydefinition/$match_id")
       printf '[Response]\n%s\n[/Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
@@ -120,9 +123,9 @@ for definition in "${JSON_DEFS[@]}"; do
       if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
         printf '[Arrbit] SUCCESS: Quality definition processed: %s\n' "$title" | arrbitLogClean >> "$LOG_FILE"
       else
-        log_error "Failed to process quality definition: ${title} (see log at /config/logs)"
+        log_error "Failed to import quality definition: ${title} (see log at /config/logs)"
         cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR Failed to process quality definition: $title
+[Arrbit] ERROR Failed to import quality definition: $title
 [WHY]: API PUT request failed or invalid response.
 [FIX]: Check payload and Lidarr server status. See [Response] section below.
 [Response]
@@ -132,7 +135,7 @@ EOF
       fi
     fi
   else
-    log_info "No match found, creating new quality definition: ${title}"
+    log_info "Importing quality definition: ${title}"
     printf '[Arrbit] Creating NEW Quality Definition: %s\n[Payload]\n%s\n[/Payload]\n' "$title" "$payload" | arrbitLogClean >> "$LOG_FILE"
     response=$(arr_api -X POST --data-raw "$payload" "${arrUrl}/api/${arrApiVersion}/qualitydefinition")
     printf '[Response]\n%s\n[/Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
@@ -140,9 +143,9 @@ EOF
     if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
       printf '[Arrbit] SUCCESS: Quality definition created: %s\n' "$title" | arrbitLogClean >> "$LOG_FILE"
     else
-      log_error "Failed to create quality definition: ${title} (see log at /config/logs)"
+      log_error "Failed to import quality definition: ${title} (see log at /config/logs)"
       cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR Failed to create quality definition: $title
+[Arrbit] ERROR Failed to import quality definition: $title
 [WHY]: API POST request failed or invalid response.
 [FIX]: Check payload and Lidarr server status. See [Response] section below.
 [Response]
@@ -153,5 +156,6 @@ EOF
   fi
 done
 
-log_info "Done."
+log_info "The module was configured successfully."
+echo "[Arrbit] Done."
 exit 0

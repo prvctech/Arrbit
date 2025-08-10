@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - arr_bridge.bash
-# Version: v1.7-gs2.7
+# Version: v1.0.0-gs2.8.2
 # Purpose: Golden Standard ARR API connector with fully dynamic API URL, port, and version detection.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -10,12 +10,20 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="arr_bridge"
-SCRIPT_VERSION="v1.7-gs2.7"
+SCRIPT_VERSION="v1.0.0-gs2.8.2"
+LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+
+mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
 CONFIG_XML="/config/config.xml"
 
 if [[ ! -f "$CONFIG_XML" ]]; then
-  log_error "ARR config.xml not found at $CONFIG_XML"
+  log_error "ARR config.xml not found (see log at /config/logs)"
+  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR ARR config.xml not found
+[WHY]: The config.xml file does not exist at $CONFIG_XML
+[FIX]: Verify your ARR application is properly installed and configured
+EOF
   exit 11
 fi
 
@@ -29,7 +37,12 @@ fi
 
 arr_api_key="$(cat "$CONFIG_XML" | xq | jq -r .Config.ApiKey)"
 if [[ -z "$arr_api_key" || "$arr_api_key" == "null" ]]; then
-  log_error "API key not found in $CONFIG_XML"
+  log_error "API key not found (see log at /config/logs)"
+  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR API key not found in $CONFIG_XML
+[WHY]: The ApiKey field is missing or empty in the config.xml file
+[FIX]: Check your ARR application configuration and ensure the API key is properly set
+EOF
   exit 12
 fi
 
@@ -41,10 +54,9 @@ fi
 arr_port="$(cat "$CONFIG_XML" | xq | jq -r .Config.Port)"
 if [[ -z "$arr_port" || "$arr_port" == "null" ]]; then
   case "${arr_instance_name,,}" in
-    *sonarr*)  arr_port="8989";  log_warning "API port not found in config.xml, falling back to :8989 (Sonarr default)." ;;
-    *radarr*)  arr_port="7878";  log_warning "API port not found in config.xml, falling back to :7878 (Radarr default)." ;;
-    *readarr*) arr_port="8787";  log_warning "API port not found in config.xml, falling back to :8787 (Readarr default)." ;;
-    *)         arr_port="8686";  log_warning "API port not found in config.xml, falling back to :8686 (Lidarr default)." ;;
+    *sonarr*)  arr_port="8989";  log_warning "API port not found, falling back to :8989 (Sonarr default)" ;;
+    *radarr*)  arr_port="7878";  log_warning "API port not found, falling back to :7878 (Radarr default)" ;;
+    *)         arr_port="8686";  log_warning "API port not found, falling back to :8686 (Lidarr default)" ;;
   esac
 fi
 
@@ -63,7 +75,16 @@ for ver in v3 v1; do
 done
 
 if [[ -z "$arrApiVersion" ]]; then
-  log_error "Unable to detect working API version at $arrUrl (tried v3, v1)."
+  log_error "Unable to detect working API version (see log at /config/logs)"
+  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR Unable to detect working API version at $arrUrl
+[WHY]: API calls to both v3 and v1 endpoints failed or returned invalid responses
+[FIX]: Check your ARR application status, network connectivity, and API configuration
+[Tested URLs]
+${arrUrl}/api/v3/system/status
+${arrUrl}/api/v1/system/status
+[/Tested URLs]
+EOF
   exit 13
 fi
 
@@ -79,7 +100,17 @@ waitForArrApi() {
     fi
     sleep 5
   done
-  log_error "Could not connect to Arr API after $retries attempts. (Checked: $url)"
+  log_error "Could not connect to ARR API after $retries attempts (see log at /config/logs)"
+  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR Could not connect to ARR API after $retries attempts
+[WHY]: API endpoint is not responding after multiple connection attempts
+[FIX]: Check if your ARR application is running and accessible at $url
+[Connection Details]
+URL: $arrUrl
+Port: $arr_port
+Instance: $arr_instance_name
+[/Connection Details]
+EOF
   exit 14
 }
 waitForArrApi
@@ -94,3 +125,4 @@ arr_api() {
 export -f arr_api
 
 log_info "Connected to ${arr_instance_name}"
+exit 0

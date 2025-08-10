@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - metadata_write.bash
-# Version: v1.0-gs2.7.1
-# Purpose: Configure Lidarr Metadata Write Provider via API (Golden Standard v2.7.1 compliant).
+# Version: v1.0.0-gs2.8.2
+# Purpose: Configure Lidarr Metadata Write Provider via API (Golden Standard v2.8.2 enforced).
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/logging_utils.bash
@@ -11,12 +11,13 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="metadata_write"
-SCRIPT_VERSION="v1.0-gs2.7.1"
+SCRIPT_VERSION="v1.0.0-gs2.8.2"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+JSON_PATH="/config/arrbit/modules/data/payload-metadata_write.json"
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION} ..."
 
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
   log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup) (see log at /config/logs)"
@@ -28,11 +29,22 @@ EOF
   exit 1
 fi
 
-payload='{
-  "writeAudioTags": "newFiles",
-  "scrubAudioTags": false,
-  "id": 1
-}'
+# Check that payload JSON exists
+if [[ ! -f "$JSON_PATH" ]]; then
+  log_error "File not found: ${JSON_PATH} (see log at /config/logs)"
+  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR File not found: $JSON_PATH
+[WHY]: The file does not exist at the specified path.
+[FIX]: Place a valid payload-metadata_write.json in $(dirname "$JSON_PATH").
+EOF
+  exit 1
+fi
+
+# Import predefined settings
+log_info "Importing predefined settings..."
+
+# Read payload from JSON file
+payload=$(cat "$JSON_PATH")
 
 printf '[Arrbit] Metadata Write payload:\n%s\n' "$payload" | arrbitLogClean >> "$LOG_FILE"
 
@@ -57,5 +69,6 @@ $response
 EOF
 fi
 
-log_info "Done."
+log_info "The module was configured successfully."
+echo "[Arrbit] Done."
 exit 0

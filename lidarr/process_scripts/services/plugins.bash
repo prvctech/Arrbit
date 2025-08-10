@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - plugins
-# Version: v3.8-gs2.6
-# Purpose: Modular installer for Lidarr plug-ins (Golden Standard v2.6 compliant).
+# Version: v1.0.0-gs2.8.2
+# Purpose: Modular installer for Lidarr plug-ins (Golden Standard v2.8.2 compliant).
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/logging_utils.bash
 source /config/arrbit/helpers/helpers.bash
 
-arrbitPurgeOldLogs 2
+arrbitPurgeOldLogs
 
 chmod -R 777 /config/arrbit/
 chmod -R 777 /config/plugins/
@@ -16,7 +16,7 @@ chmod -R 777 /config/logs/
 
 PLUGINS_DIR="/config/plugins"
 SCRIPT_NAME="plugins"
-SCRIPT_VERSION="v3.8-gs2.6"
+SCRIPT_VERSION="v1.0.0-gs2.8.2"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 CONFIG_FILE="/config/arrbit/config/arrbit-config.conf"
 

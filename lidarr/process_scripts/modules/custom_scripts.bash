@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - custom_scripts.bash
-# Version: v2.6-gs2.7.1
-# Purpose: Registers all custom scripts found in /config/arrbit/modules/data/custom_script_*.json (modular, bulletproof, Golden Standard v2.7.1 strict)
+# Version: v1.0.0-gs2.8.2
+# Purpose: Registers all custom scripts found in /config/arrbit/modules/data/custom_script_*.json (modular, bulletproof, Golden Standard v2.8.2 enforced)
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/logging_utils.bash
@@ -10,14 +10,14 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="custom_scripts"
-SCRIPT_VERSION="v2.6-gs2.7.1"
+SCRIPT_VERSION="v1.0.0-gs2.8.2"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 PAYLOAD_DIR="/config/arrbit/modules/data"
 PATTERN="custom_script_*.json"
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION} ..."
 
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
   log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup) (see log at /config/logs)"
@@ -28,6 +28,9 @@ if ! source /config/arrbit/connectors/arr_bridge.bash; then
 EOF
   exit 1
 fi
+
+# Import predefined settings
+log_info "Importing predefined settings..."
 
 files_found=0
 scripts_registered=0
@@ -78,7 +81,7 @@ EOF
       continue
     fi
 
-    log_info "Registering custom script: $name"
+    log_info "Importing custom script: $name"
     printf '[Arrbit] Registering custom script "%s"\n[Payload]\n%s\n[/Payload]\n' "$name" "$payload" | arrbitLogClean >> "$LOG_FILE"
 
     # Do not leak apikey in URL!
@@ -90,9 +93,9 @@ EOF
       printf '[Arrbit] SUCCESS custom script "%s" registered\n' "$name" | arrbitLogClean >> "$LOG_FILE"
       scripts_registered=$((scripts_registered + 1))
     else
-      log_error "Failed to register custom script: $name (see log at /config/logs)"
+      log_error "Failed to import custom script: $name (see log at /config/logs)"
       cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR Failed to register custom script: $name
+[Arrbit] ERROR Failed to import custom script: $name
 [WHY]: API did not return an id; likely cause: payload invalid or server/API error.
 [FIX]: Check the payload JSON fields for correctness or see [Response] below.
 [Response]
@@ -104,14 +107,12 @@ EOF
 done
 
 if [[ $files_found -eq 0 ]]; then
-  log_error "No payload files found matching $PAYLOAD_DIR/$PATTERN (see log at /config/logs)"
-  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR No payload files found matching $PAYLOAD_DIR/$PATTERN
-[WHY]: No matching custom script JSON files found.
-[FIX]: Add files matching pattern $PATTERN to $PAYLOAD_DIR.
-EOF
+  log_info "No custom script payload files found."
+  echo "[Arrbit] Done."
+  exit 0
 fi
 
-log_info "Done."
+log_info "The module was configured successfully."
+echo "[Arrbit] Done."
 exit 0
 

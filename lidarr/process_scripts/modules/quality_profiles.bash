@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - quality_profiles.bash
-# Version: v1.7-gs2.7.1
+# Version: v1.0.0-gs2.8.2
 # Purpose: Import new quality profiles, always map live custom format IDs, skip duplicates, no deletion logic.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -11,12 +11,12 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="quality_profiles"
-SCRIPT_VERSION="v1.7-gs2.7.1"
+SCRIPT_VERSION="v1.0.0-gs2.8.2"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION}..."
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} module${NC} ${SCRIPT_VERSION} ..."
 
 if ! source /config/arrbit/connectors/arr_bridge.bash; then
   log_error "Could not source arr_bridge.bash (Required for API access, check Arrbit setup) (see log at /config/logs)"
@@ -27,6 +27,9 @@ if ! source /config/arrbit/connectors/arr_bridge.bash; then
 EOF
   exit 1
 fi
+
+# Import predefined settings
+log_info "Importing predefined settings..."
 
 CUSTOM_FORMATS_ENABLED=$(getFlag "CONFIGURE_CUSTOM_FORMATS")
 if [[ "${CUSTOM_FORMATS_ENABLED,,}" == "true" ]]; then
@@ -138,5 +141,6 @@ if $skipped_any; then
   log_info "Quality profiles already exist - skipping."
 fi
 
-log_info "Done."
+log_info "The module was configured successfully."
+echo "[Arrbit] Done."
 exit 0

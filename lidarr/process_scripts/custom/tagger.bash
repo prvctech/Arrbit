@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - tagger.bash
-# Version: v1.0-gs2.7.1
+# Version: v1.0.0-gs2.8.2
 # Purpose: Enhanced FLAC metadata tagger for Lidarr imports. Handles featuring artists, integrates with Beets,
 #          and ensures proper metadata for Plex compatibility.
 # -------------------------------------------------------------------------------------------------------------
 
 SCRIPT_NAME="tagger"
-SCRIPT_VERSION="v1.0-gs2.7.1"
+SCRIPT_VERSION="v1.0.0-gs2.8.2"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
@@ -256,4 +256,6 @@ for flac_file in "${flac_files[@]}"; do
 done
 
 log_info "Tagging complete for $ALBUM_PATH"
+log_info "The module was configured successfully."
+echo "[Arrbit] Done."
 exit 0
