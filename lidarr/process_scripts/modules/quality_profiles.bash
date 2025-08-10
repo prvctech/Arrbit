@@ -120,7 +120,7 @@ for profile in "${REPLACEMENTS[@]}"; do
   log_info "Importing replacement quality profile: $name"
   printf '[Arrbit] Importing replacement profile: %s\n[Payload]\n%s\n[/Payload]\n' "$name" "$payload" | arrbitLogClean >> "$LOG_FILE"
   response=$(arr_api -X POST --data-raw "$payload" "${arrUrl}/api/${arrApiVersion}/qualityprofile")
-  printf '[Response]\n%s\n[/Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
+  printf '[Arrbit] API Response:\n%s\n' "$response" | arrbitLogClean >> "$LOG_FILE"
   if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
     printf '[Arrbit] SUCCESS Replacement profile created: %s\n' "$name" | arrbitLogClean >> "$LOG_FILE"
     EXISTING_NAMES+=("$lname")

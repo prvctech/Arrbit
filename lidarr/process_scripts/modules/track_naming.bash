@@ -53,7 +53,7 @@ response=$(
     "${arrUrl}/api/${arrApiVersion}/config/naming"
 )
 
-printf '[API Response]\n%s\n[/API Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
+printf '[Arrbit] API Response:\n%s\n' "$response" | arrbitLogClean >> "$LOG_FILE"
 
 if echo "$response" | jq -e '.renameTracks' >/dev/null 2>&1; then
   log_info "Track Naming has been configured successfully"

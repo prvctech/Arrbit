@@ -92,7 +92,7 @@ for format in "${JSON_FORMATS[@]}"; do
   fi
   log_info "Importing custom format: ${format_name}"
   response=$(arr_api -X POST --data-raw "$payload" "${arrUrl}/api/${arrApiVersion}/customformat")
-  printf '[Response]\n%s\n[/Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
+  printf '[Arrbit] API Response:\n%s\n' "$response" | arrbitLogClean >> "$LOG_FILE"
   if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
     printf '[Arrbit] SUCCESS Custom format created: %s\n' "$format_name" | arrbitLogClean >> "$LOG_FILE"
   else

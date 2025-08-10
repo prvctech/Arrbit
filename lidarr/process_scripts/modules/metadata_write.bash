@@ -53,7 +53,7 @@ response=$(
     "${arrUrl}/api/${arrApiVersion}/config/metadataProvider"
 )
 
-printf '[API Response]\n%s\n[/API Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
+printf '[Arrbit] API Response:\n%s\n' "$response" | arrbitLogClean >> "$LOG_FILE"
 
 if echo "$response" | jq -e '.writeAudioTags' >/dev/null 2>&1; then
   log_info "Metadata Write has been configured successfully"

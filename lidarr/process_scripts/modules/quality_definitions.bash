@@ -118,7 +118,7 @@ for definition in "${JSON_DEFS[@]}"; do
       log_info "Importing quality definition: ${title}"
       printf '[Arrbit] Updating Quality Definition: %s (Lidarr ID: %s)\n[Payload]\n%s\n[/Payload]\n' "$title" "$match_id" "$payload" | arrbitLogClean >> "$LOG_FILE"
       response=$(arr_api -X PUT --data-raw "$payload" "${arrUrl}/api/${arrApiVersion}/qualitydefinition/$match_id")
-      printf '[Response]\n%s\n[/Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
+      printf '[Arrbit] API Response:\n%s\n' "$response" | arrbitLogClean >> "$LOG_FILE"
 
       if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
         printf '[Arrbit] SUCCESS: Quality definition processed: %s\n' "$title" | arrbitLogClean >> "$LOG_FILE"
@@ -138,7 +138,7 @@ EOF
     log_info "Importing quality definition: ${title}"
     printf '[Arrbit] Creating NEW Quality Definition: %s\n[Payload]\n%s\n[/Payload]\n' "$title" "$payload" | arrbitLogClean >> "$LOG_FILE"
     response=$(arr_api -X POST --data-raw "$payload" "${arrUrl}/api/${arrApiVersion}/qualitydefinition")
-    printf '[Response]\n%s\n[/Response]\n' "$response" | arrbitLogClean >> "$LOG_FILE"
+    printf '[Arrbit] API Response:\n%s\n' "$response" | arrbitLogClean >> "$LOG_FILE"
 
     if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
       printf '[Arrbit] SUCCESS: Quality definition created: %s\n' "$title" | arrbitLogClean >> "$LOG_FILE"
