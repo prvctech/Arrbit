@@ -5,6 +5,8 @@ This folder contains reference documentation and API specifications to assist wi
 ## Contents
 
 - `lidarr-v1-api.json`: OpenAPI specification for the Lidarr v1 API. Use this for endpoint details, parameters, and expected responses when building or updating scripts.
+- `radarr-v3-api.json`: OpenAPI specification for the Radarr v3 API. Reference for Radarr automation and integration.
+- `sonarr-v3-api.json`: OpenAPI specification for the Sonarr v3 API. Reference for Sonarr automation and integration.
 
 ## Usage
 
