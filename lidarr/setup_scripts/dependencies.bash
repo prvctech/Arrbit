@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - dependencies.bash
-# Version: v1.0.14-gs2.8.2
+# Version: v1.0.15-gs2.8.2
 # Purpose: Silent dependency installer for Arrbit (Golden Standard v2.8.2 compliant)
 # -------------------------------------------------------------------------------------------------------------
 
@@ -10,19 +10,21 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="dependencies"
-SCRIPT_VERSION="v1.0.14-gs2.8.2"
+SCRIPT_VERSION="v1.0.15-gs2.8.2"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
 # --- Setup version tracking (prevent re-installation) ---
 SETUP_VERSION_FILE="/config/setup_version.txt"
-CURRENT_VERSION="1.0.14"
+CURRENT_VERSION="1.0.15"
 
 # Virtual env (to isolate tidal-dl-ng/python-ffmpeg from ffmpeg-python)
-ARRBIT_VENV="/config/arrbit/venv-tidal"
+# Location moved per user preference
+ARRBIT_VENV="/config/arrbit/custom/tidal-dl-ng"
 VENV_PY="$ARRBIT_VENV/bin/python3"
 VENV_PIP="$ARRBIT_VENV/bin/pip"
+mkdir -p "$(dirname "$ARRBIT_VENV")" >>"$LOG_FILE" 2>&1 || true
 
 # --- What we consider required (tools + python modules) ---
 REQUIRED_CMDS="beet atomicparsley python3 uv eyeD3 yq xq jq ffmpeg \
@@ -142,12 +144,12 @@ if [[ -x "$VENV_PIP" ]]; then
   # Wrappers to enforce venv runtime using the console script inside the venv
   cat >/usr/local/bin/tidal-dl-ng <<'SH'
 #!/bin/sh
-exec "/config/arrbit/venv-tidal/bin/tdn" "$@"
+exec "/config/arrbit/custom/tidal-dl-ng/bin/tdn" "$@"
 SH
   chmod +x /usr/local/bin/tidal-dl-ng
   cat >/usr/local/bin/tdn <<'SH'
 #!/bin/sh
-exec "/config/arrbit/venv-tidal/bin/tdn" "$@"
+exec "/config/arrbit/custom/tidal-dl-ng/bin/tdn" "$@"
 SH
   chmod +x /usr/local/bin/tdn
   # Refresh shell hash for current session
