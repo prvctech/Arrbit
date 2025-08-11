@@ -1,0 +1,5 @@
+# Ignore logs and sensitive files
+/config/logs/
+*.log
+*.env
+*.conf.local
