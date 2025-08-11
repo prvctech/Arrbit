@@ -7,9 +7,9 @@ ARRBIT - GOLDEN STANDARD V2.8.2
     arrbitPurgeOldLogs   # always run as the first command (default: purge >2 days old)
 - Every script must define:
     SCRIPT_NAME, SCRIPT_VERSION (must include -gs<golden standard version number> suffix), LOG_FILE, create log dir/file with chmod 777
-	Always update the script version with any changes made. Exmaple v1.2.x where the x mark small changes in the code like editing a small block of code v1.x.0 where the x mark a big change logic changed, or enchanment in code. 
-	If golden standard gets updated then the version gets reset to v1.0.0-gs(new version number)
-	
+    Always update the script version with any changes made. Exmaple v1.2.x where the x mark small changes in the code like editing a small block of code v1.x.0 where the x mark a big change logic changed, or enchanment in code. 
+    If golden standard gets updated then the version gets reset to v1.0.0-gs(new version number)
+    
 - Never hardcode ANSI color codes; only use color constants from logging_utils.bash
 - All module logic must be flagless (no enable/disable logic except autoconfig.bash)
 - Never overwrite any file in /config/arrbit/* unless the script is for config writing
