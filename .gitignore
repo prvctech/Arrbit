@@ -3,9 +3,4 @@
 *.log
 *.env
 *.conf.local
-
-# Make entire .github local-only (will not be pushed)
 .github/
-
-# Optional local-only AI workspace folder (create if desired)
-.arrbit-local/
