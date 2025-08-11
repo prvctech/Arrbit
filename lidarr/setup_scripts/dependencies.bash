@@ -44,6 +44,12 @@ list_missing_cmds() {
 }
 
 list_missing_py() {
+  if ! command -v python3 >/dev/null 2>&1; then
+    # python3 not available yet; assume all required Python modules are missing
+    printf '%s ' ${REQUIRED_PY_MODS[@]}
+    echo
+    return 0
+  fi
   python3 - <<'PY'
 name_map = {
   "beautifulsoup4": "bs4",
@@ -129,12 +135,12 @@ if [[ -x "$VENV_PIP" ]]; then
   # Wrappers to enforce venv runtime using the console script inside the venv
   cat >/usr/local/bin/tidal-dl-ng <<EOF
 #!/bin/sh
-exec "/config/arrbit/venv-tidal/bin/tidal-dl-ng" "$@"
+exec "/config/arrbit/venv-tidal/bin/tdn" "$@"
 EOF
   chmod +x /usr/local/bin/tidal-dl-ng
   cat >/usr/local/bin/tdn <<EOF
 #!/bin/sh
-exec "/config/arrbit/venv-tidal/bin/tidal-dl-ng" "$@"
+exec "/config/arrbit/venv-tidal/bin/tdn" "$@"
 EOF
   chmod +x /usr/local/bin/tdn
 fi
