@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - run module
-# Version: v1.0.7-gs2.8.2
+# Version: v1.0.8-gs2.8.2
 # Purpose: Orchestrator – runs setup first, then executes all Arrbit service modules (silent except WARNING/ERROR).
 # -------------------------------------------------------------------------------------------------------------
 
@@ -22,7 +22,7 @@ sleep 8
 
 # --- Prepare logging early (silent to terminal, but log file available immediately) ---
 SCRIPT_NAME="run"
-SCRIPT_VERSION="v1.0.7-gs2.8.2"
+SCRIPT_VERSION="v1.0.8-gs2.8.2"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date '+%Y_%m_%d-%H_%M').log"
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 echo "[Arrbit] run service initializing…" >> "$LOG_FILE"
@@ -53,7 +53,8 @@ echo
   ENABLE_ARRBIT=$(getFlag "ENABLE_ARRBIT")
 
   if [[ "${ENABLE_ARRBIT,,}" != "true" ]]; then
-    printf '[Arrbit] WARNING Arrbit services are OFF. Set ENABLE_ARRBIT to "true" in arrbit-config.conf to enable automation.\n' | arrbitLogClean >> "$LOG_FILE"
+    # Terminal: single allowed message
+    log_warning "Arrbit services are OFF. Set ENABLE_ARRBIT to \"true\" in arrbit-config.conf to enable automation."
     cat <<EOF | arrbitLogClean >> "$LOG_FILE"
 [Arrbit] WARNING Arrbit services are OFF.
 [WHY]: ENABLE_ARRBIT is set to false in arrbit-config.conf.
