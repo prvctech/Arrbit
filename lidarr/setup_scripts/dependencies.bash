@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - dependencies.bash
-# Version: v1.0.13-gs2.8.2
+# Version: v1.0.14-gs2.8.2
 # Purpose: Silent dependency installer for Arrbit (Golden Standard v2.8.2 compliant)
 # -------------------------------------------------------------------------------------------------------------
 
@@ -10,14 +10,14 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="dependencies"
-SCRIPT_VERSION="v1.0.13-gs2.8.2"
+SCRIPT_VERSION="v1.0.14-gs2.8.2"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
 # --- Setup version tracking (prevent re-installation) ---
 SETUP_VERSION_FILE="/config/setup_version.txt"
-CURRENT_VERSION="1.0.13"
+CURRENT_VERSION="1.0.14"
 
 # Virtual env (to isolate tidal-dl-ng/python-ffmpeg from ffmpeg-python)
 ARRBIT_VENV="/config/arrbit/venv-tidal"
@@ -140,16 +140,18 @@ if [[ -x "$VENV_PIP" ]]; then
   "$VENV_PIP" install -U --no-cache-dir \
     tidal-dl-ng python-ffmpeg >>"$LOG_FILE" 2>&1 || true
   # Wrappers to enforce venv runtime using the console script inside the venv
-  cat >/usr/local/bin/tidal-dl-ng <<EOF
+  cat >/usr/local/bin/tidal-dl-ng <<'SH'
 #!/bin/sh
 exec "/config/arrbit/venv-tidal/bin/tdn" "$@"
-EOF
+SH
   chmod +x /usr/local/bin/tidal-dl-ng
-  cat >/usr/local/bin/tdn <<EOF
+  cat >/usr/local/bin/tdn <<'SH'
 #!/bin/sh
 exec "/config/arrbit/venv-tidal/bin/tdn" "$@"
-EOF
+SH
   chmod +x /usr/local/bin/tdn
+  # Refresh shell hash for current session
+  hash -r 2>/dev/null || true
 fi
 
 # Verify ffmpeg wrapper in venv (not system)
