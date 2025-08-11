@@ -1,16 +1,16 @@
 directory: /data/media/music/personal
 library: /config/arrbit/beetslibrary.blb
 import:
-    move: no
-    copy: no
-    write: yes
-    resume: ask
-    quiet: yes
-    incremental: no
-    log: /config/beets.log
-    languages: en
-    detail: no
-    from_scratch: no
+  move: no
+  copy: no
+  write: yes
+  resume: ask
+  quiet: yes
+  incremental: no
+  log: /config/beets.log
+  languages: en
+  detail: no
+  from_scratch: no
 plugins: chroma embedart lastgenre lyrics fetchart
 asciify_paths: yes
 id3v23: no
@@ -18,26 +18,26 @@ threaded: yes
 per_disc_numbering: yes
 art_filename: folder
 lyrics:
-    auto: yes
-    sources: google genius
-    fallback: ""
+  auto: yes
+  sources: google genius
+  fallback: ""
 lastgenre:
-    whitelist: /config/arrbit/genre-whitelist.txt
-    canonical: yes
-    force: yes
-    source: track
-    fallback: ""
-    count: 1
-    min_weight: 10
-    prefer_specific: yes
+  whitelist: /config/arrbit/genre-whitelist.txt
+  canonical: yes
+  force: yes
+  source: track
+  fallback: ""
+  count: 1
+  min_weight: 10
+  prefer_specific: yes
 fetchart:
-    cautious: true
-    cover_names: front folder
-    minwidth: 300
-    maxwidth: 1000
-    enforce_ratio: yes
-    sources: itunes *
+  cautious: true
+  cover_names: front folder
+  minwidth: 300
+  maxwidth: 1000
+  enforce_ratio: yes
+  sources: itunes *
 chroma:
-    auto: yes
+  auto: yes
 embedart:
-    auto: yes
+  auto: yes
