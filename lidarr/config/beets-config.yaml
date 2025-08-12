@@ -13,16 +13,12 @@ import:
   languages: en
   detail: no
   from_scratch: no
-plugins: chroma embedart lastgenre lyrics fetchart
+plugins: chroma embedart lastgenre fetchart
 asciify_paths: yes
 id3v23: no
 threaded: yes
 per_disc_numbering: yes
 art_filename: folder
-lyrics:
-  auto: yes
-  sources: google genius
-  fallback: ""
 lastgenre:
   #whitelist: /config/arrbit/genre-whitelist.txt
   canonical: yes
