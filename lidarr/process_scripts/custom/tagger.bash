@@ -1,261 +1,288 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
-# Arrbit - tagger.bash
-# Version: v1.0.0-gs2.8.2
-# Purpose: Enhanced FLAC metadata tagger for Lidarr imports. Handles featuring artists, integrates with Beets,
-#          and ensures proper metadata for Plex compatibility.
+# Arrbit - tagger.bash - Automatic music tagging script for Lidarr using beets
+# Version: v1.0.0-gs2.8.3
+# Purpose: This script processes music albums from Lidarr using beets to improve metadata tagging.
 # -------------------------------------------------------------------------------------------------------------
 
-SCRIPT_NAME="tagger"
-SCRIPT_VERSION="v1.0.0-gs2.8.2"
-LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
-touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
-
+# MUST start with helpers and purge (per GS v2.8.3)
 source /config/arrbit/helpers/logging_utils.bash
 source /config/arrbit/helpers/helpers.bash
-source /config/arrbit/connectors/arr_bridge.bash
 arrbitPurgeOldLogs
 
-# ---- TEST BUTTON SKIP LOGIC ----
-if [[ "${lidarr_eventtype:-}" == "Test" ]]; then
-  log_info "Lidarr Test event detected. Exiting cleanly."
-  exit 0
+# Script information (reset for GS update)
+SCRIPT_NAME="tagger"
+SCRIPT_VERSION="v1.0.0-gs2.8.3"
+LOG_FILE="/config/logs/arrbit-tagger-$(date +%Y_%m_%d-%H_%M).log"
+
+# Create log directory/file and set permissive permissions (per GS)
+mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
+touch "$LOG_FILE" 2>/dev/null || true
+chmod 777 "$(dirname "$LOG_FILE")" "$LOG_FILE" 2>/dev/null || true
+
+# Ensure temporary directory exists
+TMP_DIR="/config/arrbit/tmp"
+mkdir -p "$TMP_DIR" 2>/dev/null || true
+
+# Banner (only line allowed with echo -e; colors from logging_utils)
+echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting ${SCRIPT_NAME} script${NC} ${SCRIPT_VERSION} ..."
+
+# Check if this is a test event from Lidarr (avoid connecting to ARR in test mode)
+if [ "$lidarr_eventtype" == "Test" ]; then
+    log_info "Tested Successfully"
+    exit 0
 fi
 
-# ---- BANNER ----
-echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Starting tagger module ${NC}${SCRIPT_VERSION}..."
+# Ignore rename-type events (case-insensitive) which often lack album ID and can cause loops
+_evt_lower=$(printf '%s' "${lidarr_eventtype:-}" | tr '[:upper:]' '[:lower:]')
+if [[ "${_evt_lower}" == *rename* || "${_evt_lower}" == *retag* ]]; then
+    log_info "Ignoring ${lidarr_eventtype:-} event"
+    exit 0
+fi
 
-# --- 1. Validate environment and paths ---
-ALBUM_PATH="${lidarr_release_folder:-}"
+# Connect to ARR only for real runs
+if [ ! -f "/config/arrbit/connectors/arr_bridge.bash" ]; then
+    log_error "arr_bridge.bash not found at /config/arrbit/connectors/arr_bridge.bash (see log at /config/logs)"
+    {
+        echo "[WHY]: The universal arr_bridge connector is missing or not mounted at the canonical path";
+        echo "[FIX]: Ensure /config/arrbit/connectors/arr_bridge.bash exists and is readable by this container";
+    } >> "$LOG_FILE"
+    exit 11
+fi
+# shellcheck source=/dev/null
+source "/config/arrbit/connectors/arr_bridge.bash"
 
-# If album path not set via Lidarr event, check for manual override
-if [[ -z "$ALBUM_PATH" ]]; then
-  if [[ -n "$1" && -d "$1" ]]; then
-    ALBUM_PATH="$1"
-    log_info "Using manually provided album path: $ALBUM_PATH"
-  else
-    log_error "No valid album path provided (see log at /config/logs)"
-    cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR No valid album path provided
-[WHY]: lidarr_release_folder environment variable is not set and no valid path was provided as argument
-[FIX]: Either run this script from Lidarr's Connect settings or provide a valid directory path as argument
-EOF
+# Get album ID from Lidarr
+# This can come from environment variable or command line argument
+if [ -z "$lidarr_album_id" ]; then
+    lidarr_album_id="$1"
+fi
+
+# Verify we have an album ID
+if [ -z "$lidarr_album_id" ]; then
+    # If invoked by Lidarr but no album ID was provided for this event, skip quietly
+    if [ -n "${lidarr_eventtype:-}" ]; then
+        log_info "Ignoring ${lidarr_eventtype} event without album ID"
+        exit 0
+    fi
+    # Otherwise (manual run without parameter), treat as an error
+    log_error "No album ID provided (see log at /config/logs)"
+    {
+        echo "[WHY]: The script needs a Lidarr album ID to fetch album and track file info";
+        echo "[FIX]: Run from Lidarr with a proper event payload or pass an album ID as the first argument";
+    } >> "$LOG_FILE"
     exit 1
-  fi
 fi
 
-if [[ ! -d "$ALBUM_PATH" ]]; then
-  log_error "Album path is not a valid directory: $ALBUM_PATH (see log at /config/logs)"
-  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR Album path is not a valid directory
-[WHY]: The specified path does not exist or is not a directory
-[FIX]: Check that the path exists and is accessible
-EOF
-  exit 1
+# Retag events can fire per-track; wait briefly to let Lidarr finish batch retagging
+_evt_lower=$(printf '%s' "${lidarr_eventtype:-}" | tr '[:upper:]' '[:lower:]')
+ 
+
+# Fetch album information from Lidarr API
+printf "[Arrbit] Fetching album information for ID: %s\n" "$lidarr_album_id" >> "$LOG_FILE"
+# Build full URL for arr_bridge v1.1.0 wrapper (expects URL, not method)
+album_info=$(arr_api "${arrUrl}/api/${arrApiVersion}/album/$lidarr_album_id")
+
+if [ -z "$album_info" ]; then
+    log_error "Failed to fetch album information (see log at /config/logs)"
+    {
+        echo "[WHY]: The Lidarr API returned an empty response or the request failed";
+        echo "[FIX]: Confirm arr_url/api version/key via arr_bridge.bash and network reachability from this container";
+    } >> "$LOG_FILE"
+    exit 1
 fi
 
-log_info "Tagger started for album path: $ALBUM_PATH"
+# Extract album artist information
+album_artist=$(echo "$album_info" | jq -r '.artist.artistName // empty')
+album_artist_path=$(echo "$album_info" | jq -r '.artist.path // empty')
 
-# --- 2. Query Lidarr API for album and artist details ---
-encoded_album_path=$(python3 -c 'import urllib.parse,os; print(urllib.parse.quote(os.environ["ALBUM_PATH"]))')
-api_url="${arrUrl}/api/${arrApiVersion}/album?path=${encoded_album_path}&apikey=${arrApiKey}"
-album_json=$(arr_api "$api_url")
-
-# Check if API call was successful
-if ! echo "$album_json" | jq -e '.[0]' >/dev/null 2>&1; then
-  log_error "Failed to retrieve album information from Lidarr API (see log at /config/logs)"
-  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR Failed to retrieve album information from Lidarr API
-[WHY]: API call failed or returned invalid data
-[FIX]: Check Lidarr API connectivity and verify the album exists in Lidarr
-[API Response]
-$album_json
-[/API Response]
-EOF
-  exit 1
+# Validate album metadata
+if [ -z "$album_artist" ] || [ -z "$album_artist_path" ]; then
+    log_error "Album metadata missing (artist or artist path) (see log at /config/logs)"
+    {
+        echo "[WHY]: The album payload from Lidarr did not include the artist name or path";
+        echo "[FIX]: Verify the album exists in Lidarr and the artist has a valid root folder/path";
+    } >> "$LOG_FILE"
+    exit 1
 fi
 
-# Extract album and artist details
-album_id=$(echo "$album_json" | jq -r '.[0].id')
-album_title=$(echo "$album_json" | jq -r '.[0].title')
-album_artist=$(echo "$album_json" | jq -r '.[0].artist.artistName')
-album_release_date=$(echo "$album_json" | jq -r '.[0].releaseDate')
-album_year=$(echo "$album_release_date" | cut -d'-' -f1)
+# Get track path information
+# Use original endpoint casing compatible with Lidarr and prior script
+track_files=$(arr_api "${arrUrl}/api/${arrApiVersion}/trackFile?albumId=$lidarr_album_id")
+# Avoid Broken pipe from head(1) by selecting within jq
+track_path=$(echo "$track_files" | jq -r 'map(select((.path // "") != "")) | (.[0].path // empty)')
+folder_path=$(dirname "$track_path")
+album_folder_name=$(basename "$folder_path")
 
-if [[ -z "$album_artist" || "$album_artist" == "null" ]]; then
-  log_error "Could not retrieve album artist from Lidarr API (see log at /config/logs)"
-  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR Could not retrieve album artist from Lidarr API
-[WHY]: Artist information is missing or invalid in the API response
-[FIX]: Verify the album has a valid artist assigned in Lidarr
-[API Response]
-$album_json
-[/API Response]
-EOF
-  exit 1
+printf "[Arrbit] Processing :: %s :: Processing Files...\n" "$album_folder_name" >> "$LOG_FILE"
+log_info "Processing album folder: $album_folder_name"
+# Validate paths
+if [ -z "$track_path" ] || [ -z "$folder_path" ] || [ "$folder_path" = "." ]; then
+    log_error "Unable to determine album folder path from track files (see log at /config/logs)"
+    {
+        echo "[WHY]: No valid track file paths were returned for the album";
+        echo "[FIX]: Ensure the album has imported tracks and Lidarr reports their paths";
+    } >> "$LOG_FILE"
+    exit 1
 fi
 
-log_info "Album details from Lidarr: '$album_title' by '$album_artist' ($album_year)"
-
-# --- 3. Get track information for featuring artists ---
-tracks_url="${arrUrl}/api/${arrApiVersion}/track?albumId=${album_id}&apikey=${arrApiKey}"
-tracks_json=$(arr_api "$tracks_url")
-
-if ! echo "$tracks_json" | jq -e '.[0]' >/dev/null 2>&1; then
-  log_warning "No track information found for album ID: $album_id"
-  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] WARNING No track information found for album ID: $album_id
-[WHY]: The album may not have any tracks or the API call failed
-[FIX]: Check that the album has tracks in Lidarr
-EOF
+if ! echo "$folder_path" | grep -Fq "$album_artist_path"; then
+    log_error "ERROR :: $album_artist_path not found within \"$folder_path\" (see log at /config/logs)"
+    {
+        echo "[WHY]: The album folder resolved from track files does not match the expected artist path";
+        echo "[FIX]: Verify Lidarr root folders and that the album's tracks are under the artist path";
+    } >> "$LOG_FILE"
+    exit 1
 fi
 
-# --- 4. Run Beets import on the album directory ---
-log_info "Running Beets import on album directory"
-
-# Create a temporary beets config that points to the main config
-TEMP_CONFIG_DIR=$(mktemp -d)
-TEMP_CONFIG_FILE="$TEMP_CONFIG_DIR/config.yaml"
-
-cat > "$TEMP_CONFIG_FILE" <<EOF
-import:
-  copy: no
-  move: no
-  write: yes
-  resume: no
-  quiet: yes
-  incremental: no
-  log: /config/beets.log
-  from_scratch: yes
-include: /config/arrbit/config/beets-config.yaml
-EOF
-
-# Run beets import
-beets_output=$(beet -c "$TEMP_CONFIG_FILE" import -qCW "$ALBUM_PATH" 2>&1)
-beets_exit=$?
-
-# Log beets output
-printf '[Beets Output]\n%s\n[/Beets Output]\n' "$beets_output" | arrbitLogClean >> "$LOG_FILE"
-
-if [[ $beets_exit -ne 0 ]]; then
-  log_warning "Beets import completed with warnings or errors"
-else
-  log_info "Beets import completed successfully"
+if [ ! -d "$folder_path" ]; then
+    log_error "ERROR :: \"$folder_path\" Folder is missing (see log at /config/logs)"
+    {
+        echo "[WHY]: The resolved album directory does not exist on disk";
+        echo "[FIX]: Check your mounts and that media is present at the expected path";
+    } >> "$LOG_FILE"
+    exit 1
 fi
 
-# Clean up temp config
-rm -rf "$TEMP_CONFIG_DIR"
+ 
 
-# --- 5. Process FLAC files to ensure featuring artists are properly tagged ---
-shopt -s nullglob
-flac_files=("$ALBUM_PATH"/*.flac)
-
-if [[ ${#flac_files[@]} -eq 0 ]]; then
-  log_warning "No FLAC files found in album directory"
-  cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] WARNING No FLAC files found in album directory
-[WHY]: The album directory may not contain any FLAC files
-[FIX]: Check that the album directory contains FLAC files
-EOF
-fi
-
-# Function to normalize featuring artist format
-normalize_featuring() {
-  local artist="$1"
-  
-  # Replace various featuring formats with standardized "feat."
-  artist=$(echo "$artist" | sed -E 's/\s+(featuring|ft\.?|with|and|&|,)\s+/ feat. /gi')
-  
-  # If there are multiple "feat." in the string, keep only the first one
-  if [[ $(echo "$artist" | grep -o "feat\." | wc -l) -gt 1 ]]; then
-    # This is a complex case, handle with Python for better string manipulation
-    artist=$(python3 -c "
-import re, sys
-artist = sys.argv[1]
-# Find the first occurrence of feat.
-first_feat = re.search(r'(.*?) feat\.(.*)', artist, re.IGNORECASE)
-if first_feat:
-    main_artist = first_feat.group(1).strip()
-    featuring = first_feat.group(2).strip()
-    # Replace any subsequent feat. with commas
-    featuring = re.sub(r'\s+feat\.\s+', ', ', featuring)
-    print(f'{main_artist} feat. {featuring}')
-else:
-    print(artist)
-" "$artist")
-  fi
-  
-  echo "$artist"
-}
-
-# Process each FLAC file
-for flac_file in "${flac_files[@]}"; do
-  filename=$(basename "$flac_file")
-  log_info "Processing FLAC file: $filename"
-  
-  # Get track information from filename
-  track_title=$(metaflac --show-tag=TITLE "$flac_file" | sed 's/^TITLE=//i')
-  track_artist=$(metaflac --show-tag=ARTIST "$flac_file" | sed 's/^ARTIST=//i')
-  
-  # Look for featuring artists in track title or artist
-  featuring_match=""
-  if [[ "$track_title" =~ [Ff]eat\.?|[Ff]eaturing|[Ww]ith|[Ff]t\.? ]]; then
-    featuring_match="$track_title"
-  elif [[ "$track_artist" =~ [Ff]eat\.?|[Ff]eaturing|[Ww]ith|[Ff]t\.?|&|[Aa]nd ]]; then
-    featuring_match="$track_artist"
-  fi
-  
-  # If we have a featuring artist, normalize the format
-  if [[ -n "$featuring_match" ]]; then
-    # Try to find the track in the Lidarr API response
-    track_info=$(echo "$tracks_json" | jq -r --arg title "$track_title" '.[] | select(.title == $title)')
-    
-    if [[ -n "$track_info" && "$track_info" != "null" ]]; then
-      # Get the track title and artist from Lidarr
-      lidarr_title=$(echo "$track_info" | jq -r '.title')
-      
-      # Check if we have artist information from Lidarr
-      if [[ -n "$lidarr_title" && "$lidarr_title" != "null" ]]; then
-        log_info "Found track in Lidarr: $lidarr_title"
-      fi
+# Check required tools
+for bin in beet ffprobe metaflac jq find dirname basename; do
+    if ! command -v "$bin" >/dev/null 2>&1; then
+        log_error "Missing required tool: $bin (see log at /config/logs)"
+        {
+            echo "[WHY]: The executable '$bin' was not found in PATH inside the container";
+            echo "[FIX]: Install or enable '$bin' in the image, or adjust PATH accordingly";
+        } >> "$LOG_FILE"
+        exit 1
     fi
-    
-    # Normalize the featuring format
-    normalized_artist=$(normalize_featuring "$track_artist")
-    
-    if [[ "$normalized_artist" != "$track_artist" ]]; then
-      log_info "Updating artist tag: '$track_artist' -> '$normalized_artist'"
-      
-      # Remove existing artist tags
-      metaflac --remove-tag=ARTIST "$flac_file" >>"$LOG_FILE" 2>&1
-      
-      # Set the normalized artist tag
-      metaflac --set-tag="ARTIST=$normalized_artist" "$flac_file" >>"$LOG_FILE" 2>&1
-      
-      # Also update the ARTISTS tag if it exists
-      metaflac --remove-tag=ARTISTS "$flac_file" >>"$LOG_FILE" 2>&1
-      metaflac --set-tag="ARTISTS=$normalized_artist" "$flac_file" >>"$LOG_FILE" 2>&1
-    fi
-  fi
-  
-  # Always ensure ALBUMARTIST tags are consistent
-  for tag in ALBUMARTIST ALBUMARTISTSORT "ALBUM ARTIST" ALBUM_ARTIST; do
-    metaflac --remove-tag="$tag" "$flac_file" >>"$LOG_FILE" 2>&1
-    metaflac --set-tag="$tag=$album_artist" "$flac_file" >>"$LOG_FILE" 2>&1
-  done
-  
-  # Ensure YEAR tag is set
-  if [[ -n "$album_year" && "$album_year" != "null" ]]; then
-    metaflac --remove-tag=YEAR "$flac_file" >>"$LOG_FILE" 2>&1
-    metaflac --set-tag="YEAR=$album_year" "$flac_file" >>"$LOG_FILE" 2>&1
-  fi
-  
-  # Log the final tags for verification
-  current_tags=$(metaflac --list --block-type=VORBIS_COMMENT "$flac_file" | grep -E "^\\s+comment\\[[0-9]+\\]: " | sed 's/^[[:space:]]*comment\[[0-9]*\]: //')
-  printf '[Final Tags for %s]\n%s\n[/Final Tags]\n' "$filename" "$current_tags" | arrbitLogClean >> "$LOG_FILE"
 done
 
-log_info "Tagging complete for $ALBUM_PATH"
-log_info "The module was configured successfully."
-echo "[Arrbit] Done."
+# Process with Beets function
+# This function handles the actual tagging process using beets
+process_with_beets() {
+    local process_folder="$1"
+    
+    printf "[Arrbit] %s :: Start Processing...\n" "$process_folder" >> "$LOG_FILE"
+    
+    # Check if folder contains FLAC files
+    if ! find "$process_folder" -type f -iname "*.flac" | grep -q .; then
+        log_error "$process_folder :: ERROR :: Only supports flac files, exiting... (see log at /config/logs)"
+        # Add detailed error information to log
+        echo "[WHY]: No FLAC files were found in the album folder" >> "$LOG_FILE"
+        echo "[FIX]: This script only processes FLAC files. Convert your audio files to FLAC format" >> "$LOG_FILE"
+        return 1
+    fi
+    
+    # Start processing timer
+    SECONDS=0
+    
+    # Clean up previous files if they exist
+    if [ -f /config/arrbit/tmp/library-lidarr.blb ]; then
+        rm /config/arrbit/tmp/library-lidarr.blb
+        sleep 0.5
+    fi
+    
+    # Do not remove external beets logs; rely on beets-config.yaml for its log path/rotation
+    
+    if [ -f "/config/arrbit/tmp/beets-lidarr-match" ]; then
+        rm "/config/arrbit/tmp/beets-lidarr-match"
+        sleep 0.5
+    fi
+    
+    touch "/config/arrbit/tmp/beets-lidarr-match"
+    sleep 0.5
+    
+    printf "[Arrbit] %s :: Begin matching with beets!\n" "$process_folder" >> "$LOG_FILE"
+    
+    # Ensure beets configuration uses a writable directory
+    export XDG_CONFIG_HOME="/config/arrbit/tmp"
+    export BEETSDIR="/config/arrbit/tmp/beets"
+    mkdir -p "$XDG_CONFIG_HOME" "$BEETSDIR" 2>/dev/null || true
+
+    # Resolve beets config file (single canonical path)
+    BEETS_CFG="/config/arrbit/config/beets-config.yaml"
+    if [ ! -f "$BEETS_CFG" ]; then
+        log_error "$process_folder :: Beets config not found at $BEETS_CFG"
+        echo "[WHY]: Beets configuration file is missing" >> "$LOG_FILE"
+        echo "[FIX]: Provide a valid beets config at $BEETS_CFG" >> "$LOG_FILE"
+        return 1
+    fi
+
+    # Do not override or pre-create beets log; rely on value in beets-config.yaml (e.g., /config/logs/arrbit-beets.log)
+
+    # Run beets import
+    # -c: Config file path
+    # -l: Library database path
+    # -d: Destination directory
+    # -qC: Quiet mode, no confirmation
+        set -o pipefail
+        # Sanitize all beets output and write to log only (keep terminal minimal per GS)
+        beet -c "$BEETS_CFG" -l /config/arrbit/tmp/library-lidarr.blb -d "$process_folder" import -qC "$process_folder" 2>&1 \
+            | arrbitLogClean >> "$LOG_FILE"
+        beets_status=${PIPESTATUS[0]}
+        set +o pipefail
+    if [ ${beets_status:-0} -ne 0 ]; then
+        log_error "$process_folder :: Beets import failed (exit ${beets_status}) (see log at /config/logs)"
+        echo "[WHY]: Beets failed to run or initialize its config directory" >> "$LOG_FILE"
+        echo "[FIX]: Verify permissions on $XDG_CONFIG_HOME and the beets config at $BEETS_CFG" >> "$LOG_FILE"
+        return ${beets_status}
+    fi
+    
+    # Fix tags
+	log_info "Fixing tags..."
+    printf "[Arrbit] %s :: Fixing tags...\n" "$process_folder" >> "$LOG_FILE"
+    printf "[Arrbit] %s :: Fixing flac tags...\n" "$process_folder" >> "$LOG_FILE"
+
+    # Fix flac tags
+    find "$process_folder" -type f -iname "*.flac" -print0 | while IFS= read -r -d '' file; do
+        
+        # Get artist credit from file
+        artist_credit=$(ffprobe -loglevel 0 -print_format json -show_format -show_streams "$file" | jq -r ".format.tags.ARTIST_CREDIT" | sed "s/null//g" | sed "/^$/d")
+        
+        # Remove existing tags to ensure clean tagging
+        metaflac --remove-tag=ARTIST "$file"
+        metaflac --remove-tag=ALBUMARTIST "$file"
+        metaflac --remove-tag=ALBUMARTIST_CREDIT "$file"
+        metaflac --remove-tag=ALBUMARTISTSORT "$file"
+        metaflac --remove-tag=ALBUM_ARTIST "$file"
+        metaflac --remove-tag="ALBUM ARTIST" "$file"
+        metaflac --remove-tag=ARTISTSORT "$file"
+        metaflac --remove-tag=COMPOSERSORT "$file"
+        
+        # Set album artist tag
+        metaflac --set-tag=ALBUMARTIST="$album_artist" "$file"
+        
+    # Set artist tag - use artist_credit if available, otherwise use album_artist
+    if [ ! -z "$artist_credit" ]; then
+            metaflac --set-tag=ARTIST="$artist_credit" "$file"
+        else
+            metaflac --set-tag=ARTIST="$album_artist" "$file"
+        fi
+    done
+    
+    printf "[Arrbit] %s :: Fixing tags Complete!\n" "$process_folder" >> "$LOG_FILE"
+    
+    # Clean up temporary files
+    rm -f "/config/arrbit/tmp/beets-lidarr-match" /config/arrbit/tmp/library-lidarr.blb 2>/dev/null || true
+    
+    # Calculate and log processing duration
+    duration=$SECONDS
+    printf "[Arrbit] %s :: Finished in %d minutes and %d seconds!\n" "$process_folder" $(($duration / 60)) $(($duration % 60)) >> "$LOG_FILE"
+}
+
+# Process the album folder with beets
+if process_with_beets "$folder_path"; then
+    # Completion message
+    log_info "The script ran successfully."
+    log_info "Done."
+else
+    log_error "Processing failed for folder: $folder_path (see log at /config/logs)"
+    {
+        echo "[WHY]: An upstream step in the tagging pipeline failed";
+        echo "[FIX]: Review errors above in the log; resolve the first failure cause and retry";
+    } >> "$LOG_FILE"
+    exit 1
+fi
+
 exit 0

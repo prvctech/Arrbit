@@ -7,11 +7,11 @@ import:
   resume: ask
   quiet: yes
   incremental: no
-  log: /config/beets.log
+  log: /config/logs/arrbit-beets.log
   languages: en
   detail: no
   from_scratch: no
-plugins: chroma embedart lastgenre lyrics fetchart
+plugins: chroma embedart lastgenre fetchart
 asciify_paths: yes
 id3v23: no
 threaded: yes
@@ -22,7 +22,7 @@ lyrics:
   sources: google genius
   fallback: ""
 lastgenre:
-  whitelist: /config/arrbit/genre-whitelist.txt
+  #whitelist: /config/arrbit/genre-whitelist.txt
   canonical: yes
   force: yes
   source: track
