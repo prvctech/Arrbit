@@ -1,3 +1,5 @@
+# version: 1.0
+
 directory: /data/media/music/personal
 library: /config/arrbit/beetslibrary.blb
 import:
@@ -7,11 +9,11 @@ import:
   resume: ask
   quiet: yes
   incremental: no
-  log: /config/logs/arrbit-beets.log
+  log: /config/beets.log
   languages: en
   detail: no
   from_scratch: no
-plugins: chroma embedart lastgenre fetchart
+plugins: chroma embedart lastgenre lyrics fetchart
 asciify_paths: yes
 id3v23: no
 threaded: yes
