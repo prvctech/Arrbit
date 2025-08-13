@@ -97,8 +97,7 @@ if [[ "${INSTALL_PLUGIN_TUBIFARRY}" == "true" ]]; then
   install_plugin "Tubifarry" "$PLUGINS_DIR/TypNull/Tubifarry" \
     "https://github.com/TypNull/Tubifarry/releases/download/v1.8.1.1/Tubifarry-v1.8.1.1.net6.0-develop.zip"
 fi
-
-log_info "Log saved to $LOG_FILE"
-log_info "Done with ${SCRIPT_NAME} service"
+log_info "All plugins installed"
+log_info "Done"
 
 exit 0
