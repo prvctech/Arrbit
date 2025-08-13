@@ -20,7 +20,7 @@ threaded: yes
 per_disc_numbering: yes
 art_filename: folder
 lastgenre:
-  #whitelist: /config/arrbit/genre-whitelist.txt
+  whitelist: /config/arrbit/data/genre-whitelist.txt
   canonical: yes
   force: yes
   source: track

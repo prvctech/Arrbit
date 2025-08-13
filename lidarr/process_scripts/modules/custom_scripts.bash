@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - custom_scripts.bash
-# Version: v1.0.1-gs2.8.2
-# Purpose: Registers all custom scripts found in /config/arrbit/modules/data/custom_script_*.json (modular, bulletproof, Golden Standard v2.8.2 enforced)
+# Version: v1.0.2-gs2.8.2
+# Purpose: Registers all custom scripts found in /config/arrbit/data/custom_script_*.json (modular, bulletproof, Golden Standard v2.8.2 enforced)
 # -------------------------------------------------------------------------------------------------------------
 
 source /config/arrbit/helpers/logging_utils.bash
@@ -10,9 +10,9 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="custom_scripts"
-SCRIPT_VERSION="v1.0.1-gs2.8.2"
+SCRIPT_VERSION="v1.0.2-gs2.8.2"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
-PAYLOAD_DIR="/config/arrbit/modules/data"
+PAYLOAD_DIR="/config/arrbit/data"
 PATTERN="custom_script_*.json"
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"

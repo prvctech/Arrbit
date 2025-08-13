@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - quality_profiles.bash
-# Version: v1.0.2-gs2.8.2
+# Version: v1.0.4-gs2.8.2
 # Purpose: Import new quality profiles, always map live custom format IDs, skip duplicates, no deletion logic.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -11,7 +11,7 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="quality_profiles"
-SCRIPT_VERSION="v1.0.2-gs2.8.2"
+SCRIPT_VERSION="v1.0.4-gs2.8.2"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
@@ -34,9 +34,17 @@ log_info "Importing predefined settings..."
 CUSTOM_FORMATS_ENABLED=$(getFlag "CONFIGURE_CUSTOM_FORMATS")
 if [[ "${CUSTOM_FORMATS_ENABLED,,}" == "true" ]]; then
   # Payloads WITH custom formats
-  REPLACE_JSON="/config/arrbit/modules/data/payload-quality_profiles-with_custom_formats.json"
-
+  REPLACE_JSON="/config/arrbit/data/payload-quality_profiles-with_custom_formats.json"
   # Ensure payload exists
+  if [[ ! -f "$REPLACE_JSON" ]]; then
+    log_error "File not found: ${REPLACE_JSON} (see log at /config/logs)"
+    cat <<EOF | arrbitLogClean >> "$LOG_FILE"
+[Arrbit] ERROR File not found: $REPLACE_JSON
+[WHY]: The file does not exist at the specified path.
+[FIX]: Place a valid payload-quality_profiles-with_custom_formats.json in $(dirname "$REPLACE_JSON").
+EOF
+    exit 1
+  fi
   if [[ ! -f "$REPLACE_JSON" ]]; then
     log_error "File not found: ${REPLACE_JSON} (see log at /config/logs)"
     cat <<EOF | arrbitLogClean >> "$LOG_FILE"
@@ -86,7 +94,7 @@ EOF
   REPLACEMENTS_JSON="$REMAPPED_JSON"
 else
   # Payloads WITHOUT custom formats
-  REPLACE_JSON="/config/arrbit/modules/data/payload-quality_profiles-no_custom_formats.json"
+  REPLACE_JSON="/config/arrbit/data/payload-quality_profiles-no_custom_formats.json"
   if [[ ! -f "$REPLACE_JSON" ]]; then
     log_error "File not found: ${REPLACE_JSON} (see log at /config/logs)"
     cat <<EOF | arrbitLogClean >> "$LOG_FILE"

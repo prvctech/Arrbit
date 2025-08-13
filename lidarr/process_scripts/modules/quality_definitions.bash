@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - quality_definitions.bash
-# Version: v1.0.1-gs2.8.2
+# Version: v1.0.3-gs2.8.2
 # Purpose: Overwrite quality definitions in Lidarr with those from JSON—skip process if all are 1:1 (Golden Standard v2.8.2 enforced)
 # -------------------------------------------------------------------------------------------------------------
 
@@ -11,9 +11,9 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="quality_definitions"
-SCRIPT_VERSION="v1.0.1-gs2.8.2"
+SCRIPT_VERSION="v1.0.3-gs2.8.2"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
-JSON_PATH="/config/arrbit/modules/data/payload-quality_definitions.json"
+JSON_PATH="/config/arrbit/data/payload-quality_definitions.json"
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
@@ -34,7 +34,7 @@ if [[ ! -f "$JSON_PATH" ]]; then
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
 [Arrbit] ERROR File not found: $JSON_PATH
 [WHY]: The file does not exist at the specified path.
-[FIX]: Place a valid quality_definitions.json in $(dirname "$JSON_PATH").
+[FIX]: Place a valid payload-quality_definitions.json in $(dirname "$JSON_PATH").
 EOF
   exit 1
 fi

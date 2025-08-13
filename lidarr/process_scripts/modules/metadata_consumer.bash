@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - metadata_consumer.bash
-# Version: v1.0.1-gs2.8.2
+# Version: v1.0.3-gs2.8.2
 # Purpose: Configure Lidarr Metadata Consumer (Kodi/XBMC) via API (Golden Standard v2.8.2 enforced)
 # -------------------------------------------------------------------------------------------------------------
 
@@ -11,9 +11,9 @@ source /config/arrbit/helpers/helpers.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="metadata_consumer"
-SCRIPT_VERSION="v1.0.1-gs2.8.2"
+SCRIPT_VERSION="v1.0.3-gs2.8.2"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
-JSON_PATH="/config/arrbit/modules/data/payload-metadata_consumer.json"
+JSON_PATH="/config/arrbit/data/payload-metadata_consumer.json"
 
 mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 

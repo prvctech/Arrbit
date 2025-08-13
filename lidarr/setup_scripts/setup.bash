@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - setup
-# Version: v1.0.1-gs2.8.2
+# Version: v1.0.2-gs2.8.2
 # Purpose: Bootstraps Arrbit: downloads, installs, and initializes everything into /config/arrbit. SILENT except fatal error.
 # -------------------------------------------------------------------------------------------------------------
 
@@ -40,12 +40,14 @@ source "$HELPERS_DIR/helpers.bash"
 arrbitPurgeOldLogs 3
 
 SCRIPT_NAME="setup"
-SCRIPT_VERSION="v1.0.1-gs2.8.2"
+SCRIPT_VERSION="v1.0.2-gs2.8.2"
 LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-# --- Copy modules and services ---
+# --- Copy modules, services, and data ---
 cp -rf "$REPO_MAIN/process_scripts/modules/."   "$ARRBIT_ROOT/modules/"
+mkdir -p "$ARRBIT_ROOT/data"
+cp -rf "$REPO_MAIN/data/." "$ARRBIT_ROOT/data/" 2>/dev/null || true
 cp -rf "$REPO_MAIN/process_scripts/services/."  "$ARRBIT_ROOT/services/"
 
 # --- Copy custom process scripts if they exist ---
