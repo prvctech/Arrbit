@@ -111,9 +111,13 @@ fi
 copy_config_once "$REPO_MAIN/config" "$ARRBIT_ROOT/config"
 
 # Set permissions
-# (silent) setting permissions
-chmod -R 755 "$ARRBIT_ROOT" 2>>"$LOG_FILE" || {
-    log_error "Failed to set base permissions"
+# (silent) setting permissions - ensure all directories have 777 for full access
+chmod 777 "/app" 2>>"$LOG_FILE" || {
+    log_error "Failed to set /app directory permissions"
+    exit 1
+}
+chmod -R 777 "$ARRBIT_ROOT" 2>>"$LOG_FILE" || {
+    log_error "Failed to set arrbit directory permissions"
     exit 1
 }
 chmod -R 777 "$LOG_DIR" 2>>"$LOG_FILE" || {
