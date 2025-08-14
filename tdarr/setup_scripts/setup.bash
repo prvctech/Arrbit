@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - setup
-# Version: v1.0.2-gs2.8.2
-# Purpose: Bootstraps Arrbit: downloads, installs, and initializes everything into /config/arrbit. SILENT except fatal error.
+# Version: v1.1.0-gs2.8.3
+# Purpose: Bootstraps Arrbit: downloads, installs, and initializes everything into /app/arrbit. SILENT except fatal error.
 # -------------------------------------------------------------------------------------------------------------
 
 set -euo pipefail
