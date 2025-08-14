@@ -32,7 +32,7 @@ cp -r "$REPO_UNIVERSAL/helpers" "$ARRBIT_ROOT/"
 
 # --- Switch to Golden Standard logging as soon as helpers are present ---
 HELPERS_DIR="$ARRBIT_ROOT/helpers"
-LOG_DIR="/config/logs"
+LOG_DIR="/app/logs"
 mkdir -p "$LOG_DIR"
 source "$HELPERS_DIR/logging_utils.bash"
 source "$HELPERS_DIR/helpers.bash"
@@ -57,14 +57,16 @@ find "$REPO_MAIN/setup_scripts" -type f ! -name "setup.bash" ! -name "run" -exec
 mkdir -p "$ARRBIT_ROOT/config"
 
 # --- Copy each config file ONLY if it does NOT already exist ---
-for src_file in "$REPO_MAIN/config/"*; do
-  filename="$(basename "$src_file")"
-  dest_file="$ARRBIT_ROOT/config/$filename"
-  if [[ ! -f "$dest_file" ]]; then
-    cp -f "$src_file" "$dest_file"
-    chmod 777 "$dest_file"
-  fi
-done
+if [ -d "$REPO_MAIN/config" ] && compgen -G "$REPO_MAIN/config/*" > /dev/null; then
+  for src_file in "$REPO_MAIN/config/"*; do
+    filename="$(basename "$src_file")"
+    dest_file="$ARRBIT_ROOT/config/$filename"
+    if [[ ! -f "$dest_file" ]]; then
+      cp -f "$src_file" "$dest_file"
+      chmod 777 "$dest_file"
+    fi
+  done
+fi
 
 chmod -R 777 "$ARRBIT_ROOT"
 
