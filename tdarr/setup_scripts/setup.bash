@@ -70,7 +70,7 @@ copy_dir_update() {
     if [[ -d "$src" ]]; then
         mkdir -p "$dest" || { log_error "Failed to create $dest"; exit 1; }
         cp -rf "$src/." "$dest/" 2>>"$LOG_FILE" || { log_error "Failed to copy $name"; exit 1; }
-    # (silent) updated $name
+        # (silent) updated $name
     else
         log_warning "Source $name directory missing: $src"
     fi
