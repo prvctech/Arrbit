@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - setup.bash
-# Version: v1.0.8-gs2.8.3 (silent mode)
+# Version: v1.0.9-gs2.8.3 (silent mode)
 # Purpose: Setup script for Tdarr Arrbit integration
 # -------------------------------------------------------------------------------------------------------------
 
 SCRIPT_NAME="setup"
-SCRIPT_VERSION="v1.0.8-gs2.8.3"
+SCRIPT_VERSION="v1.0.9-gs2.8.3"
 ARRBIT_ROOT="/app/arrbit"
 TMP_DIR="/tmp/arrbit-setup"
 REPO_URL="https://github.com/prvctech/Arrbit/archive/refs/heads/main.zip"
@@ -38,6 +38,14 @@ LOG_DIR="/app/logs"
 mkdir -p "$LOG_DIR"
 source "$HELPERS_DIR/logging_utils.bash"
 
+# Enforce silent mode (override logging functions to suppress info output)
+log_info() { 
+    # Silent to terminal, still log to file if LOG_FILE is set
+    if [[ -n "${LOG_FILE:-}" ]]; then
+        printf '[Arrbit] %s\n' "$*" | arrbitLogClean >> "$LOG_FILE"
+    fi
+}
+
 # Verify extraction
 if [[ ! -d "$REPO_MAIN" ]]; then
     log_error "Tdarr directory not found in extracted repository"
@@ -48,6 +56,9 @@ fi
 if [[ -f "$ARRBIT_ROOT/helpers/helpers.bash" ]]; then
     # shellcheck disable=SC1091
     source "$ARRBIT_ROOT/helpers/helpers.bash"
+    
+    # Override CONFIG_DIR for Tdarr (helpers.bash expects /config/arrbit/config by default)
+    CONFIG_DIR="$ARRBIT_ROOT/config"
 fi
 
 # Purge old logs if arrbitPurgeOldLogs exists
@@ -94,7 +105,7 @@ copy_dir_update "$REPO_MAIN/data" "$ARRBIT_ROOT/data" "data"
 copy_dir_update "$REPO_MAIN/process_scripts" "$ARRBIT_ROOT/process_scripts" "process_scripts"
 
 # Setup scripts (always update)
-copy_dir_update "$REPO_MAIN/setup_scripts" "$ARRBIT_ROOT/setup_scripts" "setup_scripts"
+copy_dir_update "$REPO_MAIN/setup_scripts" "$ARRBIT_ROOT/setup" "setup scripts"
 
 # Helpers already staged; refresh (overwrite) with preferred source order
 if [[ -d "$REPO_MAIN/helpers" ]]; then
