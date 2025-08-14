@@ -13,8 +13,8 @@ HELPERS_DIR="$ARRBIT_ROOT/helpers"
 LOGO_SCRIPT_LOCAL="$ARRBIT_ROOT/data/arrbit_logo.bash"
 REMOTE_SETUP_URL="https://raw.githubusercontent.com/prvctech/Arrbit/refs/heads/main/tdarr/setup_scripts/setup.bash"
 
-DEPENDENCIES_SCRIPT="$ARRBIT_ROOT/setup_scripts/dependencies.sh"
-PROCESS_SCRIPT_LOCAL="$ARRBIT_ROOT/process_scripts/main.sh"
+DEPENDENCIES_SCRIPT="$ARRBIT_ROOT/setup_scripts/dependencies.bash"
+PROCESS_SCRIPT_LOCAL="$ARRBIT_ROOT/process_scripts/main.bash"
 
 # Delay for container stability (silent)
 sleep 8
@@ -59,19 +59,5 @@ echo
 [WHY]: ENABLE_ARRBIT is set to false in arrbit-config.conf.
 [FIX]: Edit /app/arrbit/config/arrbit-config.conf and set ENABLE_ARRBIT=true to enable Arrbit automation.
 EOF
-  else
-    # --- 5. Execute scripts without redirection so they can show terminal output; they log to their own files ---
-    if [[ -x "$DEPENDENCIES_SCRIPT" ]]; then
-      bash "$DEPENDENCIES_SCRIPT"
-    else
-      echo "[Arrbit] ERROR Dependencies script not found/executable: $DEPENDENCIES_SCRIPT" >>"$LOG_FILE"
-    fi
 
-    if [[ -x "$PROCESS_SCRIPT_LOCAL" ]]; then
-      bash "$PROCESS_SCRIPT_LOCAL"
-    fi
-  fi
-fi
-
-printf '[Arrbit] All requested services executed. Sleeping indefinitely.\n' | arrbitLogClean >> "$LOG_FILE"
-exec tail -f /dev/null
+exit 0
