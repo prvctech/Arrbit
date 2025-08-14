@@ -1,147 +1,145 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# -------------------------------------------------------------------------------------------------------------
+# Arrbit - Tdarr dependencies (audio language detector)
+# Purpose: Idempotent installation of required system + python deps (ffmpeg, jq, yq, whisper stack)
+# Behavior: Skips anything already present; installs only missing pieces. Uses Arrbit logging if available.
+# -------------------------------------------------------------------------------------------------------------
+set -euo pipefail
 
-# Installation script for Tdarr Audio Language Detector Plugin dependencies
-# This script installs the necessary dependencies for the audio language detector plugin
-# Run this script inside your Tdarr Docker container or on your Tdarr server
+# --- Bootstrap logging (silent info unless helpers available) ---
+LOG_DIR="/app/logs"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/arrbit-dependencies-$(date +%Y_%m_%d-%H_%M).log"
+touch "$LOG_FILE" || true
 
-echo "===== Tdarr Audio Language Detector Plugin - Dependency Installer ====="
-echo "This script will install the required dependencies for the audio language detector plugin."
-echo "It requires sudo access to install system packages."
-echo ""
+log_info()    { :; }
+log_warning() { echo "[Arrbit] WARNING: $*" | tee -a "$LOG_FILE" >&2; }
+log_error()   { echo "[Arrbit] ERROR: $*"   | tee -a "$LOG_FILE" >&2; }
 
-# Check if running as root or with sudo
-if [ "$EUID" -ne 0 ]; then
-  echo "Please run this script with sudo or as root."
+ARRBIT_ROOT="/app/arrbit"
+HELPERS_DIR="$ARRBIT_ROOT/helpers"
+if [[ -f "$HELPERS_DIR/logging_utils.bash" ]]; then
+  # shellcheck disable=SC1091
+  source "$HELPERS_DIR/logging_utils.bash"
+  if [[ -f "$HELPERS_DIR/helpers.bash" ]]; then
+    # shellcheck disable=SC1091
+    source "$HELPERS_DIR/helpers.bash"
+  fi
+  # Define silent info wrapper
+  _orig_log_info() { log_info "$@"; }
+  log_info() { :; }
+fi
+
+# --- Root check (we need package manager access) ---
+if [[ $EUID -ne 0 ]]; then
+  log_error "Must run as root (container should allow). Aborting."
   exit 1
 fi
 
-# Function to check if a command exists
-command_exists() {
-  command -v "$1" >/dev/null 2>&1
+command_exists() { command -v "$1" >/dev/null 2>&1; }
+
+apt_install() {
+  DEBIAN_FRONTEND=noninteractive apt-get update -y && \
+  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$@"
 }
 
-# Check and install FFmpeg
-echo "Checking for FFmpeg..."
-if command_exists ffmpeg; then
-  echo "✅ FFmpeg is already installed."
-else
-  echo "Installing FFmpeg..."
-  if command_exists apt-get; then
-    # Debian/Ubuntu
-    apt-get update
-    apt-get install -y ffmpeg
-  elif command_exists apk; then
-    # Alpine
-    apk add --no-cache ffmpeg
-  elif command_exists yum; then
-    # CentOS/RHEL
-    yum install -y epel-release
-    yum install -y ffmpeg
-  else
-    echo "❌ Unsupported package manager. Please install FFmpeg manually."
-    exit 1
-  fi
-  
+ensure_ffmpeg() {
   if command_exists ffmpeg; then
-    echo "✅ FFmpeg installed successfully."
+    log_info "ffmpeg already present"
   else
-    echo "❌ Failed to install FFmpeg. Please install it manually."
-    exit 1
+    if command_exists apt-get; then
+      apt_install ffmpeg >/dev/null 2>&1 || { log_error "Failed installing ffmpeg"; exit 1; }
+    else
+      log_error "No supported package manager to install ffmpeg"; exit 1
+    fi
   fi
-fi
+}
 
-# Check and install Python
-echo "Checking for Python..."
-if command_exists python3; then
-  echo "✅ Python is already installed."
-  PYTHON_CMD="python3"
-elif command_exists python; then
-  echo "✅ Python is already installed."
-  PYTHON_CMD="python"
-else
-  echo "Installing Python..."
-  if command_exists apt-get; then
-    # Debian/Ubuntu
-    apt-get update
-    apt-get install -y python3 python3-pip
-    PYTHON_CMD="python3"
-  elif command_exists apk; then
-    # Alpine
-    apk add --no-cache python3 py3-pip
-    PYTHON_CMD="python3"
-  elif command_exists yum; then
-    # CentOS/RHEL
-    yum install -y python3 python3-pip
-    PYTHON_CMD="python3"
+ensure_jq() {
+  if command_exists jq; then
+    log_info "jq present"
   else
-    echo "❌ Unsupported package manager. Please install Python manually."
-    exit 1
+    if command_exists apt-get; then
+      apt_install jq >/dev/null 2>&1 || { log_error "Failed installing jq"; exit 1; }
+    else
+      # fallback binary download
+      curl -fsSL -o /bin/jq "https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64" && chmod +x /bin/jq || {
+        log_error "Failed to install jq"; exit 1; }
+    fi
   fi
-  
-  if command_exists $PYTHON_CMD; then
-    echo "✅ Python installed successfully."
+}
+
+ensure_yq() {
+  if command_exists yq; then
+    log_info "yq present"
   else
-    echo "❌ Failed to install Python. Please install it manually."
-    exit 1
+    # Install mikefarah yq static binary
+    local ver="v4.44.3"
+    curl -fsSL -o /bin/yq "https://github.com/mikefarah/yq/releases/download/${ver}/yq_linux_amd64" && chmod +x /bin/yq || {
+      log_error "Failed to install yq"; exit 1; }
   fi
-fi
+}
 
-# Check Python version
-PYTHON_VERSION=$($PYTHON_CMD -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-PYTHON_MAJOR_VERSION=$($PYTHON_CMD -c 'import sys; print(sys.version_info.major)')
-PYTHON_MINOR_VERSION=$($PYTHON_CMD -c 'import sys; print(sys.version_info.minor)')
-
-echo "Python version: $PYTHON_VERSION"
-
-if [ "$PYTHON_MAJOR_VERSION" -lt 3 ] || ([ "$PYTHON_MAJOR_VERSION" -eq 3 ] && [ "$PYTHON_MINOR_VERSION" -lt 7 ]); then
-  echo "❌ Python 3.7 or higher is required. Please upgrade Python."
-  exit 1
-fi
-
-# Install pip if not available
-if ! command_exists pip3 && ! command_exists pip; then
-  echo "Installing pip..."
-  if command_exists apt-get; then
-    apt-get install -y python3-pip
-  elif command_exists apk; then
-    apk add --no-cache py3-pip
-  elif command_exists yum; then
-    yum install -y python3-pip
+ensure_python() {
+  if command_exists python3; then
+    PYTHON_CMD=python3
+  elif command_exists python; then
+    PYTHON_CMD=python
   else
-    echo "❌ Unsupported package manager. Please install pip manually."
-    exit 1
+    if command_exists apt-get; then
+      apt_install python3 python3-pip >/dev/null 2>&1 || { log_error "Failed installing python3"; exit 1; }
+      PYTHON_CMD=python3
+    else
+      log_error "No supported package manager to install Python"; exit 1
+    fi
   fi
-fi
+  if ! command_exists pip3 && ! command_exists pip; then
+    if command_exists apt-get; then
+      apt_install python3-pip >/dev/null 2>&1 || { log_error "Failed installing pip"; exit 1; }
+    fi
+  fi
+  if command_exists pip3; then PIP_CMD=pip3; else PIP_CMD=pip; fi
+  export PYTHON_CMD PIP_CMD
+}
 
-# Determine pip command
-if command_exists pip3; then
-  PIP_CMD="pip3"
-elif command_exists pip; then
-  PIP_CMD="pip"
-else
-  echo "❌ Failed to find pip. Please install it manually."
-  exit 1
-fi
+ensure_python_pkg() {
+  local pkg="$1"; shift || true
+  local import_name="${1:-$pkg}"
+  if "$PYTHON_CMD" - <<EOF 2>/dev/null
+import importlib, sys
+sys.exit(0 if importlib.util.find_spec("${import_name}") else 1)
+EOF
+  then
+    log_info "python pkg ${pkg} present"
+  else
+    "$PIP_CMD" install --no-cache-dir "$pkg" >/dev/null 2>&1 || { log_error "Failed installing python package ${pkg}"; exit 1; }
+  fi
+}
 
-# Install Python dependencies
-echo "Installing Python dependencies..."
-$PIP_CMD install -U openai-whisper torch numpy ffmpeg-python
+ensure_whisper_stack() {
+  # torch first (CPU)
+  if ! "$PYTHON_CMD" - <<'EOF' 2>/dev/null; then
+import importlib.util, sys
+sys.exit(0 if importlib.util.find_spec('torch') else 1)
+EOF
+  then
+    # generic pip torch (CPU)
+    "$PIP_CMD" install --no-cache-dir torch >/dev/null 2>&1 || log_warning "Torch generic install failed (continuing if already available)"
+  fi
+  ensure_python_pkg "numpy" "numpy"
+  ensure_python_pkg "ffmpeg-python" "ffmpeg"
+  ensure_python_pkg "openai-whisper" "whisper"
+}
 
-# Check if Whisper was installed correctly
-if $PYTHON_CMD -c "import whisper" 2>/dev/null; then
-  echo "✅ Whisper installed successfully."
-else
-  echo "❌ Failed to install Whisper. Please check for errors above."
-  exit 1
-fi
+summary() {
+  echo "[Arrbit] Dependencies setup complete." | tee -a "$LOG_FILE"
+}
 
-echo ""
-echo "===== Installation Complete ====="
-echo "The audio language detector plugin dependencies have been installed."
-echo ""
-echo "To use the plugin:"
-echo "1. Copy Tdarr_Plugin_audio_language_detector.js to your Tdarr plugins directory"
-echo "2. Restart Tdarr or refresh the plugins list"
-echo "3. Add the plugin to your workflow"
-echo ""
-echo "For more information, see the README.md file."
+ensure_ffmpeg
+ensure_jq
+ensure_yq
+ensure_python
+ensure_whisper_stack
+summary
+
+exit 0
