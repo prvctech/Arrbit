@@ -43,11 +43,14 @@ SCRIPT_VERSION="v1.1.0-gs2.8.3"
 LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
-# --- Copy services, and data ---
-
-mkdir -p "$ARRBIT_ROOT/data"
-cp -rf "$REPO_MAIN/data/." "$ARRBIT_ROOT/data/" 2>/dev/null || true
-cp -rf "$REPO_MAIN/process_scripts/services/."  "$ARRBIT_ROOT/services/"
+# --- Copy data (if present) and services (if present) ---
+mkdir -p "$ARRBIT_ROOT/data" "$ARRBIT_ROOT/services"
+if [[ -d "$REPO_MAIN/data" ]]; then
+  cp -rf "$REPO_MAIN/data/." "$ARRBIT_ROOT/data/" 2>/dev/null || true
+fi
+if [[ -d "$REPO_MAIN/process_scripts/services" ]]; then
+  cp -rf "$REPO_MAIN/process_scripts/services/."  "$ARRBIT_ROOT/services/" 2>/dev/null || true
+fi
 
 # --- Copy setup scripts except setup.bash and run ---
 mkdir -p "$ARRBIT_ROOT/setup"
