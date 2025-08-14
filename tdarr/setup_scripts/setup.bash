@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - setup.bash
-# Version: v1.0.7-gs2.8.3 (silent mode)
+# Version: v1.0.8-gs2.8.3 (silent mode)
 # Purpose: Setup script for Tdarr Arrbit integration
 # -------------------------------------------------------------------------------------------------------------
 
 SCRIPT_NAME="setup"
-SCRIPT_VERSION="v1.0.7-gs2.8.3"
+SCRIPT_VERSION="v1.0.8-gs2.8.3"
 ARRBIT_ROOT="/app/arrbit"
 TMP_DIR="/tmp/arrbit-setup"
 REPO_URL="https://github.com/prvctech/Arrbit/archive/refs/heads/main.zip"
@@ -15,65 +15,28 @@ REPO_UNIVERSAL="$TMP_DIR/Arrbit-main/universal"
 LOG_DIR="/app/logs"
 LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 
-# Create log directory and file (bootstrap logging only; helpers sourced later)
+# --- Ensure Arrbit root and tmp dir exist ---
+mkdir -p "$ARRBIT_ROOT" "$ARRBIT_ROOT/tmp"
+chmod 777 "$ARRBIT_ROOT/tmp"
+mkdir -p "$TMP_DIR"
+
+cd "$TMP_DIR"
+
+# --- Download and extract repo ---
+if ! curl -fsSL "$REPO_URL" -o arrbit.zip; then
+    echo "[Arrbit] ERROR: Failed to download repository. Check network and URL."
+    exit 1
+fi
+unzip -qqo arrbit.zip
+
+# --- Copy helpers from universal ---
+cp -r "$REPO_UNIVERSAL/helpers" "$ARRBIT_ROOT/"
+
+# --- Switch to Golden Standard logging as soon as helpers are present ---
+HELPERS_DIR="$ARRBIT_ROOT/helpers"
+LOG_DIR="/app/logs"
 mkdir -p "$LOG_DIR"
-touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
-
-# Silent mode bootstrap logging: only warnings/errors.
-log_info()    { :; }
-log_warning() { echo "[Arrbit] WARNING: $*" >> "$LOG_FILE"; }
-log_error()   { echo "[Arrbit] ERROR: $*"   >> "$LOG_FILE"; echo "ERROR: $*" >&2; }
-_ARRBIT_LOG_UPGRADED=0
-
-# (silent) starting Tdarr setup $SCRIPT_VERSION
-
-# Create necessary directories (no logs directory inside ARRBIT_ROOT)
-# (silent) creating directory structure
-mkdir -p "$ARRBIT_ROOT"/{data,config,services,helpers,modules,custom,process_scripts,setup_scripts} || {
-    log_error "Failed to create directory structure"
-    exit 1
-}
-mkdir -p "$TMP_DIR" || {
-    log_error "Failed to create temporary directory"
-    exit 1
-}
-
-# Download and extract Arrbit repository
-log_info "Downloading Arrbit repository from $REPO_URL"
-cd "$TMP_DIR" || {
-    log_error "Failed to change to temporary directory"
-    exit 1
-}
-
-if command -v wget >/dev/null 2>&1; then
-    wget -q "$REPO_URL" -O arrbit.zip &>>"$LOG_FILE" || {
-        log_error "Failed to download repository with wget"
-        exit 1
-    }
-elif command -v curl >/dev/null 2>&1; then
-    curl -sL "$REPO_URL" -o arrbit.zip &>>"$LOG_FILE" || {
-        log_error "Failed to download repository with curl"
-        exit 1
-    }
-else
-    log_error "Neither wget nor curl found"
-    exit 1
-fi
-
-log_info "Extracting repository"
-if command -v unzip >/dev/null 2>&1; then
-    unzip -q arrbit.zip &>>"$LOG_FILE" || {
-        log_error "Failed to extract repository"
-        exit 1
-    }
-else
-    log_error "unzip not found"
-    exit 1
-fi
-
-#############################
-# Post-extract bootstrap
-#############################
+source "$HELPERS_DIR/logging_utils.bash"
 
 # Verify extraction
 if [[ ! -d "$REPO_MAIN" ]]; then
@@ -81,29 +44,14 @@ if [[ ! -d "$REPO_MAIN" ]]; then
     exit 1
 fi
 
-# Stage helpers early (copy only) so we can switch to Golden Standard logging
-if [[ -d "$REPO_MAIN/helpers" ]]; then
-    cp -rf "$REPO_MAIN/helpers/." "$ARRBIT_ROOT/helpers/" 2>>"$LOG_FILE" || true
-elif [[ -d "$REPO_UNIVERSAL/helpers" ]]; then
-    cp -rf "$REPO_UNIVERSAL/helpers/." "$ARRBIT_ROOT/helpers/" 2>>"$LOG_FILE" || true
-fi
-
-# Upgrade logging if logging_utils now available
-if [[ -f "$ARRBIT_ROOT/helpers/logging_utils.bash" ]]; then
+# Source helpers if available for additional utilities
+if [[ -f "$ARRBIT_ROOT/helpers/helpers.bash" ]]; then
     # shellcheck disable=SC1091
-    source "$ARRBIT_ROOT/helpers/logging_utils.bash"
-    _ARRBIT_LOG_UPGRADED=1
-    # enforce silent info after upgrade
-    log_info() { :; }
-    if [[ -f "$ARRBIT_ROOT/helpers/helpers.bash" ]]; then
-        # shellcheck disable=SC1091
-        source "$ARRBIT_ROOT/helpers/helpers.bash"
-    fi
-    # Purge old logs if arrbitPurgeOldLogs exists
-    command -v arrbitPurgeOldLogs >/dev/null 2>&1 && arrbitPurgeOldLogs 3 || true
+    source "$ARRBIT_ROOT/helpers/helpers.bash"
 fi
 
-# (silent) installing components
+# Purge old logs if arrbitPurgeOldLogs exists
+command -v arrbitPurgeOldLogs >/dev/null 2>&1 && arrbitPurgeOldLogs 3 || true
 
 # Helper: copy a directory (overwrite/update)
 copy_dir_update() {
@@ -156,8 +104,7 @@ elif [[ -d "$REPO_UNIVERSAL/helpers" ]]; then
 elif [[ -d "$TMP_DIR/Arrbit-main/lidarr/helpers" ]]; then
     copy_dir_update "$TMP_DIR/Arrbit-main/lidarr/helpers" "$ARRBIT_ROOT/helpers" "lidarr helpers (fallback)"
 else
-    log_error "No helpers directory found (looked in tdarr, universal, lidarr)"
-    exit 1
+    log_warning "No additional helpers found for refresh (using universal helpers already copied)"
 fi
 
 # Config (one-time)
