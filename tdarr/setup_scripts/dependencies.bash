@@ -13,34 +13,33 @@ VERSION_FILE="/app/arrbit/setup/.dependencies_version"
 USE_VENV="${ARRBIT_DEPS_VENV:-0}"
 FORCE="${ARRBIT_FORCE_DEPS:-0}"
 
-# --- Bootstrap logging (silent info unless helpers available) ---
+# --- Bootstrap logging (Golden Standard) ---
 LOG_DIR="/app/logs"
 mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/arrbit-dependencies-$(date +%Y_%m_%d-%H_%M).log"
 touch "$LOG_FILE" || true
 
-log_info()    { :; }
-log_warning() { echo "[Arrbit] WARNING: $*" | tee -a "$LOG_FILE" >&2; }
-log_error()   { echo "[Arrbit] ERROR: $*"   | tee -a "$LOG_FILE" >&2; }
-
-# Always-write step logger (file only, silent to terminal)
-log_step()   { echo "[Arrbit] STEP: $*" >> "$LOG_FILE"; }
-log_start()  { echo "[Arrbit] START dependencies ${DEP_SCRIPT_VERSION}" >> "$LOG_FILE"; }
-log_skip()   { echo "[Arrbit] SKIP: $*" >> "$LOG_FILE"; }
-log_done()   { echo "[Arrbit] DONE: $*" >> "$LOG_FILE"; }
-
 ARRBIT_ROOT="/app/arrbit"
 HELPERS_DIR="$ARRBIT_ROOT/helpers"
+# Source golden standard logging + helpers (should exist due to setup)
 if [[ -f "$HELPERS_DIR/logging_utils.bash" ]]; then
   # shellcheck disable=SC1091
   source "$HELPERS_DIR/logging_utils.bash"
-  if [[ -f "$HELPERS_DIR/helpers.bash" ]]; then
-    # shellcheck disable=SC1091
-    source "$HELPERS_DIR/helpers.bash"
-  fi
-  # Define silent info wrapper
-  _orig_log_info() { log_info "$@"; }
-  log_info() { :; }
+fi
+if [[ -f "$HELPERS_DIR/helpers.bash" ]]; then
+  # shellcheck disable=SC1091
+  source "$HELPERS_DIR/helpers.bash"
+fi
+
+# Silent mode: suppress info to terminal only (keep full log output)
+if declare -f log_info >/dev/null 2>&1; then
+  _orig_log_info() {
+    # Log: Plain, no color
+    if [[ -n "${LOG_FILE:-}" ]]; then
+      printf '[Arrbit] %s\n' "$*" >> "$LOG_FILE"
+    fi
+  }
+  log_info() { _orig_log_info "$@"; }
 fi
 
 # --- Root check (we need package manager access) ---
@@ -49,12 +48,12 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
-log_start
+log_info "START dependencies ${DEP_SCRIPT_VERSION}"
 
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
 apt_install() {
-  log_step "apt installing: $*"
+  log_info "apt installing: $*"
   DEBIAN_FRONTEND=noninteractive apt-get update -y >/dev/null 2>&1 && \
   DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$@" >/dev/null 2>&1
 }
@@ -86,28 +85,28 @@ EOF
 if [[ -f "$VERSION_FILE" && $FORCE -ne 1 ]]; then
   CURRENT_VER=$(<"$VERSION_FILE") || CURRENT_VER=""
   if [[ "$CURRENT_VER" == "$DEP_SCRIPT_VERSION" ]] && all_present_minimal; then
-    log_skip "Dependencies already at ${CURRENT_VER}; use ARRBIT_FORCE_DEPS=1 to force reinstall."
-    echo "[Arrbit] dependencies already satisfied" >> "$LOG_FILE"
+    log_info "Dependencies already at ${CURRENT_VER}; use ARRBIT_FORCE_DEPS=1 to force reinstall."
+    log_info "dependencies already satisfied"
     exit 0
   fi
 fi
 
 ensure_ffmpeg() {
   if command_exists ffmpeg; then
-    log_step "ffmpeg present"
+    log_info "ffmpeg present"
   else
     if command_exists apt-get; then
       apt_install ffmpeg || { log_error "Failed installing ffmpeg"; exit 1; }
     else
       log_error "No supported package manager to install ffmpeg"; exit 1
     fi
-    log_step "ffmpeg installed"
+    log_info "ffmpeg installed"
   fi
 }
 
 ensure_jq() {
   if command_exists jq; then
-    log_step "jq present"
+    log_info "jq present"
   else
     if command_exists apt-get; then
       apt_install jq || { log_error "Failed installing jq"; exit 1; }
@@ -115,18 +114,18 @@ ensure_jq() {
       curl -fsSL -o /bin/jq "https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64" && chmod +x /bin/jq || {
         log_error "Failed to install jq"; exit 1; }
     fi
-    log_step "jq installed"
+    log_info "jq installed"
   fi
 }
 
 ensure_yq() {
   if command_exists yq; then
-    log_step "yq present"
+    log_info "yq present"
   else
     local ver="v4.44.3"
     curl -fsSL -o /bin/yq "https://github.com/mikefarah/yq/releases/download/${ver}/yq_linux_amd64" && chmod +x /bin/yq || {
       log_error "Failed to install yq"; exit 1; }
-    log_step "yq installed (${ver})"
+    log_info "yq installed (${ver})"
   fi
 }
 
@@ -157,7 +156,7 @@ ensure_python() {
     fi
     VENV_DIR="/app/arrbit/venv"
     if [[ ! -d "$VENV_DIR" ]]; then
-      log_step "creating venv $VENV_DIR"
+      log_info "creating venv $VENV_DIR"
       "$PYTHON_CMD" -m venv "$VENV_DIR" || log_warning "venv creation failed; falling back to system"
     fi
     if [[ -d "$VENV_DIR" ]]; then
@@ -165,39 +164,39 @@ ensure_python() {
       source "$VENV_DIR/bin/activate"
       PYTHON_CMD="$VENV_DIR/bin/python"
       PIP_CMD="$VENV_DIR/bin/pip"
-      log_step "using venv python: $PYTHON_CMD"
+      log_info "using venv python: $PYTHON_CMD"
     fi
   fi
 
   export PYTHON_CMD PIP_CMD
-  log_step "python cmd: $PYTHON_CMD; pip cmd: $PIP_CMD"
+  log_info "python cmd: $PYTHON_CMD; pip cmd: $PIP_CMD"
 }
 
 ensure_python_pkg() {
   local pkg="$1"; shift || true
   local import_name="${1:-$pkg}"
-  if "$PYTHON_CMD" - <<EOF 2>/dev/null
+  if "$PYTHON_CMD" - 2>/dev/null <<EOF
 import importlib, sys
 sys.exit(0 if importlib.util.find_spec("${import_name}") else 1)
 EOF
   then
-    log_step "python pkg ${pkg} present"
+    log_info "python pkg ${pkg} present"
   else
-    log_step "installing python pkg ${pkg}"
+    log_info "installing python pkg ${pkg}"
     "$PIP_CMD" install --no-cache-dir "$pkg" >/dev/null 2>&1 || { log_error "Failed installing python package ${pkg}"; exit 1; }
   fi
 }
 
 ensure_whisper_stack() {
-  if ! "$PYTHON_CMD" - <<'EOF' 2>/dev/null; then
+  if ! "$PYTHON_CMD" - 2>/dev/null <<'EOF'; then
 import importlib.util, sys
 sys.exit(0 if importlib.util.find_spec('torch') else 1)
 EOF
   then
-    log_step "installing torch (cpu)"
+    log_info "installing torch (cpu)"
     "$PIP_CMD" install --no-cache-dir torch >/dev/null 2>&1 || log_warning "Torch generic install failed (continuing if already available)"
   else
-    log_step "torch present"
+    log_info "torch present"
   fi
   ensure_python_pkg "numpy" "numpy"
   ensure_python_pkg "ffmpeg-python" "ffmpeg"
@@ -205,7 +204,7 @@ EOF
 }
 
 verify() {
-  log_step "verifying installation"
+  log_info "verifying installation"
   local missing=0
   for c in ffmpeg jq yq; do
     if ! command_exists "$c"; then log_error "Missing command after install: $c"; missing=1; fi
@@ -217,7 +216,7 @@ verify() {
     log_error "One or more dependencies missing after attempted installation. Consider ARRBIT_FORCE_DEPS=1 to retry."
     exit 1
   fi
-  log_step "verification passed"
+  log_info "verification passed"
 }
 
 summary() {
