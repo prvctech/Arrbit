@@ -11,10 +11,9 @@ set -o pipefail
 ARRBIT_ROOT="/app/arrbit"
 HELPERS_DIR="$ARRBIT_ROOT/helpers"
 LOGO_SCRIPT_LOCAL="$ARRBIT_ROOT/data/arrbit_logo.bash"
-REMOTE_SETUP_URL="https://raw.githubusercontent.com/prvctech/Arrbit/refs/heads/main/tdarr/setup_scripts/setup.bash"
+REMOTE_SETUP_URL="https://raw.githubusercontent.com/prvctech/Arrbit/main/tdarr/setup_scripts/setup.bash"
 
-DEPENDENCIES_SCRIPT="$ARRBIT_ROOT/setup_scripts/dependencies.bash"
-PROCESS_SCRIPT_LOCAL="$ARRBIT_ROOT/process_scripts/main.bash"
+DEPENDENCIES_SCRIPT="$ARRBIT_ROOT/setup/dependencies.bash"
 
 # Delay for container stability (silent)
 sleep 8
@@ -59,5 +58,15 @@ echo
 [WHY]: ENABLE_ARRBIT is set to false in arrbit-config.conf.
 [FIX]: Edit /app/arrbit/config/arrbit-config.conf and set ENABLE_ARRBIT=true to enable Arrbit automation.
 EOF
+  else
+    # --- 5. Setup completed successfully, dependencies will be implemented later ---
+    if [[ -x "$DEPENDENCIES_SCRIPT" ]]; then
+      bash "$DEPENDENCIES_SCRIPT"
+    else
+      echo "[Arrbit] ERROR Dependencies script not found/executable: $DEPENDENCIES_SCRIPT" >>"$LOG_FILE"
+    fi
+  fi
+fi
 
-exit 0
+printf '[Arrbit] All requested services executed. Sleeping indefinitely.\n' | arrbitLogClean >> "$LOG_FILE"
+exec tail -f /dev/null
