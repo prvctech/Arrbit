@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - Tdarr Setup Script
-# Version: v2.2.4-gs2.8.3
+# Version: v2.2.5-gs2.8.3
 # Purpose: Fetch (if needed) Arrbit repo and deploy Tdarr + shared assets to /app/arrbit
 #           - Copies helpers (universal/helpers) to /app/arrbit/helpers
 #           - Copies tdarr config, plugins, scripts, data files
@@ -9,7 +9,7 @@
 # -------------------------------------------------------------------------------------------------------------
 set -euo pipefail
 
-SETUP_SCRIPT_VERSION="v2.2.4-gs2.8.3"
+SETUP_SCRIPT_VERSION="v2.2.5-gs2.8.3"
 
 ARRBIT_BASE="/app/arrbit"
 SETUP_DEST="${ARRBIT_BASE}/setup"
@@ -166,7 +166,7 @@ post_checks(){
 }
 
 cleanup_tmp(){
-  # Remove only the fetched repo directory to keep TMP_ROOT reusable
+  # Remove only the fetched repo directory first
   if [ -n "${FETCH_DIR}" ] && [ -d "${FETCH_DIR}" ]; then
     case "${FETCH_DIR}" in
       ${TMP_ROOT}/*)
@@ -174,6 +174,21 @@ cleanup_tmp(){
         rm -rf "${FETCH_DIR}" || log_warn "Failed to remove ${FETCH_DIR}" ;;
       *)
         log_warn "Refusing to delete unexpected temp path: ${FETCH_DIR}" ;;
+    esac
+  fi
+  # Purge any residual artifacts inside /app/arrbit/data/tmp/* (leave the base dir itself)
+  if [ -n "${WORK_TMP_BASE}" ] && [ -d "${WORK_TMP_BASE}" ]; then
+    # Safety guard: ensure path starts with /app/arrbit/data/tmp
+    case "${WORK_TMP_BASE}" in
+      /app/arrbit/data/tmp*)
+        # Delete all children (files/dirs) under WORK_TMP_BASE
+        if ls -A "${WORK_TMP_BASE}" >/dev/null 2>&1; then
+          log_info "Purging residual temp contents under ${WORK_TMP_BASE}/*"
+          find "${WORK_TMP_BASE}" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
+        fi
+        ;;
+      *)
+        log_warn "Refusing to purge unexpected WORK_TMP_BASE: ${WORK_TMP_BASE}" ;;
     esac
   fi
 }
