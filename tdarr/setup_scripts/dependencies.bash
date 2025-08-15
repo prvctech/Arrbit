@@ -62,7 +62,13 @@ log_info "Installing WhisperX (CPU-only, minimal)"
 "${WHISPERX_ENV_PATH}/bin/pip" install --no-cache-dir whisperx
 
 # Verify installation
-log_info "Verifying WhisperX installation"
+log_info "Verifying WhisperX installation"# Source config and test
+source /app/arrbit/config/whisperx.conf
+/app/arrbit/environments/whisperx-env/bin/python -m whisperx \
+  --model $WHISPERX_MODEL \
+  --device $WHISPERX_DEVICE \
+  --language $WHISPERX_LANGUAGE \
+  /path/to/audio/file
 if ! "${WHISPERX_ENV_PATH}/bin/python" -c 'import whisperx; print("WhisperX installed successfully")' >>"${LOG_FILE}" 2>&1; then
   log_error "WhisperX installation verification failed"
   exit 1
