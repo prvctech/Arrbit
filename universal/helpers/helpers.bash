@@ -82,7 +82,8 @@ if [[ -z "${ARRBIT_HELPERS_INCLUDED:-}" ]]; then
 
   # Check if a file/directory exists and is readable
   # Usage: isReadable "/path/to/file" && echo "exists"
-  isReadable() { [[ -r "${1:-}" ]]; }
+  # Returns 0 if the path exists and is readable, 1 otherwise
+  isReadable() { [[ -n "${1:-}" && -e "${1:-}" && -r "${1:-}" ]]; }
   
   # Check if a directory exists and is writable  
   # Usage: isWritableDir "/path/to/dir" && echo "can write"
@@ -97,16 +98,41 @@ if [[ -z "${ARRBIT_HELPERS_INCLUDED:-}" ]]; then
   
   # Safely create directory with parents
   # Usage: ensureDir "/path/to/dir" && echo "created/exists"
+  # Returns 0 if the directory exists (or was created), 1 on failure or bad input
   ensureDir() {
     local dir="${1:-}"
-    [[ -n "$dir" ]] && mkdir -p "$dir" 2>/dev/null
+    if [[ -z "$dir" ]]; then
+      return 1
+    fi
+    if [[ -d "$dir" ]]; then
+      return 0
+    fi
+    mkdir -p -- "$dir" 2>/dev/null && [[ -d "$dir" ]]
   }
   
   # Get file size in bytes (portable)
   # Usage: size=$(getFileSize "/path/to/file")
+  # Returns size on stdout and exit 0 if file exists; prints 0 and returns 1 otherwise
   getFileSize() {
     local file="${1:-}"
-    [[ -f "$file" ]] && stat -c '%s' "$file" 2>/dev/null || echo "0"
+    if [[ -f "$file" ]]; then
+      # Prefer GNU stat, fall back to BSD stat, then to wc -c
+      if command -v stat >/dev/null 2>&1; then
+        local size
+        size=$(stat -c '%s' -- "$file" 2>/dev/null) || size=$(stat -f '%z' -- "$file" 2>/dev/null) || size=""
+        if [[ -n "$size" ]]; then
+          printf '%s' "$size"
+          return 0
+        fi
+      fi
+      # Final fallback
+      local wcsize
+      wcsize=$(wc -c < "$file" 2>/dev/null || echo 0)
+      printf '%s' "${wcsize:-0}"
+      return 0
+    fi
+    printf '0'
+    return 1
   }
   
   # Check if command exists in PATH
