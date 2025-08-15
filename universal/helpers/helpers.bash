@@ -60,9 +60,16 @@ if [[ -z "${ARRBIT_HELPERS_INCLUDED:-}" ]]; then
   # Usage: .sourceGuard "$BASH_SOURCE"
   # -------------------------------------------------------
   .sourceGuard() {
-    local guard_var="SOURCE_GUARD_$(echo "$1" | md5sum | awk '{print $1}')"
+    # Create a safe guard variable name from the provided identifier without
+    # calling external programs. Non-alphanumeric characters become underscores.
+    local id="${1:-}"
+    [[ -z "$id" ]] && id="SOURCE_GUARD"
+    # sanitize to [A-Za-z0-9_]
+    local clean
+    clean="${id//[^a-zA-Z0-9_]/_}"
+    local guard_var="SOURCE_GUARD_${clean}"
     [[ -n "${!guard_var:-}" ]] && return 1
-    declare -g "$guard_var=1"
+    declare -g "${guard_var}=1"
     return 0
   }
 
@@ -71,9 +78,21 @@ if [[ -z "${ARRBIT_HELPERS_INCLUDED:-}" ]]; then
   # Usage: joinBy , a b c   => "a,b,c"
   # -------------------------------------------------------
   joinBy() {
-    local IFS="$1"
-    shift
-    echo "$*"
+    # Join arguments using the first parameter as delimiter and preserve
+    # whitespace and special characters in each element.
+    local delim="$1"
+    shift || return 0
+    local out=""
+    local first=1
+    for item in "$@"; do
+      if [[ $first -eq 1 ]]; then
+        out="$item"
+        first=0
+      else
+        out+="${delim}${item}"
+      fi
+    done
+    printf '%s' "$out"
   }
 
   # -------------------------------------------------------
@@ -107,7 +126,11 @@ if [[ -z "${ARRBIT_HELPERS_INCLUDED:-}" ]]; then
     if [[ -d "$dir" ]]; then
       return 0
     fi
-    mkdir -p -- "$dir" 2>/dev/null && [[ -d "$dir" ]]
+    # Run mkdir and return its exit code; callers can decide logging/handling.
+    mkdir -p -- "$dir"
+    local rc=$?
+    [[ -d "$dir" ]] || return $rc
+    return 0
   }
   
   # Get file size in bytes (portable)

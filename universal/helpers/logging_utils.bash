@@ -8,7 +8,7 @@
 # Change (gs3.0.0 migration): Auto-detection removed; base fixed at /app/arrbit.
 # -------------------------------------------------------------------------------------------------------------
 
-# Fixed base path (auto-detection deprecated)
+# Fixed base path
 ARRBIT_BASE="/app/arrbit"
 ARRBIT_LOGS_DIR="${ARRBIT_BASE}/data/logs"
 mkdir -p "${ARRBIT_LOGS_DIR}" 2>/dev/null || true
