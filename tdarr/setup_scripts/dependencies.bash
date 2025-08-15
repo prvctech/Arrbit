@@ -19,15 +19,6 @@ log_error(){ echo "[ERROR] $*" >&2; }
 command_exists(){ command -v "$1" >/dev/null 2>&1; }
 apt_install(){ DEBIAN_FRONTEND=noninteractive apt-get install -y "$@" >/dev/null 2>&1; }
 
-create_structure() {
-  mkdir -p "${TDARR_BASE}/environments" \
-           "${TDARR_BASE}/plugins"/{transcription,audio_enhancement,custom} \
-           "${TDARR_BASE}/data"/{models/whisper,cache,temp,logs} \
-           "${TDARR_BASE}/scripts" \
-           "${TDARR_BASE}/config" \
-           "${TDARR_BASE}/setup_scripts"
-}
-
 all_present() {
   command_exists ffmpeg && command_exists jq && command_exists yq && command_exists python3 \
     && [ -d "${WHISPERX_ENV_PATH}" ] \
@@ -36,7 +27,12 @@ all_present() {
 }
 
 if [ "$EUID" -ne 0 ]; then log_error "Run as root"; exit 1; fi
-create_structure
+
+# Verify that setup has been run (folder structure exists)
+if [ ! -d "${TDARR_BASE}" ]; then
+  log_error "Tdarr base directory not found. Run setup script first."
+  exit 1
+fi
 
 if [ "${ALWAYS_UPGRADE}" != "1" ] && all_present; then
   log_info "Dependencies already satisfied."
@@ -56,6 +52,9 @@ install_sys() {
   done
 }
 install_sys
+
+# Ensure environments directory exists (minimal structure for venv)
+mkdir -p "${TDARR_BASE}/environments"
 
 # (Re)create venv if forcing or missing
 if [ "${ALWAYS_UPGRADE}" = "1" ] && [ -d "${WHISPERX_ENV_PATH}" ]; then
@@ -78,12 +77,15 @@ if ! "${WHISPERX_ENV_PATH}/bin/python" -c 'import whisperx, sys; print("WhisperX
   log_error "WhisperX verification failed"; exit 1
 fi
 
-# Wrapper script
-cat > "${TDARR_BASE}/scripts/whisperx" <<EOF
+# Wrapper script (only if scripts directory exists)
+if [ -d "${TDARR_BASE}/scripts" ]; then
+  cat > "${TDARR_BASE}/scripts/whisperx" <<EOF
 #!/usr/bin/env bash
 exec "${WHISPERX_ENV_PATH}/bin/python" -m whisperx "\$@"
 EOF
-chmod +x "${TDARR_BASE}/scripts/whisperx"
+  chmod +x "${TDARR_BASE}/scripts/whisperx"
+  log_info "WhisperX wrapper created at: ${TDARR_BASE}/scripts/whisperx"
+fi
 
-log_info "Done. Use: ${TDARR_BASE}/scripts/whisperx <audiofile>"
+log_info "Dependencies installation complete."
 exit 0
