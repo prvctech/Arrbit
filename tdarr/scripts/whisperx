@@ -1,5 +1,0 @@
-﻿#!/usr/bin/env bash
-WHISPERX_ENV="/app/arrbit/tdarr/environments/whisperx-env"
-CONF="/app/arrbit/tdarr/config/whisperx.conf"
-[ -f "$CONF" ] && source "$CONF"
-exec "$WHISPERX_ENV/bin/python" -m whisperx "$@"
