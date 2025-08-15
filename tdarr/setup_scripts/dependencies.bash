@@ -2,14 +2,15 @@
 # shellcheck shell=bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - WhisperX dependencies (fully isolated)
-# Version: v2.1.3-gs2.8.3
+# Version: v2.1.5-gs2.8.3
 # Purpose: Install system deps + WhisperX in isolated env at /app/arrbit/environments/whisperx-env (flattened structure)
 # Silent to terminal; verbose logging to /app/arrbit/data/logs
 # -------------------------------------------------------------------------------------------------------------
 set -euo pipefail
 IFS=$'\n\t'
 
-DEP_SCRIPT_VERSION="v2.1.3-gs2.8.3"
+DEP_SCRIPT_VERSION="v2.1.4-gs2.8.3"
+DEP_SCRIPT_VERSION="v2.1.5-gs2.8.3"
 ARRBIT_BASE="/app/arrbit"
 HELPERS_DIR="${ARRBIT_BASE}/helpers"
 ENV_DIR="${ARRBIT_BASE}/environments"
@@ -17,14 +18,9 @@ WHISPERX_ENV_PATH="${ENV_DIR}/whisperx-env"
 ALWAYS_UPGRADE="${ARRBIT_FORCE_DEPS:-0}"
 
 LOG_DIR="${ARRBIT_BASE}/data/logs"
-mkdir -p "${LOG_DIR}" 2>/dev/null || true
-chmod 777 "${LOG_DIR}" 2>/dev/null || true
 LOG_FILE="${LOG_DIR}/dependencies-$(date '+%Y_%m_%d-%H_%M_%S').log"
-touch "${LOG_FILE}" 2>/dev/null || true
-chmod 666 "${LOG_FILE}" 2>/dev/null || true
-RETENTION_DEFAULT="${ARRBIT_LOG_RETENTION:-5}"
 
-# Source shared helpers & logging if present
+# Source shared helpers & logging (assume setup created them)
 if [ -f "${HELPERS_DIR}/logging_utils.bash" ]; then
   # shellcheck disable=SC1091
   . "${HELPERS_DIR}/logging_utils.bash"
@@ -33,48 +29,9 @@ elif [ -f "${HELPERS_DIR}/helpers.bash" ]; then
   . "${HELPERS_DIR}/helpers.bash"
 fi
 
-# Create compatibility symlink so arrbitPurgeOldLogs (expects /config/logs) can manage our logs
-if [ ! -d /config/logs ]; then
-  mkdir -p /config 2>/dev/null || true
-  # Prefer symlink; if fails, copy
-  ln -s "${LOG_DIR}" /config/logs 2>/dev/null || cp -r "${LOG_DIR}" /config/logs 2>/dev/null || true
-fi
-
-# Silent wrappers: write only to LOG_FILE; if arrbitLogClean exists use it
-_arrbit_write(){
-  local level="$1"; shift
-  local line="[Arrbit]${level:+ ${level}:} $*"
-  if command -v arrbitLogClean >/dev/null 2>&1; then
-    printf '%s\n' "${line}" | arrbitLogClean >>"${LOG_FILE}" 2>/dev/null || printf '%s\n' "${line}" >>"${LOG_FILE}"
-  else
-    printf '%s\n' "${line}" >>"${LOG_FILE}"
-  fi
-}
-log_info(){ _arrbit_write "" "$*"; }
-log_warning(){ _arrbit_write "WARNING" "$*"; }
-log_error(){ _arrbit_write "ERROR" "$*"; }
-
-# Finalize / retention prune on any exit
-_arrbit_finalize(){
-  if command -v arrbitPurgeOldLogs >/dev/null 2>&1; then
-    arrbitPurgeOldLogs "${RETENTION_DEFAULT}" || true
-  fi
-}
-trap _arrbit_finalize EXIT
-
 SCRIPT_PATH="${BASH_SOURCE[0]}"
 
-if [[ ${1:-} == "-h" || ${1:-} == "--help" ]]; then
-  cat <<USAGE
-Arrbit Dependencies Installer ${DEP_SCRIPT_VERSION}
-Installs/validates system packages and WhisperX environment.
-Environment variables:
-  ARRBIT_FORCE_DEPS=1     Force rebuild of environment
-  ARRBIT_LOG_RETENTION=N  Keep last N log files (default 5)
-Usage: ${SCRIPT_PATH##*/} [--help]
-USAGE
-  exit 0
-fi
+trap 'command -v arrbitPurgeOldLogs >/dev/null 2>&1 && arrbitPurgeOldLogs || true' EXIT
 
 log_info "Starting dependencies installer version ${DEP_SCRIPT_VERSION}" 
 
@@ -100,10 +57,7 @@ if [ "${ALWAYS_UPGRADE}" != "1" ] && all_present; then
   exit 0
 fi
 
-if command_exists apt-get; then
-  log_info "Updating apt indexes"
-  apt-get update >>"${LOG_FILE}" 2>&1 || { log_error "apt update failed"; exit 1; }
-fi
+command_exists apt-get && { log_info "Updating apt indexes"; apt-get update >>"${LOG_FILE}" 2>&1 || { log_error "apt update failed"; exit 1; }; }
 
 install_sys() {
   command_exists apt-get || { log_warning "apt-get missing; skipping system package installation"; return 0; }
@@ -146,8 +100,6 @@ if ! command_exists yq; then
   fi
 fi
 
-mkdir -p "${ENV_DIR}" || true
-
 # Ensure python3-venv capability (some minimal images split it)
 ensure_venv_support(){
   python3 -m venv --help >/dev/null 2>&1 && return 0
@@ -167,10 +119,7 @@ if ! ensure_venv_support; then
   exit 1
 fi
 
-# Enforce directory permissions (safety if setup not run)
-if [ -d "${ARRBIT_BASE}" ]; then
-  find "${ARRBIT_BASE}" -type d -exec chmod 777 {} + 2>/dev/null || true
-fi
+ # Permission normalization removed (setup handles it)
 
 if [ "${ALWAYS_UPGRADE}" = "1" ] && [ -d "${WHISPERX_ENV_PATH}" ]; then
   log_info "Force upgrade requested: removing existing environment"
@@ -220,15 +169,7 @@ if [ $? -ne 0 ]; then
   log_error "WhisperX verification failed"; exit 1;
 fi
 
-# Wrapper script (only if scripts directory exists)
-if [ -d "${ARRBIT_BASE}/scripts" ]; then
-  cat > "${ARRBIT_BASE}/scripts/whisperx" <<EOF
-#!/usr/bin/env bash
-exec "${WHISPERX_ENV_PATH}/bin/python" -m whisperx "\$@"
-EOF
-  chmod +x "${ARRBIT_BASE}/scripts/whisperx" 2>/dev/null || true
-  log_info "Wrapper created: ${ARRBIT_BASE}/scripts/whisperx"
-fi
+ # Wrapper creation removed; call with: ${WHISPERX_ENV_PATH}/bin/python -m whisperx
 
 # Optional model prefetch based on configuration file
 if [ "${ARRBIT_PREFETCH_MODELS:-1}" = "1" ]; then
@@ -246,14 +187,18 @@ if [ "${ARRBIT_PREFETCH_MODELS:-1}" = "1" ]; then
       log_info "Prefetching model: ${WHISPERX_MODEL}"
       PREFETCH_ENV=( )
       if [ -n "${WHISPERX_MODELS_DIR:-}" ]; then
-        mkdir -p "${WHISPERX_MODELS_DIR}" 2>/dev/null || true
+        if [ ! -d "${WHISPERX_MODELS_DIR}" ]; then
+          log_warning "Models dir missing (expected setup to create): ${WHISPERX_MODELS_DIR}"
+        fi
         PREFETCH_ENV+=( "WHISPER_CACHE_DIR=${WHISPERX_MODELS_DIR}" )
         # Attempt to set XDG cache to parent of models dir to keep structure tidy
         PARENT_DIR="$(dirname "${WHISPERX_MODELS_DIR}")"
         PREFETCH_ENV+=( "XDG_CACHE_HOME=${PARENT_DIR}" )
       fi
       if [ -n "${WHISPERX_CACHE_DIR:-}" ]; then
-        mkdir -p "${WHISPERX_CACHE_DIR}" 2>/dev/null || true
+        if [ ! -d "${WHISPERX_CACHE_DIR}" ]; then
+          log_warning "Cache dir missing (expected setup to create): ${WHISPERX_CACHE_DIR}"
+        fi
         PREFETCH_ENV+=( "TRANSFORMERS_CACHE=${WHISPERX_CACHE_DIR}" "HF_HOME=${WHISPERX_CACHE_DIR}" )
       fi
       # Execute prefetch silently (output still logged)

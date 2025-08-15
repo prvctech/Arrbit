@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - Tdarr Setup Script
-# Version: v2.2.6-gs2.8.3
+# Version: v2.2.7-gs2.8.3
 # Purpose: Fetch (if needed) Arrbit repo and deploy Tdarr + shared assets to /app/arrbit
 #           - Copies helpers (universal/helpers) to /app/arrbit/helpers
 #           - Copies tdarr config, plugins, scripts, data files
@@ -9,7 +9,7 @@
 # -------------------------------------------------------------------------------------------------------------
 set -euo pipefail
 
-SETUP_SCRIPT_VERSION="v2.2.6-gs2.8.3"
+SETUP_SCRIPT_VERSION="v2.2.7-gs2.8.3"
 
 ARRBIT_BASE="/app/arrbit"
 SETUP_DEST="${ARRBIT_BASE}/setup"
@@ -32,6 +32,12 @@ chmod 666 "${LOG_FILE}" 2>/dev/null || true
 log_info(){ printf '[INFO] %s\n' "$*" >>"${LOG_FILE}"; }
 log_warn(){ printf '[WARN] %s\n' "$*" >>"${LOG_FILE}"; }
 log_error(){ printf '[ERROR] %s\n' "$*" >>"${LOG_FILE}"; }
+ # Ensure base exists with correct perms as an explicit guarantee
+if [ ! -d "${ARRBIT_BASE}" ]; then
+  mkdir -p "${ARRBIT_BASE}" 2>/dev/null || true
+fi
+chmod 777 "${ARRBIT_BASE}" 2>/dev/null || true
+
 log_info "Starting Tdarr setup script version ${SETUP_SCRIPT_VERSION}" 
 
 if [ "${EUID:-$(id -u)}" -ne 0 ]; then log_error "Run as root"; exit 1; fi
