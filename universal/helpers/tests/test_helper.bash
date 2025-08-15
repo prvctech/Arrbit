@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
 
-# Tests for joinBy and .sourceGuard
+# Unified helper tests for Arrbit
+# Runs: ensureDir, isReadable, getFileSize, joinBy, .sourceGuard
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HELPERS_FILE="${SCRIPT_DIR}/../helpers.bash"
 
@@ -16,6 +18,41 @@ source "$HELPERS_FILE"
 echo "Using helpers file: $HELPERS_FILE"
 
 fail=0
+
+echo "--- smoke tests: ensureDir / isReadable / getFileSize ---"
+
+# Test ensureDir
+TMPDIR_TEST=$(mktemp -d 2>/dev/null || mktemp -d -t arrbit_helpers)
+SUBDIR="$TMPDIR_TEST/subdir"
+
+if ensureDir "$SUBDIR"; then
+  echo "ensureDir: OK -> $SUBDIR"
+else
+  echo "ensureDir: FAILED (mkdir rc)" >&2
+  fail=1
+fi
+
+# Test isReadable on created directory
+if isReadable "$SUBDIR"; then
+  echo "isReadable (dir): OK"
+else
+  echo "isReadable (dir): FAILED" >&2
+  fail=1
+fi
+
+# Test getFileSize
+TESTFILE="$TMPDIR_TEST/testfile.txt"
+printf 'hello\n' > "$TESTFILE"
+size_out=$(getFileSize "$TESTFILE" ) || true
+
+if [[ "$size_out" =~ ^[0-9]+$ && "$size_out" -gt 0 ]]; then
+  echo "getFileSize: OK -> $size_out"
+else
+  echo "getFileSize: FAILED -> $size_out" >&2
+  fail=1
+fi
+
+echo "--- functional tests: joinBy / .sourceGuard ---"
 
 # Test joinBy with spaces and special characters
 res=$(joinBy , "alpha" "beta gamma" ",comma" )
@@ -60,16 +97,18 @@ if [[ -n "${!guard_var:-}" ]]; then
   echo ".sourceGuard var present: OK -> $guard_var"
 else
   echo ".sourceGuard var present: FAILED -> $guard_var not set" >&2
-  # Show environment variables matching SOURCE_GUARD*
   echo "Environment SOURCE_GUARD* variables:" >&2
   env | grep '^SOURCE_GUARD' || true
   fail=1
 fi
 
+# Cleanup
+rm -rf "$TMPDIR_TEST" || true
+
 if [[ $fail -eq 0 ]]; then
-  echo "ALL joinBy/.sourceGuard TESTS PASSED"
+  echo "ALL HELPER TESTS PASSED"
   exit 0
 else
-  echo "SOME TESTS FAILED" >&2
+  echo "SOME HELPER TESTS FAILED" >&2
   exit 3
 fi
