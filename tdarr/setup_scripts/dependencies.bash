@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - Tdarr dependencies (audio language detector)
-# Version: v1.4.1-gs2.8.3
+# Version: v1.5.1-gs2.8.3
 # Purpose: Idempotent installation of required system + python deps (ffmpeg, jq, yq, whisper stack)
 # Behavior: Skips anything already present; installs only missing pieces. Uses Arrbit logging if available.
 # Added: version gating, verification, per-step file logging, optional venv (ARRBIT_DEPS_VENV=1), force override with ARRBIT_FORCE_DEPS=1
 # -------------------------------------------------------------------------------------------------------------
 set -euo pipefail
 
-DEP_SCRIPT_VERSION="v1.4.1-gs2.8.3"
+DEP_SCRIPT_VERSION="v1.5.1-gs2.8.3"
 VERSION_FILE="/app/arrbit/setup/.dependencies_version"
 USE_VENV="${ARRBIT_DEPS_VENV:-0}"
 FORCE="${ARRBIT_FORCE_DEPS:-0}"
 ALWAYS_UPGRADE="${ARRBIT_ALWAYS_UPGRADE:-1}"  # when 1, ignore version gating and force upgrade of python deps
 PREFER_TDARR_GPU="${ARRBIT_PREFER_TDARR_GPU:-1}"
+WHISPER_MODEL_RETRY="${ARRBIT_WHISPER_MODEL_RETRY:-1}"  # retry model download with pip re-install if apt build failed
 
 # --- Bootstrap logging (Golden Standard) ---
 LOG_DIR="/app/logs"
@@ -32,6 +33,7 @@ if [[ -f "$HELPERS_DIR/helpers.bash" ]]; then
   # shellcheck disable=SC1091
   source "$HELPERS_DIR/helpers.bash"
 fi
+arrbitPurgeOldLogs
 
 # Silent mode: suppress info to terminal only (keep full log output)
 if declare -f log_info >/dev/null 2>&1; then
@@ -313,6 +315,7 @@ EOF
   fi
 
   local gpu_flag="off" gpu_type="" cfg_gpu cfg_type env_gpu env_type tdarr_pair tdarr_flag tdarr_type
+  local decision_log=""
   # Tdarr-derived pair (if preferred)
   tdarr_pair="$(detect_gpu_from_tdarr)"
   tdarr_flag="${tdarr_pair%%|*}"; tdarr_type="${tdarr_pair##*|}"
@@ -336,40 +339,85 @@ EOF
   # Precedence: Explicit env > explicit config > Tdarr auto > default off
   if [[ -n "$env_gpu" ]]; then
     gpu_flag="${env_gpu,,}"
+    decision_log+="env_gpu=${env_gpu,,};"
   elif [[ -n "$cfg_gpu" ]]; then
     gpu_flag="${cfg_gpu,,}"
+    decision_log+="cfg_gpu=${cfg_gpu,,};"
   elif [[ "$tdarr_flag" == "on" ]]; then
     gpu_flag="on"
+    decision_log+="tdarr_gpu=on;"
   fi
 
   if [[ -n "$env_type" ]]; then
-    gpu_type="${env_type,,}"
+    gpu_type="${env_type,,}"; decision_log+="env_type=${gpu_type};"
   elif [[ -n "$cfg_type" ]]; then
-    gpu_type="${cfg_type,,}"
+    gpu_type="${cfg_type,,}"; decision_log+="cfg_type=${gpu_type};"
   elif [[ -n "$tdarr_type" ]]; then
-    gpu_type="${tdarr_type,,}"
+    gpu_type="${tdarr_type,,}"; decision_log+="tdarr_type=${gpu_type};"
+  fi
+
+  # If config explicitly sets GPU_TYPE=intel suppress any accidental nvidia detection to avoid false positives
+  if [[ -n "$cfg_type" && "${cfg_type,,}" == "intel" ]]; then
+    if [[ "$gpu_flag" == "on" ]]; then
+      decision_log+="suppress_nvidia_for_intel=1;"
+      log_info "config GPU_TYPE=intel -> ignoring any incidental NVIDIA device exposure (Intel path is CPU fallback)"
+    fi
+  fi
+
+  # If config GPU_TYPE is explicit (intel/nvidia/amd) trust it over Tdarr auto
+  if [[ -n "$cfg_type" ]]; then
+    gpu_type="${cfg_type,,}"; decision_log+="trust_cfg_type=1;"
   fi
 
   [[ -z "$gpu_flag" ]] && gpu_flag="off"
 
   if [[ "$gpu_flag" != "on" ]]; then
-    log_info "GPU disabled -> installing torch (CPU)"
+    log_info "GPU disabled -> installing torch (CPU) [$decision_log]"
     install_torch_cpu
     return 0
   fi
 
   # Auto-detect type if still blank
   if [[ -z "$gpu_type" ]]; then
-    gpu_type="$(auto_detect_gpu_type)"
-    log_info "auto-detected GPU type: ${gpu_type:-none}" || true
+    gpu_type="$(auto_detect_gpu_type)"; decision_log+="auto_type=${gpu_type};"
+    log_info "auto-detected GPU type: ${gpu_type:-none} [$decision_log]" || true
+  else
+    log_info "resolved GPU type: ${gpu_type} [$decision_log]"
   fi
 
   case "$gpu_type" in
-    nvidia) install_torch_nvidia || { log_warning "NVIDIA torch install failed; falling back to CPU"; install_torch_cpu; } ;;
-    amd)    install_torch_amd    || { log_warning "AMD torch install failed; falling back to CPU"; install_torch_cpu; } ;;
-    intel)  install_torch_intel  || { log_warning "Intel torch install failed; falling back to CPU"; install_torch_cpu; } ;;
-    *)      log_warning "Unknown GPU type '${gpu_type}' -> CPU"; install_torch_cpu ;;
+    nvidia)
+      install_torch_nvidia || { log_warning "NVIDIA torch install failed; falling back to CPU"; install_torch_cpu; }
+      ;;
+    amd)
+      install_torch_amd || { log_warning "AMD torch install failed; falling back to CPU"; install_torch_cpu; }
+      ;;
+    intel)
+      log_info "Intel selected -> using CPU torch (no native Intel GPU wheel configured)"
+      install_torch_intel || { log_warning "Intel torch install wrapper failed; falling back to CPU"; install_torch_cpu; }
+      ;;
+    ""|none)
+      log_info "No GPU type resolved -> CPU"
+      install_torch_cpu
+      ;;
+    *)
+      log_warning "Unknown GPU type '${gpu_type}' -> CPU"
+      install_torch_cpu
+      ;;
   esac
+
+  # Post-install validation: if CUDA/ROCm wheel present but backend unusable, fallback to CPU torch (one retry)
+  "$PYTHON_CMD" - <<'EOF' >/tmp/.arrbit_cuda_check 2>&1 || true
+import torch, sys
+usable = torch.cuda.is_available()
+print('CUDA_USABLE=', '1' if usable else '0')
+EOF
+  if grep -q 'CUDA_USABLE=0' /tmp/.arrbit_cuda_check 2>/dev/null; then
+    if python3 -c 'import torch,sys;import re;ver=torch.__version__;sys.exit(0 if "+cu" in ver else 1)' 2>/dev/null; then
+      log_warning "GPU wheel installed but CUDA not usable -> reinstalling CPU torch"
+      install_torch_cpu
+    fi
+  fi
 }
 
 auto_detect_gpu_type() {
@@ -562,9 +610,9 @@ prepare_whisper_model() {
 
   log_info "whisper model selected: $chosen"
 
-  # Force download (cache) using python so later usage is fast
-  "$PYTHON_CMD" - 2>/dev/null <<EOF || log_warning "whisper model '$chosen' pre-download failed (will rely on lazy load)"
-import whisper, sys
+  # Force download (cache) using python so later usage is fast; capture error reason
+  if ! "$PYTHON_CMD" - 2>/tmp/.arrbit_whisper_download 1>&2 <<EOF; then
+import whisper, sys, traceback
 model = "${chosen}"
 print("[Arrbit] pre-downloading whisper model:", model)
 try:
@@ -572,8 +620,32 @@ try:
     print("[Arrbit] whisper model ready:", model)
 except Exception as e:
     print("[Arrbit] ERROR downloading model", model, e)
+    traceback.print_exc(limit=1)
     sys.exit(1)
 EOF
+    log_warning "whisper model '${chosen}' pre-download failed; see /tmp/.arrbit_whisper_download"
+    if [[ "$WHISPER_MODEL_RETRY" == "1" ]]; then
+      if [[ "${prefer_apt:-}" == "1" ]]; then
+        log_info "retrying model by upgrading openai-whisper via pip"
+        "$PIP_CMD" install --no-cache-dir --upgrade openai-whisper >/dev/null 2>&1 || log_warning "pip upgrade openai-whisper failed during retry"
+        if "$PYTHON_CMD" - 2>/dev/null <<EOF
+import whisper, sys
+import sys
+try:
+    whisper.load_model("${chosen}")
+    print('[Arrbit] whisper retry model ready: ${chosen}')
+except Exception as e:
+    print('[Arrbit] whisper retry still failing:', e)
+    sys.exit(1)
+EOF
+        then
+          log_info "whisper model '${chosen}' downloaded after pip retry"
+        else
+          log_warning "whisper model '${chosen}' still failing after retry (lazy load will attempt later)"
+        fi
+      fi
+    fi
+  fi
 }
 
 # Ensure whisper CLI wrapper in /bin for consistent path usage
