@@ -10,7 +10,7 @@ set -o pipefail
 
 ARRBIT_ROOT="/app/arrbit"
 REMOTE_SETUP_URL="https://raw.githubusercontent.com/prvctech/Arrbit/main/tdarr/setup_scripts/setup.bash"
-DEPENDENCIES_SCRIPT="$ARRBIT_ROOT/tdarr/setup/dependencies.bash"
+DEPENDENCIES_SCRIPT="$ARRBIT_ROOT/setup/dependencies.bash"
 
 # Delay for container stability (silent)
 sleep 8
