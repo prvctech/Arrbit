@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - Tdarr Setup Script
-# Version: v2.2.1-gs2.8.3
+# Version: v2.2.2-gs2.8.3
 # Purpose: Fetch (if needed) Arrbit repo and deploy Tdarr + shared assets to /app/arrbit
 #           - Copies helpers (universal/helpers) to /app/arrbit/helpers
 #           - Copies tdarr config, plugins, scripts, data files
@@ -9,7 +9,7 @@
 # -------------------------------------------------------------------------------------------------------------
 set -euo pipefail
 
-SETUP_SCRIPT_VERSION="v2.2.1-gs2.8.3"
+SETUP_SCRIPT_VERSION="v2.2.2-gs2.8.3"
 
 ARRBIT_BASE="/app/arrbit"
 TDARR_BASE="${ARRBIT_BASE}/tdarr"
@@ -18,7 +18,9 @@ HELPERS_DEST="${ARRBIT_BASE}/helpers"
 
 REPO_URL="${ARRBIT_REPO_URL:-https://github.com/prvctech/Arrbit.git}"
 REPO_BRANCH="${ARRBIT_BRANCH:-main}"
-TMP_ROOT="/tmp/arrbit-fetch"
+# Use persistent in-app tmp workspace instead of system /tmp
+WORK_TMP_BASE="${ARRBIT_BASE}/data/tmp"
+TMP_ROOT="${WORK_TMP_BASE}/fetch"
 FETCH_DIR=""
 
 log_info(){ echo "[INFO] $*"; }
@@ -29,13 +31,42 @@ if [ "${EUID:-$(id -u)}" -ne 0 ]; then log_error "Run as root"; exit 1; fi
 
 command_exists(){ command -v "$1" >/dev/null 2>&1; }
 
-prepare_tmp(){ mkdir -p "${TMP_ROOT}"; }
+prepare_tmp(){ mkdir -p "${TMP_ROOT}"; chmod 777 "${WORK_TMP_BASE}" "${TMP_ROOT}" 2>/dev/null || true; }
+
+# Pre-create all required directories BEFORE fetching so that permissions are correct
+precreate_dirs(){
+  local dirs=(
+    "${ARRBIT_BASE}"
+    "${ARRBIT_BASE}/data"
+    "${WORK_TMP_BASE}"
+    "${TDARR_BASE}"
+    "${TDARR_BASE}/environments"
+    "${TDARR_BASE}/plugins"
+    "${TDARR_BASE}/plugins/transcription"
+    "${TDARR_BASE}/plugins/audio_enhancement"
+    "${TDARR_BASE}/plugins/custom"
+    "${TDARR_BASE}/data"
+    "${TDARR_BASE}/data/models"
+    "${TDARR_BASE}/data/models/whisper"
+    "${TDARR_BASE}/data/cache"
+    "${TDARR_BASE}/data/temp"
+    "${TDARR_BASE}/data/logs"
+    "${TDARR_BASE}/scripts"
+    "${TDARR_BASE}/config"
+    "${HELPERS_DEST}"
+    "${SETUP_DEST}"
+  )
+  for d in "${dirs[@]}"; do
+    mkdir -p "$d"
+    chmod 777 "$d" 2>/dev/null || true
+  done
+}
 
 fetch_repo(){
   prepare_tmp
   local ts="$(date +%s)"
   FETCH_DIR="${TMP_ROOT}/repo-${ts}"
-  log_info "Fetching repository ${REPO_URL} (branch ${REPO_BRANCH})"
+  log_info "Fetching repository ${REPO_URL} (branch ${REPO_BRANCH}) into ${FETCH_DIR}"
   if command_exists git; then
     git clone --depth 1 --branch "${REPO_BRANCH}" "${REPO_URL}" "${FETCH_DIR}" >/dev/null 2>&1 || { log_error "git clone failed"; exit 1; }
   else
@@ -47,6 +78,7 @@ fetch_repo(){
     FETCH_DIR="$(find "${FETCH_DIR}" -maxdepth 1 -type d -name 'Arrbit-*' | head -n1)"
     [ -z "${FETCH_DIR}" ] && { log_error "extracted repo dir not found"; exit 1; }
   fi
+  chmod -R 755 "${FETCH_DIR}" 2>/dev/null || true
 }
 
 ensure_dirs(){
@@ -101,13 +133,14 @@ deploy(){
 }
 
 permissions(){
-  log_info "Setting permissions"
-  find "${ARRBIT_BASE}" -type d -exec chmod 755 {} \; 2>/dev/null || true
+  log_info "Normalizing permissions (directories -> 777 as per requirement)"
+  find "${ARRBIT_BASE}" -type d -exec chmod 777 {} \; 2>/dev/null || true
   find "${ARRBIT_BASE}" -name "*.bash" -exec chmod +x {} \; 2>/dev/null || true
   find "${ARRBIT_BASE}" -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
-  find "${ARRBIT_BASE}" -name "*.js" -exec chmod 644 {} \; 2>/dev/null || true
-  find "${ARRBIT_BASE}" -name "*.conf" -exec chmod 644 {} \; 2>/dev/null || true
-  find "${ARRBIT_BASE}" -name "*.yaml" -exec chmod 644 {} \; 2>/dev/null || true
+  # Leave files more restrictive unless they need execute
+  find "${ARRBIT_BASE}" -type f -name "*.js" -exec chmod 644 {} \; 2>/dev/null || true
+  find "${ARRBIT_BASE}" -type f -name "*.conf" -exec chmod 644 {} \; 2>/dev/null || true
+  find "${ARRBIT_BASE}" -type f -name "*.yaml" -exec chmod 644 {} \; 2>/dev/null || true
 }
 
 post_checks(){
@@ -129,7 +162,7 @@ cleanup_tmp(){
   # Remove only the fetched repo directory to keep TMP_ROOT reusable
   if [ -n "${FETCH_DIR}" ] && [ -d "${FETCH_DIR}" ]; then
     case "${FETCH_DIR}" in
-      /tmp/arrbit-fetch/*)
+      ${TMP_ROOT}/*)
         log_info "Cleaning up temporary fetch directory ${FETCH_DIR}"
         rm -rf "${FETCH_DIR}" || log_warn "Failed to remove ${FETCH_DIR}" ;;
       *)
@@ -141,6 +174,7 @@ cleanup_tmp(){
 trap cleanup_tmp EXIT
 
 main(){
+  precreate_dirs
   fetch_repo
   ensure_dirs
   deploy
@@ -148,6 +182,7 @@ main(){
   post_checks
   log_info "Setup complete (version ${SETUP_SCRIPT_VERSION})."
   log_info "Setup scripts located at: ${SETUP_DEST}"
+  log_info "Temporary fetch root: ${TMP_ROOT} (current fetch cleaned on exit)"
   log_info "Next: run dependencies (dependencies.bash) from ${SETUP_DEST} if not already executed."
 }
 
