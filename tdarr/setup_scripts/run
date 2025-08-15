@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# -------------------------------------------------------------------------------------------------------------
+# Arrbit - run module
+# Version: v1.0.2-gs2.8.3
+# Purpose: Orchestrator – runs setup first, then executes all Arrbit service modules (silent except WARNING/ERROR).
+# -------------------------------------------------------------------------------------------------------------
+
+set -u
+set -o pipefail
+
+ARRBIT_ROOT="/app/arrbit"
+REMOTE_SETUP_URL="https://raw.githubusercontent.com/prvctech/Arrbit/main/tdarr/setup_scripts/setup.bash"
+DEPENDENCIES_SCRIPT="$ARRBIT_ROOT/setup/dependencies.bash"
+
+# Delay for container stability (silent)
+sleep 8
+
+# --- Prepare logging early (silent to terminal, but log file available immediately) ---
+SCRIPT_NAME="run"
+SCRIPT_VERSION="v1.0.1-gs2.8.3"
+LOG_FILE="/app/logs/arrbit-${SCRIPT_NAME}-$(date '+%Y_%m_%d-%H_%M').log"
+mkdir -p /app/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
+echo "[Arrbit] run initializing" >> "$LOG_FILE"
+
+echo "[Arrbit] running remote setup" >>"$LOG_FILE"
+if ! curl --fail --silent --show-error "$REMOTE_SETUP_URL" | bash; then
+  echo "[Arrbit] ERROR remote setup failed" >>"$LOG_FILE"
+  exit 1
+fi
+
+# Run dependencies installer independently (it writes its own log)
+if [[ -x "$DEPENDENCIES_SCRIPT" ]]; then
+  echo "[Arrbit] launching dependencies installer" >>"$LOG_FILE"
+  bash "$DEPENDENCIES_SCRIPT"
+else
+  echo "[Arrbit] WARNING dependencies script missing: $DEPENDENCIES_SCRIPT" >>"$LOG_FILE"
+fi
+
+echo "[Arrbit] run complete; entering idle" >> "$LOG_FILE"
+exec tail -f /dev/null
