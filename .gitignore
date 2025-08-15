@@ -1,6 +1,20 @@
-# Ignore logs and sensitive files
-/config/logs/
+# Generic runtime ignores (applies project-wide)
+environments/
+data/models/
+data/cache/
+data/temp/
+logs/
 *.log
+*.db
+*.sqlite
+
+# Secrets & configs
 *.env
-*.conf.local
+*.secret
+*.key
+*.pem
+*.crt
+*.p12
+
+# keep other top-level ignores
 .github/
