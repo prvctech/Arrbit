@@ -81,13 +81,10 @@ if [[ -z "${ARRBIT_PATHS_INCLUDED:-}" ]]; then
   
   # Get Arrbit helpers directory
   # Usage: helpers_dir=$(getArrbitHelpersDir)
-  getArrbitHelpersDir() {
-    local base
-    base=$(getArrbitBase)
-    [[ -n "$base" ]] && echo "$base/helpers"
-  }
-
-  # Get Arrbit scripts directory
+getArrbitHelpersDir() {
+    local base=$(getArrbitBase)
+    echo "$base/universal/helpers"
+}  # Get Arrbit scripts directory
   # Usage: scripts_dir=$(getArrbitScriptsDir)
   getArrbitScriptsDir() {
     local base

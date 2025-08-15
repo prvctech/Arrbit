@@ -1,31 +1,38 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - arr_bridge.bash
-# Version: v1.1.0-gs2.8.2
+# Version: v1.0.0-gs3.0.0
 # Purpose: Golden Standard ARR API connector with fully dynamic API URL, port, and version detection.
 # -------------------------------------------------------------------------------------------------------------
 
-source /config/arrbit/helpers/logging_utils.bash
-source /config/arrbit/helpers/helpers.bash
+# Source helpers using auto-detection
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ARRBIT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+source "$ARRBIT_ROOT/universal/helpers/arrbit_paths.bash"
+source "$(getArrbitHelpersDir)/logging_utils.bash"
+source "$(getArrbitHelpersDir)/helpers.bash"
+
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="arr_bridge"
-SCRIPT_VERSION="v1.1.0-gs2.8.2"
-# Respect caller's LOG_FILE if already set, otherwise initialize our own
+SCRIPT_VERSION="v1.0.0-gs3.0.0"
+
+# Initialize logging
 if [[ -z "${LOG_FILE:-}" ]]; then
-  LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+  LOG_FILE="$(getArrbitLogsDir)/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 fi
 
-mkdir -p /config/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
+mkdir -p "$(getArrbitLogsDir)" && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
 CONFIG_XML="/config/config.xml"
 
 if [[ ! -f "$CONFIG_XML" ]]; then
-  log_error "ARR config.xml not found (see log at /config/logs)"
+  log_error "ARR config.xml not found (see log at $(getArrbitLogsDir))"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR ARR config.xml not found
-[WHY]: The config.xml file does not exist at $CONFIG_XML
-[FIX]: Verify your ARR application is properly installed and configured
+ERROR ARR config.xml not found
+CAUSE: The config.xml file does not exist at $CONFIG_XML
+RESOLUTION: Verify your ARR application is properly installed and configured
+CONTEXT: This file is required for ARR API connectivity and configuration
 EOF
   return 11 2>/dev/null || exit 11
 fi
@@ -40,11 +47,12 @@ fi
 
 arr_api_key="$(cat "$CONFIG_XML" | xq | jq -r .Config.ApiKey)"
 if [[ -z "$arr_api_key" || "$arr_api_key" == "null" ]]; then
-  log_error "API key not found (see log at /config/logs)"
+  log_error "API key not found (see log at $(getArrbitLogsDir))"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR API key not found in $CONFIG_XML
-[WHY]: The ApiKey field is missing or empty in the config.xml file
-[FIX]: Check your ARR application configuration and ensure the API key is properly set
+ERROR API key not found in $CONFIG_XML
+CAUSE: The ApiKey field is missing or empty in the config.xml file
+RESOLUTION: Check your ARR application configuration and ensure the API key is properly set
+CONTEXT: The API key is required for authenticated access to the ARR API
 EOF
   return 12 2>/dev/null || exit 12
 fi
@@ -78,15 +86,12 @@ for ver in v3 v1; do
 done
 
 if [[ -z "$arrApiVersion" ]]; then
-  log_error "Unable to detect working API version (see log at /config/logs)"
+  log_error "Unable to detect working API version (see log at $(getArrbitLogsDir))"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR Unable to detect working API version at $arrUrl
-[WHY]: API calls to both v3 and v1 endpoints failed or returned invalid responses
-[FIX]: Check your ARR application status, network connectivity, and API configuration
-[Tested URLs]
-${arrUrl}/api/v3/system/status
-${arrUrl}/api/v1/system/status
-[/Tested URLs]
+ERROR Unable to detect working API version at $arrUrl
+CAUSE: API calls to both v3 and v1 endpoints failed or returned invalid responses
+RESOLUTION: Check your ARR application status, network connectivity, and API configuration
+CONTEXT: Tested endpoints: ${arrUrl}/api/v3/system/status and ${arrUrl}/api/v1/system/status
 EOF
   return 13 2>/dev/null || exit 13
 fi
@@ -103,16 +108,12 @@ waitForArrApi() {
     fi
     sleep 5
   done
-  log_error "Could not connect to ARR API after $retries attempts (see log at /config/logs)"
+  log_error "Could not connect to ARR API after $retries attempts (see log at $(getArrbitLogsDir))"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-[Arrbit] ERROR Could not connect to ARR API after $retries attempts
-[WHY]: API endpoint is not responding after multiple connection attempts
-[FIX]: Check if your ARR application is running and accessible at $url
-[Connection Details]
-URL: $arrUrl
-Port: $arr_port
-Instance: $arr_instance_name
-[/Connection Details]
+ERROR Could not connect to ARR API after $retries attempts
+CAUSE: API endpoint is not responding after multiple connection attempts
+RESOLUTION: Check if your ARR application is running and accessible at ${arrUrl}/api/${arrApiVersion}/system/status
+CONTEXT: URL: $arrUrl, Port: $arr_port, Instance: $arr_instance_name
 EOF
   return 14 2>/dev/null || exit 14
 }
