@@ -112,10 +112,15 @@ install_sys() {
   for pkg in "${packages[@]}"; do
     case "$pkg" in
       python3-pip) chk="pip3" ;;
-      python3-venv) chk="python3" ;;
+      python3-venv) chk="python3-venv" ;;
       *) chk="$pkg" ;;
     esac
-    command_exists "$chk" || missing+=("$pkg")
+    if [ "$pkg" = "python3-venv" ]; then
+      # Direct command may not exist; test capability instead
+      python3 -m venv --help >/dev/null 2>&1 || missing+=("$pkg")
+    else
+      command_exists "$chk" || missing+=("$pkg")
+    fi
   done
   if [ ${#missing[@]} -gt 0 ]; then
     log_info "Installing missing packages: ${missing[*]}"
@@ -160,6 +165,11 @@ ensure_venv_support(){
 if ! ensure_venv_support; then
   log_error "python3 venv support unavailable after remediation attempts. Install python3-venv manually and re-run."
   exit 1
+fi
+
+# Enforce directory permissions (safety if setup not run)
+if [ -d "${ARRBIT_BASE}" ]; then
+  find "${ARRBIT_BASE}" -type d -exec chmod 777 {} + 2>/dev/null || true
 fi
 
 if [ "${ALWAYS_UPGRADE}" = "1" ] && [ -d "${WHISPERX_ENV_PATH}" ]; then
