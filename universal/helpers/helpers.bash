@@ -20,16 +20,9 @@ if [[ -z "${ARRBIT_HELPERS_INCLUDED:-}" ]]; then
   # -------------------------------------------------------
   getFlag() {
     local flag_name="$1"
-    local config_file
-    
-    # Use auto-detection if available, fallback to manual path
-    if command -v getArrbitConfigDir >/dev/null 2>&1; then
-      local config_dir
-      config_dir=$(getArrbitConfigDir)
-      config_file="${CONFIG_DIR:-$config_dir}/arrbit-config.conf"
-    else
-      config_file="${CONFIG_DIR:-/app/arrbit/config}/arrbit-config.conf"
-    fi
+    local config_dir
+    config_dir=$(getArrbitConfigDir) || return 1
+    local config_file="${CONFIG_DIR:-$config_dir}/arrbit-config.conf"
     
     # Return 1 silently if config missing - caller decides how to handle
     [[ -f "$config_file" ]] || return 1

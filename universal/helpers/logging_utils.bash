@@ -161,32 +161,10 @@ arrbitPurgeOldLogs() {
   # Usage: arrbitPurgeOldLogs [max_files] [log_dir]
   # Keep only the newest max_files per prefix (arrbit-<name>-YYYY_MM_DD-HH_MM.log), default 3
   local max_files="${1:-3}"
-  local primary="/config/logs"
-  local secondary="/app/arrbit/data/logs"
   local log_dir="${2:-}"
 
-  if [[ -n "$log_dir" && -d "$log_dir" ]]; then
-    : # use provided
-  else
-    # Try to auto-detect if helpers are available
-    if command -v getArrbitLogsDir >/dev/null 2>&1; then
-      local detected_logs
-      detected_logs=$(getArrbitLogsDir)
-      if [[ -n "$detected_logs" && -d "$detected_logs" ]]; then
-        log_dir="$detected_logs"
-      fi
-    fi
-    
-    # Fallback to common paths if auto-detection failed
-    if [[ -z "$log_dir" ]]; then
-      if [ -d "$primary" ]; then
-        log_dir="$primary"
-      elif [ -d "$secondary" ]; then
-        log_dir="$secondary"
-      else
-        return 0
-      fi
-    fi
+  if [[ -z "$log_dir" ]]; then
+    log_dir=$(getArrbitLogsDir) || return 0
   fi
 
   # Collect prefixes from arrbit-*.log filenames (with fallback for non-GNU find)
