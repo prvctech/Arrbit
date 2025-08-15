@@ -107,7 +107,7 @@ fi
 
 install_sys() {
   command_exists apt-get || { log_warning "apt-get missing; skipping system package installation"; return 0; }
-  local packages=(ffmpeg jq yq python3 python3-pip python3-venv)
+  local packages=(ffmpeg jq yq python3 python3-pip python3-venv curl ca-certificates)
   local missing=()
   for pkg in "${packages[@]}"; do
     case "$pkg" in
@@ -125,6 +125,21 @@ install_sys() {
   fi
 }
 install_sys
+
+# Fallback install for yq if still missing (e.g., repository lacks package)
+if ! command_exists yq; then
+  log_warning "yq not found after system install; attempting fallback binary install"
+  yq_url="https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64"
+  if command_exists curl; then
+    if curl -fsSL "${yq_url}" -o /usr/local/bin/yq && chmod +x /usr/local/bin/yq && command_exists yq; then
+      log_info "Installed yq via fallback binary"
+    else
+      log_warning "Fallback yq binary install failed"
+    fi
+  else
+    log_warning "curl unavailable; cannot fetch yq fallback"
+  fi
+fi
 
 mkdir -p "${ENV_DIR}" || true
 
@@ -144,7 +159,29 @@ log_info "Installing / updating whisperx"
 "${WHISPERX_ENV_PATH}/bin/python" -m pip install --upgrade whisperx >/dev/null 2>&1 || { log_error "whisperx install failed"; exit 1; }
 
 log_info "Verifying whisperx"
-if ! "${WHISPERX_ENV_PATH}/bin/python" -c 'import whisperx, sys; print("WhisperX OK:", whisperx.__version__)' >>"${LOG_FILE}" 2>&1; then
+"${WHISPERX_ENV_PATH}/bin/python" - <<'PY' >>"${LOG_FILE}" 2>&1
+import sys
+try:
+  import importlib.metadata as md  # Py3.8+
+except Exception:
+  try:
+    import importlib_metadata as md  # backport
+  except Exception:
+    md = None
+try:
+  import whisperx
+except Exception as e:
+  print("IMPORT_FAIL", e)
+  sys.exit(1)
+ver = None
+if md:
+  try:
+    ver = md.version("whisperx")
+  except Exception:
+    pass
+print("WhisperX OK version:", ver or "unknown", "file:", getattr(whisperx, "__file__", "?"))
+PY
+if [ $? -ne 0 ]; then
   log_error "WhisperX verification failed"; exit 1;
 fi
 
