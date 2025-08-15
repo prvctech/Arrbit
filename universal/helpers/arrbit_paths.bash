@@ -105,7 +105,7 @@ getArrbitHelpersDir() {
   isArrbitInstalled() {
     local base
     base=$(getArrbitBase)
-    [[ -n "$base" && -d "$base/helpers" && -d "$base/config" ]]
+    [[ -n "$base" && -d "$base/universal/helpers" && -d "$base/config" ]]
   }
 
   # Reset cached base path (useful for testing or if structure changes)

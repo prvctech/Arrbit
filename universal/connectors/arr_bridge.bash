@@ -29,7 +29,7 @@ CONFIG_XML="/config/config.xml"
 if [[ ! -f "$CONFIG_XML" ]]; then
   log_error "ARR config.xml not found (see log at $(getArrbitLogsDir))"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-ERROR ARR config.xml not found
+[Arrbit] ERROR ARR config.xml not found
 CAUSE: The config.xml file does not exist at $CONFIG_XML
 RESOLUTION: Verify your ARR application is properly installed and configured
 CONTEXT: This file is required for ARR API connectivity and configuration
@@ -49,7 +49,7 @@ arr_api_key="$(cat "$CONFIG_XML" | xq | jq -r .Config.ApiKey)"
 if [[ -z "$arr_api_key" || "$arr_api_key" == "null" ]]; then
   log_error "API key not found (see log at $(getArrbitLogsDir))"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-ERROR API key not found in $CONFIG_XML
+[Arrbit] ERROR API key not found in $CONFIG_XML
 CAUSE: The ApiKey field is missing or empty in the config.xml file
 RESOLUTION: Check your ARR application configuration and ensure the API key is properly set
 CONTEXT: The API key is required for authenticated access to the ARR API
@@ -88,7 +88,7 @@ done
 if [[ -z "$arrApiVersion" ]]; then
   log_error "Unable to detect working API version (see log at $(getArrbitLogsDir))"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-ERROR Unable to detect working API version at $arrUrl
+[Arrbit] ERROR Unable to detect working API version at $arrUrl
 CAUSE: API calls to both v3 and v1 endpoints failed or returned invalid responses
 RESOLUTION: Check your ARR application status, network connectivity, and API configuration
 CONTEXT: Tested endpoints: ${arrUrl}/api/v3/system/status and ${arrUrl}/api/v1/system/status
@@ -110,7 +110,7 @@ waitForArrApi() {
   done
   log_error "Could not connect to ARR API after $retries attempts (see log at $(getArrbitLogsDir))"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
-ERROR Could not connect to ARR API after $retries attempts
+[Arrbit] ERROR Could not connect to ARR API after $retries attempts
 CAUSE: API endpoint is not responding after multiple connection attempts
 RESOLUTION: Check if your ARR application is running and accessible at ${arrUrl}/api/${arrApiVersion}/system/status
 CONTEXT: URL: $arrUrl, Port: $arr_port, Instance: $arr_instance_name
