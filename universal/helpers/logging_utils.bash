@@ -72,17 +72,29 @@ arrbitLogClean() {
 # ------------------------------------------------
 arrbitPurgeOldLogs() {
   local max_files="${1:-3}"
-  local log_dir="/config/logs"
+  local primary="/config/logs"
+  local secondary="/app/arrbit/data/logs"
+  local log_dir=""
 
-  [[ ! -d "$log_dir" ]] && return 0
+  if [ -d "$primary" ]; then
+    log_dir="$primary"
+  elif [ -d "$secondary" ]; then
+    log_dir="$secondary"
+  else
+    return 0
+  fi
 
-  # Build unique prefixes (arrbit-<name>) from existing log files
+  # Prefer arrbit-* prefix; if none exist, fall back to any *.log retention.
   local prefixes
   prefixes=$(ls -1 "$log_dir"/arrbit-*.log 2>/dev/null | sed -E 's#.*/(arrbit-[^-]+)-.*#\1#' | sort -u || true)
-  [[ -z "$prefixes" ]] && return 0
+
+  if [ -z "$prefixes" ]; then
+    # Fallback: apply simple retention across generic *.log files (excluding currently open one is out-of-scope here)
+    ls -1t "$log_dir"/*.log 2>/dev/null | tail -n +$((max_files + 1)) | xargs -r rm -f
+    return 0
+  fi
 
   while IFS= read -r prefix; do
-    # List files for this prefix newest-first; delete anything older than max_files
     ls -1t "$log_dir"/"${prefix}"-*.log 2>/dev/null | tail -n +$((max_files + 1)) | xargs -r rm -f
   done <<< "$prefixes"
 }
