@@ -2,14 +2,14 @@
 # shellcheck shell=bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - WhisperX dependencies (fully isolated)
-# Version: v2.1.2-gs2.8.3
+# Version: v2.1.3-gs2.8.3
 # Purpose: Install system deps + WhisperX in isolated env at /app/arrbit/environments/whisperx-env (flattened structure)
 # Silent to terminal; verbose logging to /app/arrbit/data/logs
 # -------------------------------------------------------------------------------------------------------------
 set -euo pipefail
 IFS=$'\n\t'
 
-DEP_SCRIPT_VERSION="v2.1.2-gs2.8.3"
+DEP_SCRIPT_VERSION="v2.1.3-gs2.8.3"
 ARRBIT_BASE="/app/arrbit"
 HELPERS_DIR="${ARRBIT_BASE}/helpers"
 ENV_DIR="${ARRBIT_BASE}/environments"
@@ -193,6 +193,57 @@ exec "${WHISPERX_ENV_PATH}/bin/python" -m whisperx "\$@"
 EOF
   chmod +x "${ARRBIT_BASE}/scripts/whisperx" 2>/dev/null || true
   log_info "Wrapper created: ${ARRBIT_BASE}/scripts/whisperx"
+fi
+
+# Optional model prefetch based on configuration file
+if [ "${ARRBIT_PREFETCH_MODELS:-1}" = "1" ]; then
+  CONF_FILE="${ARRBIT_BASE}/config/whisperx.conf"
+  if [ -f "${CONF_FILE}" ]; then
+    log_info "Loading configuration for prefetch: ${CONF_FILE}"
+    while IFS='=' read -r k v; do
+      [ -z "${k}" ] && continue
+      case "${k}" in \#* ) continue ;; esac
+      k_trim="$(echo "${k}" | tr -d ' ')"
+      v_trim="$(echo "${v}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+      [ -n "${k_trim}" ] && export "${k_trim}"="${v_trim}"
+    done < "${CONF_FILE}"
+    if [ -n "${WHISPERX_MODEL:-}" ]; then
+      log_info "Prefetching model: ${WHISPERX_MODEL}"
+      PREFETCH_ENV=( )
+      if [ -n "${WHISPERX_MODELS_DIR:-}" ]; then
+        mkdir -p "${WHISPERX_MODELS_DIR}" 2>/dev/null || true
+        PREFETCH_ENV+=( "WHISPER_CACHE_DIR=${WHISPERX_MODELS_DIR}" )
+        # Attempt to set XDG cache to parent of models dir to keep structure tidy
+        PARENT_DIR="$(dirname "${WHISPERX_MODELS_DIR}")"
+        PREFETCH_ENV+=( "XDG_CACHE_HOME=${PARENT_DIR}" )
+      fi
+      if [ -n "${WHISPERX_CACHE_DIR:-}" ]; then
+        mkdir -p "${WHISPERX_CACHE_DIR}" 2>/dev/null || true
+        PREFETCH_ENV+=( "TRANSFORMERS_CACHE=${WHISPERX_CACHE_DIR}" "HF_HOME=${WHISPERX_CACHE_DIR}" )
+      fi
+      # Execute prefetch silently (output still logged)
+      if env "${PREFETCH_ENV[@]}" "${WHISPERX_ENV_PATH}/bin/python" - "$WHISPERX_MODEL" >>"${LOG_FILE}" 2>&1 <<'PY'; then
+import sys, whisperx
+model_name = sys.argv[1]
+try:
+    whisperx.load_model(model_name, device="cpu")
+    print("Prefetch OK", model_name)
+except Exception as e:
+    print("Prefetch FAIL", model_name, e)
+    raise SystemExit(1)
+PY
+        log_info "Prefetch complete: ${WHISPERX_MODEL}"
+      else
+        log_warning "Prefetch failed for model: ${WHISPERX_MODEL}"
+      fi
+    else
+      log_warning "WHISPERX_MODEL not set in config; skipping prefetch"
+    fi
+  else
+    log_warning "Config file missing for prefetch: ${CONF_FILE}"
+  fi
+else
+  log_info "Model prefetch disabled (ARRBIT_PREFETCH_MODELS=${ARRBIT_PREFETCH_MODELS:-0})"
 fi
 
 log_info "Dependencies installation complete. Log: ${LOG_FILE}"
