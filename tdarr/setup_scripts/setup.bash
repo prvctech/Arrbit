@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - Tdarr Setup Script
-# Version: v2.2.2-gs2.8.3
+# Version: v2.2.4-gs2.8.3
 # Purpose: Fetch (if needed) Arrbit repo and deploy Tdarr + shared assets to /app/arrbit
 #           - Copies helpers (universal/helpers) to /app/arrbit/helpers
 #           - Copies tdarr config, plugins, scripts, data files
@@ -9,10 +9,9 @@
 # -------------------------------------------------------------------------------------------------------------
 set -euo pipefail
 
-SETUP_SCRIPT_VERSION="v2.2.2-gs2.8.3"
+SETUP_SCRIPT_VERSION="v2.2.4-gs2.8.3"
 
 ARRBIT_BASE="/app/arrbit"
-TDARR_BASE="${ARRBIT_BASE}/tdarr"
 SETUP_DEST="${ARRBIT_BASE}/setup"
 HELPERS_DEST="${ARRBIT_BASE}/helpers"
 
@@ -23,9 +22,18 @@ WORK_TMP_BASE="${ARRBIT_BASE}/data/tmp"
 TMP_ROOT="${WORK_TMP_BASE}/fetch"
 FETCH_DIR=""
 
-log_info(){ echo "[INFO] $*"; }
-log_warn(){ echo "[WARN] $*" >&2; }
-log_error(){ echo "[ERROR] $*" >&2; }
+LOG_DIR="${ARRBIT_BASE}/data/logs"
+mkdir -p "${LOG_DIR}" 2>/dev/null || true
+chmod 777 "${LOG_DIR}" 2>/dev/null || true
+LOG_FILE="${LOG_DIR}/setup-$(date '+%Y_%m_%d-%H_%M_%S').log"
+touch "${LOG_FILE}" 2>/dev/null || true
+chmod 666 "${LOG_FILE}" 2>/dev/null || true
+
+# Silent terminal logging (all verbosity only goes to log file)
+log_info(){ printf '[INFO] %s\n' "$*" >>"${LOG_FILE}"; }
+log_warn(){ printf '[WARN] %s\n' "$*" >>"${LOG_FILE}"; }
+log_error(){ printf '[ERROR] %s\n' "$*" >>"${LOG_FILE}"; }
+log_info "Starting Tdarr setup script version ${SETUP_SCRIPT_VERSION}" 
 
 if [ "${EUID:-$(id -u)}" -ne 0 ]; then log_error "Run as root"; exit 1; fi
 
@@ -39,20 +47,19 @@ precreate_dirs(){
     "${ARRBIT_BASE}"
     "${ARRBIT_BASE}/data"
     "${WORK_TMP_BASE}"
-    "${TDARR_BASE}"
-    "${TDARR_BASE}/environments"
-    "${TDARR_BASE}/plugins"
-    "${TDARR_BASE}/plugins/transcription"
-    "${TDARR_BASE}/plugins/audio_enhancement"
-    "${TDARR_BASE}/plugins/custom"
-    "${TDARR_BASE}/data"
-    "${TDARR_BASE}/data/models"
-    "${TDARR_BASE}/data/models/whisper"
-    "${TDARR_BASE}/data/cache"
-    "${TDARR_BASE}/data/temp"
-    "${TDARR_BASE}/data/logs"
-    "${TDARR_BASE}/scripts"
-    "${TDARR_BASE}/config"
+  "${ARRBIT_BASE}/environments"
+  "${ARRBIT_BASE}/plugins"
+  "${ARRBIT_BASE}/plugins/transcription"
+  "${ARRBIT_BASE}/plugins/audio_enhancement"
+  "${ARRBIT_BASE}/plugins/custom"
+  "${ARRBIT_BASE}/data"
+  "${ARRBIT_BASE}/data/models"
+  "${ARRBIT_BASE}/data/models/whisper"
+  "${ARRBIT_BASE}/data/cache"
+  "${ARRBIT_BASE}/data/temp"
+  "${ARRBIT_BASE}/data/logs"
+  "${ARRBIT_BASE}/scripts"
+  "${ARRBIT_BASE}/config"
     "${HELPERS_DEST}"
     "${SETUP_DEST}"
   )
@@ -84,11 +91,11 @@ fetch_repo(){
 ensure_dirs(){
   log_info "Ensuring target directory structure"
   mkdir -p \
-    "${TDARR_BASE}/environments" \
-    "${TDARR_BASE}/plugins"/{transcription,audio_enhancement,custom} \
-    "${TDARR_BASE}/data"/{models/whisper,cache,temp,logs} \
-    "${TDARR_BASE}/scripts" \
-    "${TDARR_BASE}/config" \
+  "${ARRBIT_BASE}/environments" \
+  "${ARRBIT_BASE}/plugins"/{transcription,audio_enhancement,custom} \
+  "${ARRBIT_BASE}/data"/{models/whisper,cache,temp,logs} \
+  "${ARRBIT_BASE}/scripts" \
+  "${ARRBIT_BASE}/config" \
     "${HELPERS_DEST}" \
     "${SETUP_DEST}"
 }
@@ -112,10 +119,10 @@ deploy(){
   if [ ! -d "${tdarr_src}" ]; then log_error "tdarr directory missing in fetched repo"; exit 1; fi
 
   log_info "Deploying Tdarr components"
-  copy_dir "${tdarr_src}/config"        "${TDARR_BASE}/config"
-  copy_dir "${tdarr_src}/plugins"       "${TDARR_BASE}/plugins"
-  copy_dir "${tdarr_src}/scripts"       "${TDARR_BASE}/scripts"
-  copy_dir "${tdarr_src}/data"          "${TDARR_BASE}/data"
+  copy_dir "${tdarr_src}/config"        "${ARRBIT_BASE}/config"
+  copy_dir "${tdarr_src}/plugins"       "${ARRBIT_BASE}/plugins"
+  copy_dir "${tdarr_src}/scripts"       "${ARRBIT_BASE}/scripts"
+  copy_dir "${tdarr_src}/data"          "${ARRBIT_BASE}/data"
 
   # Setup scripts -> unified /app/arrbit/setup
   copy_dir "${tdarr_src}/setup_scripts" "${SETUP_DEST}"
@@ -145,7 +152,7 @@ permissions(){
 
 post_checks(){
   local missing=0
-  for p in "${HELPERS_DEST}" "${SETUP_DEST}/dependencies.bash" "${TDARR_BASE}/config/whisperx.conf"; do
+  for p in "${HELPERS_DEST}" "${SETUP_DEST}/dependencies.bash" "${ARRBIT_BASE}/config/whisperx.conf"; do
     if [ ! -e "$p" ]; then
       log_warn "Missing expected artifact: $p"
       missing=1
@@ -184,6 +191,7 @@ main(){
   log_info "Setup scripts located at: ${SETUP_DEST}"
   log_info "Temporary fetch root: ${TMP_ROOT} (current fetch cleaned on exit)"
   log_info "Next: run dependencies (dependencies.bash) from ${SETUP_DEST} if not already executed."
+  log_info "Log file: ${LOG_FILE}"
 }
 
 main "$@"
