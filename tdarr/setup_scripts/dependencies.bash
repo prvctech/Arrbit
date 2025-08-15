@@ -79,7 +79,7 @@ fi
 log_info "Starting dependencies installer version ${DEP_SCRIPT_VERSION}" 
 
 command_exists(){ command -v "$1" >/dev/null 2>&1; }
-apt_install(){ DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$@" >/dev/null 2>&1; }
+apt_install(){ DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$@" >>"${LOG_FILE}" 2>&1; }
 
 if [ "${EUID:-$(id -u)}" -ne 0 ]; then log_error "Run as root"; exit 1; fi
 
@@ -102,7 +102,7 @@ fi
 
 if command_exists apt-get; then
   log_info "Updating apt indexes"
-  apt-get update >/dev/null 2>&1 || { log_error "apt update failed"; exit 1; }
+  apt-get update >>"${LOG_FILE}" 2>&1 || { log_error "apt update failed"; exit 1; }
 fi
 
 install_sys() {
@@ -143,13 +143,38 @@ fi
 
 mkdir -p "${ENV_DIR}" || true
 
+# Ensure python3-venv capability (some minimal images split it)
+ensure_venv_support(){
+  python3 -m venv --help >/dev/null 2>&1 && return 0
+  log_warning "python3 -m venv not functional; attempting to (re)install python3-venv"
+  if command_exists apt-get; then
+    apt_install python3-venv || true
+  fi
+  python3 -m venv --help >/dev/null 2>&1 && return 0
+  log_warning "Second attempt to enable venv failed; trying ensurepip bootstrap"
+  python3 -m ensurepip --upgrade >>"${LOG_FILE}" 2>&1 || true
+  python3 -m venv --help >/dev/null 2>&1 && return 0
+  return 1
+}
+
+if ! ensure_venv_support; then
+  log_error "python3 venv support unavailable after remediation attempts. Install python3-venv manually and re-run."
+  exit 1
+fi
+
 if [ "${ALWAYS_UPGRADE}" = "1" ] && [ -d "${WHISPERX_ENV_PATH}" ]; then
   log_info "Force upgrade requested: removing existing environment"
   rm -rf "${WHISPERX_ENV_PATH}" || { log_error "Failed to remove existing env"; exit 1; }
 fi
 if [ ! -d "${WHISPERX_ENV_PATH}" ]; then
   log_info "Creating virtual environment at ${WHISPERX_ENV_PATH}"
-  python3 -m venv "${WHISPERX_ENV_PATH}" || { log_error "venv creation failed"; exit 1; }
+  if ! python3 -m venv "${WHISPERX_ENV_PATH}" >>"${LOG_FILE}" 2>&1; then
+    log_warning "Primary venv creation failed; retrying after clearing any partial directory"
+    rm -rf "${WHISPERX_ENV_PATH}" 2>/dev/null || true
+    if ! python3 -m venv "${WHISPERX_ENV_PATH}" >>"${LOG_FILE}" 2>&1; then
+      log_error "venv creation failed"; exit 1;
+    fi
+  fi
 fi
 
 log_info "Upgrading pip"
