@@ -1,17 +1,17 @@
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - logging_utils.bash
-# Version: v1.0.4-gs2.8.3
+# Version: v2.0.0-gs3.0.0
 # Purpose:
 #   • log_info, log_error, log_warning : Standardized, colorized logging for Arrbit scripts (with neon/bright colors).
 #   • arrbitLogClean       : strip ANSI colours and normalise spacing.
 #   • arrbitPurgeOldLogs   : keep only the newest N logs per script prefix (default 3).
-# Dependencies: arrbit_paths.bash for auto-detection (optional)
+# Change (gs3.0.0 migration): Auto-detection removed; base fixed at /app/arrbit.
 # -------------------------------------------------------------------------------------------------------------
 
-# Auto-source path detection if available
-if [[ -f "$(dirname "${BASH_SOURCE[0]}")/arrbit_paths.bash" ]]; then
-  source "$(dirname "${BASH_SOURCE[0]}")/arrbit_paths.bash"
-fi
+# Fixed base path (auto-detection deprecated)
+ARRBIT_BASE="/app/arrbit"
+ARRBIT_LOGS_DIR="${ARRBIT_BASE}/data/logs"
+mkdir -p "${ARRBIT_LOGS_DIR}" 2>/dev/null || true
 
 # Neon/Bright ANSI color codes (for terminals with 256-color or better support)
 CYAN='\033[96m'
@@ -164,7 +164,7 @@ arrbitPurgeOldLogs() {
   local log_dir="${2:-}"
 
   if [[ -z "$log_dir" ]]; then
-    log_dir=$(getArrbitLogsDir) || return 0
+  log_dir="${ARRBIT_LOGS_DIR}"
   fi
 
   # Collect prefixes from arrbit-*.log filenames (with fallback for non-GNU find)

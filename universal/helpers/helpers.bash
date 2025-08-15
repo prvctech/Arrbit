@@ -1,17 +1,26 @@
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - helpers.bash
-# Version: v1.1.1-gs2.8.3
+# Version: v2.0.0-gs3.0.0
 # Purpose: Reusable helper functions for Arrbit scripts (config parsing, validation, file ops, etc)
-# Dependencies: arrbit_paths.bash for auto-detection
+# Change (gs3.0.0 migration): Auto-detection removed. Base path is now FIXED at /app/arrbit.
 # -------------------------------------------------------------------------------------------------------------
 
 if [[ -z "${ARRBIT_HELPERS_INCLUDED:-}" ]]; then
   ARRBIT_HELPERS_INCLUDED=1
 
-  # Source path detection helper if available
-  if [[ -f "$(dirname "${BASH_SOURCE[0]}")/arrbit_paths.bash" ]]; then
-    source "$(dirname "${BASH_SOURCE[0]}")/arrbit_paths.bash"
-  fi
+  # ---------------------------------------------------------------------------------------------------------
+  # Fixed base path (auto-detection deprecated): All Arrbit assets live under /app/arrbit
+  # ---------------------------------------------------------------------------------------------------------
+  ARRBIT_BASE="/app/arrbit"
+  ARRBIT_CONFIG_DIR="${ARRBIT_BASE}/config"
+  ARRBIT_DATA_DIR="${ARRBIT_BASE}/data"
+  ARRBIT_LOGS_DIR="${ARRBIT_DATA_DIR}/logs"
+  ARRBIT_HELPERS_DIR="${ARRBIT_BASE}/universal/helpers"
+  ARRBIT_SCRIPTS_DIR="${ARRBIT_BASE}/scripts"
+  ARRBIT_ENVIRONMENTS_DIR="${ARRBIT_BASE}/environments"
+
+  # Ensure critical directories (best-effort; silent on failure)
+  mkdir -p "${ARRBIT_CONFIG_DIR}" "${ARRBIT_LOGS_DIR}" "${ARRBIT_DATA_DIR}" 2>/dev/null || true
 
   # -------------------------------------------------------
   # Safely get a flag value from the config file (case-insensitive, ignores comments/spaces)
@@ -20,9 +29,7 @@ if [[ -z "${ARRBIT_HELPERS_INCLUDED:-}" ]]; then
   # -------------------------------------------------------
   getFlag() {
     local flag_name="$1"
-    local config_dir
-    config_dir=$(getArrbitConfigDir) || return 1
-    local config_file="${CONFIG_DIR:-$config_dir}/arrbit-config.conf"
+    local config_file="${ARRBIT_CONFIG_DIR}/arrbit-config.conf"
     
     # Return 1 silently if config missing - caller decides how to handle
     [[ -f "$config_file" ]] || return 1

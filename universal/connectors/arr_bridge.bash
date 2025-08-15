@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - arr_bridge.bash
-# Version: v1.0.0-gs3.0.0
+# Version: v1.1.0-gs3.1.0
 # Purpose: Golden Standard ARR API connector with fully dynamic API URL, port, and version detection.
 # -------------------------------------------------------------------------------------------------------------
 
-# Source helpers using auto-detection
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ARRBIT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-source "$ARRBIT_ROOT/universal/helpers/arrbit_paths.bash"
-source "$(getArrbitHelpersDir)/logging_utils.bash"
-source "$(getArrbitHelpersDir)/helpers.bash"
+# Fixed base path model (auto-detection deprecated gs3.1.0)
+ARRBIT_BASE="/app/arrbit"
+source "$ARRBIT_BASE/universal/helpers/logging_utils.bash"
+source "$ARRBIT_BASE/universal/helpers/helpers.bash"
 
 arrbitPurgeOldLogs
 
@@ -19,15 +17,14 @@ SCRIPT_VERSION="v1.0.0-gs3.0.0"
 
 # Initialize logging
 if [[ -z "${LOG_FILE:-}" ]]; then
-  LOG_FILE="$(getArrbitLogsDir)/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
+  LOG_FILE="${ARRBIT_LOGS_DIR}/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 fi
-
-mkdir -p "$(getArrbitLogsDir)" && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
+mkdir -p "${ARRBIT_LOGS_DIR}" && touch "$LOG_FILE" && chmod 644 "$LOG_FILE"
 
 CONFIG_XML="/config/config.xml"
 
 if [[ ! -f "$CONFIG_XML" ]]; then
-  log_error "ARR config.xml not found (see log at $(getArrbitLogsDir))"
+  log_error "ARR config.xml not found (see log at ${ARRBIT_LOGS_DIR})"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
 [Arrbit] ERROR ARR config.xml not found
 CAUSE: The config.xml file does not exist at $CONFIG_XML
@@ -47,7 +44,7 @@ fi
 
 arr_api_key="$(cat "$CONFIG_XML" | xq | jq -r .Config.ApiKey)"
 if [[ -z "$arr_api_key" || "$arr_api_key" == "null" ]]; then
-  log_error "API key not found (see log at $(getArrbitLogsDir))"
+  log_error "API key not found (see log at ${ARRBIT_LOGS_DIR})"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
 [Arrbit] ERROR API key not found in $CONFIG_XML
 CAUSE: The ApiKey field is missing or empty in the config.xml file
@@ -86,7 +83,7 @@ for ver in v3 v1; do
 done
 
 if [[ -z "$arrApiVersion" ]]; then
-  log_error "Unable to detect working API version (see log at $(getArrbitLogsDir))"
+  log_error "Unable to detect working API version (see log at ${ARRBIT_LOGS_DIR})"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
 [Arrbit] ERROR Unable to detect working API version at $arrUrl
 CAUSE: API calls to both v3 and v1 endpoints failed or returned invalid responses
@@ -108,7 +105,7 @@ waitForArrApi() {
     fi
     sleep 5
   done
-  log_error "Could not connect to ARR API after $retries attempts (see log at $(getArrbitLogsDir))"
+  log_error "Could not connect to ARR API after $retries attempts (see log at ${ARRBIT_LOGS_DIR})"
   cat <<EOF | arrbitLogClean >> "$LOG_FILE"
 [Arrbit] ERROR Could not connect to ARR API after $retries attempts
 CAUSE: API endpoint is not responding after multiple connection attempts

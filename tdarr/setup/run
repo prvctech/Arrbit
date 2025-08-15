@@ -1,40 +1,104 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
-# Arrbit - run module
-# Version: v1.0.2-gs2.8.3
-# Purpose: Orchestrator – runs setup first, then executes all Arrbit service modules (silent except WARNING/ERROR).
+# Arrbit - run module (Bootstrap Orchestrator)
+# Version: v1.0.0-gs3.0.0
+# Purpose: Bootstrap orchestrator – runs setup first, then executes all Arrbit service modules
+# Note: Uses minimal hardcoded bootstrap logic since helpers don't exist until after setup
 # -------------------------------------------------------------------------------------------------------------
 
 set -u
 set -o pipefail
 
-ARRBIT_ROOT="/app/arrbit"
-REMOTE_SETUP_URL="https://raw.githubusercontent.com/prvctech/Arrbit/main/tdarr/setup_scripts/setup.bash"
-DEPENDENCIES_SCRIPT="$ARRBIT_ROOT/setup/dependencies.bash"
+# Container stability delay
+sleep 20
 
-# Delay for container stability (silent)
-sleep 8
+# Generate trace ID for correlation
+TRACE_ID="run-$(date +%s)-$$"
 
-# --- Prepare logging early (silent to terminal, but log file available immediately) ---
+# Minimal hardcoded auto-detection (Golden Standard pattern)
+detect_arrbit_base() {
+  for base in "/app/arrbit" "/config/arrbit" "/data/arrbit" "/opt/arrbit"; do
+    if [[ -w "$(dirname "$base")" ]] 2>/dev/null; then
+      echo "$base"
+      return 0
+    fi
+  done
+  echo "/app/arrbit"  # fallback
+}
+
+ARRBIT_BASE="$(detect_arrbit_base)"
+REMOTE_SETUP_URL="https://raw.githubusercontent.com/prvctech/Arrbit/main/tdarr/setup/setup.bash"
+DEPENDENCIES_SCRIPT="${ARRBIT_BASE}/setup/dependencies.bash"
+
+# Prepare logging early
 SCRIPT_NAME="run"
-SCRIPT_VERSION="v1.0.1-gs2.8.3"
-LOG_FILE="/app/logs/arrbit-${SCRIPT_NAME}-$(date '+%Y_%m_%d-%H_%M').log"
-mkdir -p /app/logs && touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
-echo "[Arrbit] run initializing" >> "$LOG_FILE"
+SCRIPT_VERSION="v1.0.0-gs3.0.0"
+LOG_FILE="${ARRBIT_BASE}/data/logs/arrbit-${SCRIPT_NAME}-$(date '+%Y_%m_%d-%H_%M').log"
 
-echo "[Arrbit] running remote setup" >>"$LOG_FILE"
+# Ensure log directory exists
+mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || mkdir -p "/tmp/arrbit-logs"
+if [[ ! -w "$(dirname "$LOG_FILE")" ]]; then
+  LOG_FILE="/tmp/arrbit-logs/arrbit-${SCRIPT_NAME}-$(date '+%Y_%m_%d-%H_%M').log"
+fi
+touch "$LOG_FILE" && chmod 644 "$LOG_FILE" 2>/dev/null || true
+
+# Minimal hardcoded logging functions (Golden Standard format)
+log_info() { 
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Arrbit] INFO: $*" | tee -a "$LOG_FILE"
+}
+log_warning() { 
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Arrbit] WARNING: $*" | tee -a "$LOG_FILE"
+}
+log_error() { 
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Arrbit] ERROR: $*" | tee -a "$LOG_FILE"
+}
+
+log_info "Bootstrap orchestrator initializing (version ${SCRIPT_VERSION}, trace_id: ${TRACE_ID})"
+log_info "Detected Arrbit base: ${ARRBIT_BASE}"
+
+# Execute remote setup with structured error handling
+log_info "Executing remote setup from ${REMOTE_SETUP_URL}"
 if ! curl --fail --silent --show-error "$REMOTE_SETUP_URL" | bash; then
-  echo "[Arrbit] ERROR remote setup failed" >>"$LOG_FILE"
+  cat <<EOF >>"$LOG_FILE"
+
+[Arrbit] ERROR: Remote setup execution failed
+CAUSE: Cannot download or execute setup script from ${REMOTE_SETUP_URL}
+RESOLUTION: Check network connectivity and repository accessibility
+CONTEXT: script=run, function=main, trace_id=${TRACE_ID}, url=${REMOTE_SETUP_URL}
+EOF
+  log_error "Remote setup failed - exiting"
   exit 1
 fi
 
-# Run dependencies installer independently (it writes its own log)
+log_info "Remote setup completed successfully"
+
+# Execute dependencies installer if available
 if [[ -x "$DEPENDENCIES_SCRIPT" ]]; then
-  echo "[Arrbit] launching dependencies installer" >>"$LOG_FILE"
-  bash "$DEPENDENCIES_SCRIPT"
+  log_info "Launching dependencies installer: ${DEPENDENCIES_SCRIPT}"
+  if ! bash "$DEPENDENCIES_SCRIPT"; then
+    cat <<EOF >>"$LOG_FILE"
+
+[Arrbit] WARNING: Dependencies installer execution failed
+CAUSE: Dependencies script ${DEPENDENCIES_SCRIPT} returned non-zero exit code
+RESOLUTION: Check dependencies script logs for specific errors
+CONTEXT: script=run, function=main, trace_id=${TRACE_ID}, deps_script=${DEPENDENCIES_SCRIPT}
+EOF
+    log_warning "Dependencies installer failed - continuing anyway"
+  else
+    log_info "Dependencies installer completed successfully"
+  fi
 else
-  echo "[Arrbit] WARNING dependencies script missing: $DEPENDENCIES_SCRIPT" >>"$LOG_FILE"
+  cat <<EOF >>"$LOG_FILE"
+
+[Arrbit] WARNING: Dependencies script not found or not executable
+CAUSE: File ${DEPENDENCIES_SCRIPT} does not exist or lacks execute permissions
+RESOLUTION: Verify setup completed successfully and dependencies script was deployed
+CONTEXT: script=run, function=main, trace_id=${TRACE_ID}, expected_script=${DEPENDENCIES_SCRIPT}
+EOF
+  log_warning "Dependencies script missing: ${DEPENDENCIES_SCRIPT}"
 fi
 
-echo "[Arrbit] run complete; entering idle" >> "$LOG_FILE"
+log_info "Bootstrap orchestrator completed successfully (trace_id: ${TRACE_ID})"
+log_info "Log file: ${LOG_FILE}"
+log_info "Entering idle state - use 'docker logs <container>' to monitor"
 exec tail -f /dev/null
