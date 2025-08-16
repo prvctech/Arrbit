@@ -8,7 +8,6 @@
 
 set -euo pipefail
 
-TRACE_ID="run-$(date +%s)-$$"
 
 # Fixed base path (allow override for test scenarios by exporting ARRBIT_BASE before exec)
 ARRBIT_BASE="${ARRBIT_BASE:-/app/arrbit}"
@@ -24,13 +23,12 @@ LOG_FILE="${LOG_DIR}/arrbit-${SCRIPT_NAME}-info-$(date '+%Y_%m_%d-%H_%M').log"
 touch "${LOG_FILE}" 2>/dev/null || true
 chmod 644 "${LOG_FILE}" 2>/dev/null || true
 
-# Minimal single-line logging (prefix + level)
-_ts(){ date '+%Y-%m-%dT%H:%M:%S%z'; }
-log_info()    { printf '[%s] [INFO] [run] %s\n'    "$(_ts)" "$*" | tee -a "${LOG_FILE}"; }
-log_warning() { printf '[%s] [WARN] [run] %s\n'    "$(_ts)" "$*" | tee -a "${LOG_FILE}"; }
-log_error()   { printf '[%s] [ERROR] [run] %s\n'   "$(_ts)" "$*" | tee -a "${LOG_FILE}"; }
+# Minimal bootstrap logging (INFO/WARN/ERROR only)
+  log_info(){ printf '[INFO] %s\n' "$*" >>"${LOG_FILE}"; }
+  log_warning(){ printf '[WARN] %s\n' "$*" >>"${LOG_FILE}"; }
+  log_error(){ printf '[ERROR] %s\n' "$*" >>"${LOG_FILE}"; }
 
-log_info "Bootstrap initializing (version ${SCRIPT_VERSION}, trace_id: ${TRACE_ID}, base=${ARRBIT_BASE})"
+log_info "Bootstrap initializing (version ${SCRIPT_VERSION}, base=${ARRBIT_BASE})"
 
 # Optional container stabilization delay (tunable via ARRBIT_BOOT_DELAY, default 5s)
 BOOT_DELAY="${ARRBIT_BOOT_DELAY:-5}"
@@ -41,7 +39,7 @@ fi
 log_info "Running remote setup: ${REMOTE_SETUP_URL}"
 if ! curl -fsSL "${REMOTE_SETUP_URL}" | bash; then
   log_error "Remote setup failed (url=${REMOTE_SETUP_URL})"
-  printf '[Arrbit] ERROR: Remote setup failed url=%s trace_id=%s\n' "${REMOTE_SETUP_URL}" "${TRACE_ID}" >>"${LOG_FILE}"
+  printf '[Arrbit] ERROR: Remote setup failed url=%s\n' "${REMOTE_SETUP_URL}" >>"${LOG_FILE}"
   exit 1
 fi
 log_info "Remote setup completed"
@@ -50,13 +48,13 @@ if [ -x "${DEPENDENCIES_SCRIPT}" ]; then
   log_info "Executing dependencies script ${DEPENDENCIES_SCRIPT}"
   if ! bash "${DEPENDENCIES_SCRIPT}"; then
     log_warning "Dependencies script failed (continuing)"
-    printf '[Arrbit] WARNING: Dependencies script failed: %s trace_id=%s\n' "${DEPENDENCIES_SCRIPT}" "${TRACE_ID}" >>"${LOG_FILE}"
+    printf '[Arrbit] WARNING: Dependencies script failed: %s\n' "${DEPENDENCIES_SCRIPT}" >>"${LOG_FILE}"
   else
     log_info "Dependencies script completed"
   fi
 else
   log_warning "Dependencies script missing: ${DEPENDENCIES_SCRIPT}"
-  printf '[Arrbit] WARNING: Dependencies script missing: %s trace_id=%s\n' "${DEPENDENCIES_SCRIPT}" "${TRACE_ID}" >>"${LOG_FILE}"
+  printf '[Arrbit] WARNING: Dependencies script missing: %s\n' "${DEPENDENCIES_SCRIPT}" >>"${LOG_FILE}"
 fi
 
 # Attempt to upgrade logging if helpers now exist
@@ -68,7 +66,7 @@ if [ -f "${HELPERS_LOG_UTIL}" ]; then
   log_info "Upgraded logging utilities loaded"
 fi
 
-log_info "Bootstrap completed (trace_id=${TRACE_ID})"
+log_info "Bootstrap completed"
 log_info "Log file: ${LOG_FILE}"
 log_info "Idle tail to keep container alive"
 exec tail -f /dev/null

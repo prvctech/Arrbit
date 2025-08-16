@@ -10,7 +10,6 @@
 set -euo pipefail
 
 SETUP_SCRIPT_VERSION="v1.0.0-gs3.1.0"
-TRACE_ID="setup-$(date +%s)-$$"
 
 ## Fixed Arrbit base (Golden Standard)
 ARRBIT_BASE="/app/arrbit"
@@ -26,22 +25,23 @@ FETCH_DIR=""
 LOG_DIR="${ARRBIT_BASE}/data/logs"
 mkdir -p "${LOG_DIR}" 2>/dev/null || true
 chmod 755 "${LOG_DIR}" 2>/dev/null || true
-# Mode-aware filename (bootstrap uses INFO by default)
+
+# Fixed simple INFO-level log file (Golden Standard simplified variant)
 LOG_FILE="${LOG_DIR}/arrbit-setup-info-$(date +%Y_%m_%d-%H_%M).log"
 touch "${LOG_FILE}" 2>/dev/null || true
 chmod 644 "${LOG_FILE}" 2>/dev/null || true
 
-# Minimal logging functions for bootstrap phase (before helpers are available)
-log_info(){ printf '[%s] [INFO] [setup:%s] %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "${BASH_LINENO[0]}" "$*" >>"${LOG_FILE}"; }
-log_warning(){ printf '[%s] [WARN] [setup:%s] %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "${BASH_LINENO[0]}" "$*" >>"${LOG_FILE}"; }
-log_error(){ printf '[%s] [ERROR] [setup:%s] %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "${BASH_LINENO[0]}" "$*" >>"${LOG_FILE}"; }
+# Minimal bootstrap logging (INFO/WARN/ERROR only)
+log_info(){ printf '[INFO] %s\n' "$*" >>"${LOG_FILE}"; }
+log_warning(){ printf '[WARN] %s\n' "$*" >>"${LOG_FILE}"; }
+log_error(){ printf '[ERROR] %s\n' "$*" >>"${LOG_FILE}"; }
  # Ensure base exists with correct perms
 if [ ! -d "${ARRBIT_BASE}" ]; then
   mkdir -p "${ARRBIT_BASE}" 2>/dev/null || true
 fi
 chmod 755 "${ARRBIT_BASE}" 2>/dev/null || true
 
-log_info "Starting Tdarr setup script version ${SETUP_SCRIPT_VERSION} (trace_id: ${TRACE_ID})"
+log_info "Starting Tdarr setup script version ${SETUP_SCRIPT_VERSION}"
 
 if [ "${EUID:-$(id -u)}" -ne 0 ]; then 
   log_error "Setup script must run as root (uid=${EUID:-$(id -u)})"
@@ -198,7 +198,8 @@ deploy(){
   copy_dir "${tdarr_src}/data"          "${ARRBIT_BASE}/data" || return 1
 
   # Setup scripts -> unified /app/arrbit/setup
-  copy_dir "${tdarr_src}/setup_scripts" "${SETUP_DEST}" || return 1
+  # Copy setup scripts (actual repo path is tdarr/setup/*)
+  copy_dir "${tdarr_src}/setup" "${SETUP_DEST}" || return 1
 
   # Helpers (prefer universal/helpers)
   if [ -d "${helpers_src_a}" ]; then
@@ -305,7 +306,7 @@ cleanup_tmp(){
 trap cleanup_tmp EXIT
 
 main(){
-  log_info "Starting Tdarr setup process (trace_id: ${TRACE_ID})"
+  log_info "Starting Tdarr setup process"
   
   precreate_dirs || {
   log_error "Failed to create initial directory structure"
@@ -343,7 +344,7 @@ main(){
     log_info "Upgraded to standard logging (helpers loaded)"
   fi
   
-  log_info "Setup completed successfully (version ${SETUP_SCRIPT_VERSION}, trace_id: ${TRACE_ID})"
+  log_info "Setup completed successfully (version ${SETUP_SCRIPT_VERSION})"
   log_info "Setup scripts located at: ${SETUP_DEST}"
   log_info "Temporary fetch root: ${TMP_ROOT} (current fetch cleaned on exit)"
   log_info "Next: run dependencies (dependencies.bash) from ${SETUP_DEST} if not already executed"
