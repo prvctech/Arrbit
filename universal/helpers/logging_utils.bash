@@ -13,7 +13,7 @@
 #   INFO:  [Arrbit] message
 #   WARN:  [Arrbit] WARNING message
 #   ERROR: [Arrbit] ERROR message
-#   (FATAL removed)
+#   
 # File Log Formats:
 #   TRACE   -> [ISO8601] [LEVEL] [script:line] message (all levels incl. TRACE)
 #   VERBOSE -> [LEVEL] message (no timestamp; excludes TRACE-level lines; no script:line)
