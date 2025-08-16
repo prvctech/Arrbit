@@ -44,8 +44,8 @@ arrbitRefreshLogLevel() {
   else
     local cfg="${ARRBIT_CONFIG_DIR}/arrbit-config.conf" raw val
     if [ -f "$cfg" ]; then
-      # Prefer LOG_LEVEL=, fallback to legacy LOG_TYPE=
-      raw=$(grep -iE '^(LOG_LEVEL|LOG_TYPE)=' "$cfg" 2>/dev/null | tail -n1 || true)
+      # Prefer LOG_LEVEL=
+      raw=$(grep -iE '^(LOG_LEVEL)=' "$cfg" 2>/dev/null | tail -n1 || true)
       val=${raw#*=}
       val=$(printf '%s' "$val" | sed -E "s/#.*//; s/[\"']//g; s/^ *//; s/ *$//" | tr '[:upper:]' '[:lower:]')
       case "$val" in
