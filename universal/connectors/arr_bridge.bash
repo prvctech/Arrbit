@@ -14,9 +14,8 @@ arrbitPurgeOldLogs
 SCRIPT_NAME="arr_bridge"
 SCRIPT_VERSION="v1.1.0-gs3.1.0"
 
-# Initialize logging (mode-aware filename)
-mode_lc="${ARRBIT_LOG_LEVEL,,}"
-LOG_FILE="${ARRBIT_LOGS_DIR}/arrbit-${SCRIPT_NAME}-${mode_lc}-$(date +%Y_%m_%d-%H_%M).log"
+# Initialize logging (log_level exported by helpers)
+LOG_FILE="${ARRBIT_LOGS_DIR}/arrbit-${SCRIPT_NAME}-${log_level}-$(date +%Y_%m_%d-%H_%M).log"
 arrbitInitLog "$LOG_FILE" || { echo "[Arrbit] ERROR: could not initialize log file" >&2; return 1 2>/dev/null || exit 1; }
 chmod 644 "$LOG_FILE" 2>/dev/null || true
 

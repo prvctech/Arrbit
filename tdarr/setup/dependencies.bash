@@ -1,7 +1,7 @@
 ﻿#!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - WhisperX Dependencies (Minimal)
-# Version: v1.0.0-gs3.1.0
+# Version: v1.0.1-gs3.1.1
 # Purpose: Install / verify minimal system + Python deps and WhisperX (CPU-only) in isolated env.
 # Notes: Assumes setup has already placed helpers; uses standard logging utilities.
 # -------------------------------------------------------------------------------------------------------------
@@ -19,9 +19,8 @@ source "${ARRBIT_BASE}/universal/helpers/logging_utils.bash"
 source "${ARRBIT_BASE}/universal/helpers/helpers.bash"
 arrbitPurgeOldLogs
 
-# Initialize log file (mode determined by ARRBIT_LOG_LEVEL/OVERRIDE)
-mode_lc="${ARRBIT_LOG_LEVEL_OVERRIDE:-${ARRBIT_LOG_LEVEL:-INFO}}"; mode_lc="${mode_lc,,}"
-LOG_FILE="${ARRBIT_BASE}/data/logs/arrbit-${SCRIPT_NAME}-${mode_lc}-$(date +%Y_%m_%d-%H_%M).log"
+# Initialize log file (log_level exported by helpers)
+LOG_FILE="${ARRBIT_BASE}/data/logs/arrbit-${SCRIPT_NAME}-${log_level}-$(date +%Y_%m_%d-%H_%M).log"
 arrbitInitLog "${LOG_FILE}"
 arrbitBanner "${SCRIPT_NAME}" "${SCRIPT_VERSION}"
 
