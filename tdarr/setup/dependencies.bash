@@ -1,78 +1,60 @@
 ﻿#!/usr/bin/env bash
-# shellcheck shell=bash
 # -------------------------------------------------------------------------------------------------------------
-# Arrbit - WhisperX dependencies (minimal)
-# Version: v2.3.0-gs2.8.3
-# Purpose: Install minimal deps + WhisperX for CPU-only tiny model
+# Arrbit - WhisperX Dependencies (Minimal)
+# Version: v1.0.0-gs3.1.0
+# Purpose: Install / verify minimal system + Python deps and WhisperX (CPU-only) in isolated env.
+# Notes: Assumes setup has already placed helpers; uses standard logging utilities.
 # -------------------------------------------------------------------------------------------------------------
 set -euo pipefail
 
-DEP_SCRIPT_VERSION="v2.3.0-gs2.8.3"
+SCRIPT_NAME="dependencies"
+SCRIPT_VERSION="v1.0.0-gs3.1.0"
 ARRBIT_BASE="/app/arrbit"
-HELPERS_DIR="${ARRBIT_BASE}/helpers"
-WHISPERX_ENV_PATH="${ARRBIT_BASE}/environments/whisperx-env"
+ARRBIT_ENVIRONMENTS_DIR="${ARRBIT_BASE}/environments"
+WHISPERX_ENV_PATH="${ARRBIT_ENVIRONMENTS_DIR}/whisperx-env"
 FORCE_REINSTALL="${ARRBIT_FORCE_DEPS:-0}"
 
-LOG_FILE="${ARRBIT_BASE}/data/logs/dependencies-$(date '+%Y_%m_%d-%H_%M_%S').log"
+# Source helpers (guaranteed after setup)
+source "${ARRBIT_BASE}/universal/helpers/logging_utils.bash"
+source "${ARRBIT_BASE}/universal/helpers/helpers.bash"
+arrbitPurgeOldLogs
 
-# Source helpers
-if [ -f "${HELPERS_DIR}/logging_utils.bash" ]; then
-  . "${HELPERS_DIR}/logging_utils.bash"
-elif [ -f "${HELPERS_DIR}/helpers.bash" ]; then
-  . "${HELPERS_DIR}/helpers.bash"
-fi
-
-trap 'command -v arrbitPurgeOldLogs >/dev/null 2>&1 && arrbitPurgeOldLogs || true' EXIT
-
-log_info "Starting minimal dependencies installer version ${DEP_SCRIPT_VERSION}"
+# Initialize log file (mode determined by ARRBIT_LOG_LEVEL/OVERRIDE)
+mode_lc="${ARRBIT_LOG_LEVEL_OVERRIDE:-${ARRBIT_LOG_LEVEL:-INFO}}"; mode_lc="${mode_lc,,}"
+LOG_FILE="${ARRBIT_BASE}/data/logs/arrbit-${SCRIPT_NAME}-${mode_lc}-$(date +%Y_%m_%d-%H_%M).log"
+arrbitInitLog "${LOG_FILE}"
+arrbitBanner "${SCRIPT_NAME}" "${SCRIPT_VERSION}"
 
 # Root check
-if [ "${EUID:-$(id -u)}" -ne 0 ]; then 
-  log_error "Must run as root"
-  exit 1
-fi
+if [ "${EUID:-$(id -u)}" -ne 0 ]; then
+  log_error "Script must run as root"; exit 1; fi
 
-# Skip if already installed (unless force)
-if [ "${FORCE_REINSTALL}" != "1" ] && [ -d "${WHISPERX_ENV_PATH}" ] && "${WHISPERX_ENV_PATH}/bin/python" -c 'import whisperx' 2>/dev/null; then
-  log_info "WhisperX already installed. Use ARRBIT_FORCE_DEPS=1 to reinstall."
-  exit 0
-fi
+log_info "Starting installer"
 
-# Install only essential system packages
-log_info "Installing minimal system packages"
-apt-get update >>"${LOG_FILE}" 2>&1
-apt-get install -y --no-install-recommends python3 python3-venv curl >>"${LOG_FILE}" 2>&1
+# Idempotency skip
+if [ "${FORCE_REINSTALL}" != "1" ] && [ -d "${WHISPERX_ENV_PATH}" ] \
+   && "${WHISPERX_ENV_PATH}/bin/python" -c 'import whisperx' >/dev/null 2>&1; then
+  log_info "WhisperX already present (ARRBIT_FORCE_DEPS=1 to reinstall)"
+  log_info "Done."; exit 0; fi
 
-# Remove existing env if force reinstall
+export DEBIAN_FRONTEND=noninteractive
+log_info "Installing system packages"
+if ! apt-get update -y >/dev/null 2>&1; then log_error "apt-get update failed"; exit 1; fi
+if ! apt-get install -y --no-install-recommends python3 python3-venv curl >/dev/null 2>&1; then log_error "apt-get install failed"; exit 1; fi
+apt-get clean >/dev/null 2>&1 || true
+
 if [ "${FORCE_REINSTALL}" = "1" ] && [ -d "${WHISPERX_ENV_PATH}" ]; then
-  log_info "Force reinstall: removing existing environment"
-  rm -rf "${WHISPERX_ENV_PATH}"
-fi
+  log_info "Force reinstall: removing existing env"; rm -rf "${WHISPERX_ENV_PATH}" || { log_error "env removal failed"; exit 1; }; fi
 
-# Create virtual environment
 if [ ! -d "${WHISPERX_ENV_PATH}" ]; then
-  log_info "Creating virtual environment"
-  python3 -m venv "${WHISPERX_ENV_PATH}"
-fi
+  log_info "Creating virtualenv"; python3 -m venv "${WHISPERX_ENV_PATH}" || { log_error "venv creation failed"; exit 1; }; fi
 
-# Install WhisperX with CPU-only minimal deps
-log_info "Installing WhisperX (CPU-only, minimal)"
-"${WHISPERX_ENV_PATH}/bin/pip" install --no-cache-dir pip setuptools wheel
-"${WHISPERX_ENV_PATH}/bin/pip" install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-"${WHISPERX_ENV_PATH}/bin/pip" install --no-cache-dir whisperx
+PIP="${WHISPERX_ENV_PATH}/bin/pip"; PY="${WHISPERX_ENV_PATH}/bin/python"
+log_info "Upgrading packaging tools"; "${PIP}" install --no-cache-dir --upgrade pip setuptools wheel >/dev/null 2>&1 || { log_error "pip bootstrap failed"; exit 1; }
+log_info "Installing torch CPU"; "${PIP}" install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu >/dev/null 2>&1 || { log_error "torch install failed"; exit 1; }
+log_info "Installing whisperx"; "${PIP}" install --no-cache-dir whisperx >/dev/null 2>&1 || { log_error "whisperx install failed"; exit 1; }
+log_info "Verifying import"; if ! "${PY}" -c 'import whisperx' >/dev/null 2>&1; then log_error "verification failed"; exit 1; fi
 
-# Verify installation
-log_info "Verifying WhisperX installation"# Source config and test
-source /app/arrbit/config/whisperx.conf
-/app/arrbit/environments/whisperx-env/bin/python -m whisperx \
-  --model $WHISPERX_MODEL \
-  --device $WHISPERX_DEVICE \
-  --language $WHISPERX_LANGUAGE \
-  /path/to/audio/file
-if ! "${WHISPERX_ENV_PATH}/bin/python" -c 'import whisperx; print("WhisperX installed successfully")' >>"${LOG_FILE}" 2>&1; then
-  log_error "WhisperX installation verification failed"
-  exit 1
-fi
-
-log_info "Minimal dependencies installation complete"
+log_info "Installation successful"
+log_info "Done."
 exit 0
