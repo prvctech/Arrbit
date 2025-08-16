@@ -35,7 +35,7 @@ ARRBIT_LOGS_DIR="${ARRBIT_BASE}/data/logs"
 mkdir -p "${ARRBIT_LOGS_DIR}" 2>/dev/null || true
 mkdir -p "${ARRBIT_CONFIG_DIR}" 2>/dev/null || true
 
-# Refresh active log level (simplified)
+# Refresh active log level (simplified) and export lowercase identifier `log_level`
 arrbitRefreshLogLevel() {
   if [ -n "${ARRBIT_LOG_LEVEL_OVERRIDE:-}" ]; then
     ARRBIT_LOG_LEVEL="${ARRBIT_LOG_LEVEL_OVERRIDE}"
@@ -58,6 +58,9 @@ arrbitRefreshLogLevel() {
     fi
   fi
   export ARRBIT_LOG_LEVEL
+  # Provide lowercase identifier for filename patterns: arrbit-<script>-${log_level}-timestamp.log
+  log_level="$(printf '%s' "${ARRBIT_LOG_LEVEL}" | tr '[:upper:]' '[:lower:]')"
+  export log_level
 }
 
 # Initialise once on load
