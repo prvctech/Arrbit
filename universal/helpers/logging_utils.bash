@@ -1,17 +1,67 @@
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - logging_utils.bash
-# Version: v2.0.0-gs3.0.0
-# Purpose:
-#   • log_info, log_error, log_warning : Standardized, colorized logging for Arrbit scripts (with neon/bright colors).
-#   • arrbitLogClean       : strip ANSI colours and normalise spacing.
-#   • arrbitPurgeOldLogs   : keep only the newest N logs per script prefix (default 3).
-# Change (gs3.0.0 migration): Auto-detection removed; base fixed at /app/arrbit.
+# Version: v2.7.0-gs3.0.0 (Added VERBOSE mode: metadata without timestamp)
+# Purpose (minimal set):
+#   • log_trace / log_info / log_warning / log_error : Colorized terminal output with cyan [Arrbit] prefix.
+#   • arrbitLogClean        : Strip ANSI + trim trailing whitespace for file logs.
+#   • arrbitPurgeOldLogs    : Simple retention (keep newest N, default 3).
+#   • arrbitRefreshLogLevel : Map LOG_TYPE from config (if present) or env → ARRBIT_LOG_LEVEL.
+#   • arrbitBanner          : Standard banner (cyan prefix + green script name + optional version).
+#
+# Terminal Levels:
+#   TRACE: [Arrbit] TRACE: message (only when global mode=TRACE)
+#   INFO:  [Arrbit] message
+#   WARN:  [Arrbit] WARNING message
+#   ERROR: [Arrbit] ERROR message
+#   (FATAL removed)
+# File Log Formats:
+#   TRACE   -> [ISO8601] [LEVEL] [script:line] message (all levels incl. TRACE)
+#   VERBOSE -> [LEVEL] message (no timestamp; excludes TRACE-level lines; no script:line)
+#   INFO    -> [LEVEL] message (compact; excludes TRACE-level lines)
+#
+# Verbosity Resolution (precedence high→low):
+#   1. ARRBIT_LOG_LEVEL_OVERRIDE (TRACE|VERBOSE|INFO case-insensitive)
+#   2. ARRBIT_LOG_LEVEL (already exported)
+#   3. LOG_LEVEL or legacy LOG_TYPE in config (arrbit-config.conf)
+#   4. Default INFO
+# Config values accepted: trace | verbose | info (others → info)
+# -------------------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------------------
 
-# Fixed base path
+# Fixed base path (gs3.0.0)
 ARRBIT_BASE="/app/arrbit"
+ARRBIT_CONFIG_DIR="${ARRBIT_BASE}/config" 
 ARRBIT_LOGS_DIR="${ARRBIT_BASE}/data/logs"
 mkdir -p "${ARRBIT_LOGS_DIR}" 2>/dev/null || true
+mkdir -p "${ARRBIT_CONFIG_DIR}" 2>/dev/null || true
+
+# Refresh active log level (simplified)
+arrbitRefreshLogLevel() {
+  if [ -n "${ARRBIT_LOG_LEVEL_OVERRIDE:-}" ]; then
+    ARRBIT_LOG_LEVEL="${ARRBIT_LOG_LEVEL_OVERRIDE}"
+  elif [ -n "${ARRBIT_LOG_LEVEL:-}" ]; then
+    : # already set
+  else
+    local cfg="${ARRBIT_CONFIG_DIR}/arrbit-config.conf" raw val
+    if [ -f "$cfg" ]; then
+      # Prefer LOG_LEVEL=, fallback to legacy LOG_TYPE=
+      raw=$(grep -iE '^(LOG_LEVEL|LOG_TYPE)=' "$cfg" 2>/dev/null | tail -n1 || true)
+      val=${raw#*=}
+      val=$(printf '%s' "$val" | sed -E "s/#.*//; s/[\"']//g; s/^ *//; s/ *$//" | tr '[:upper:]' '[:lower:]')
+      case "$val" in
+        trace) ARRBIT_LOG_LEVEL=TRACE ;;
+        verbose) ARRBIT_LOG_LEVEL=VERBOSE ;;
+        info|*) ARRBIT_LOG_LEVEL=INFO ;;
+      esac
+    else
+      ARRBIT_LOG_LEVEL=INFO
+    fi
+  fi
+  export ARRBIT_LOG_LEVEL
+}
+
+# Initialise once on load
+arrbitRefreshLogLevel
 
 # Neon/Bright ANSI color codes (for terminals with 256-color or better support)
 CYAN='\033[96m'
@@ -53,16 +103,20 @@ log_error() {
   _log_emit "ERROR" "$@"
 }
 
-# Debug-level logger
-log_debug() { _log_emit "DEBUG" "$@"; }
+# TRACE-level logger (most verbose)
+log_trace() { _log_emit "TRACE" "$@"; }
+# FATAL-level logger
+ # FATAL removed (use log_error for terminal/file critical conditions)
 
 # Internal: map level name to numeric value
 _level_to_num() {
   case "${1:-INFO}" in
-    DEBUG) echo 10 ;;
+    TRACE) echo 5 ;;
+  VERBOSE) echo 15 ;; # internal gate; VERBOSE behaves like INFO for emission except excludes TRACE
     INFO)  echo 20 ;;
     WARN|WARNING) echo 30 ;;
     ERROR) echo 40 ;;
+  FATAL|CRITICAL) echo 50 ;; # retained numeric for backward compatibility if old scripts call _level_to_num
     *) echo 20 ;;
   esac
 }
@@ -102,15 +156,9 @@ _log_emit() {
 
   # Color handling: disable when ARRBIT_NO_COLOR=1 or stdout not a tty
   if [ -n "${ARRBIT_NO_COLOR:-}" ] || [ ! -t 1 ]; then
-    local C_CYAN=''
-    local C_YELLOW=''
-    local C_RED=''
-    local C_NC=''
+    local C_CYAN='' C_YELLOW='' C_RED='' C_GREEN='' C_NC=''
   else
-    local C_CYAN="$CYAN"
-    local C_YELLOW="$YELLOW"
-    local C_RED="$RED"
-    local C_NC="$NC"
+    local C_CYAN="$CYAN" C_YELLOW="$YELLOW" C_RED="$RED" C_GREEN="$GREEN" C_NC="$NC"
   fi
 
   # Timestamp
@@ -127,82 +175,64 @@ _log_emit() {
 
   # Terminal output (colored)
   case "$level" in
-    DEBUG) printf '%b\n' "${C_CYAN}[Arrbit]${C_NC} [${level}] ${msg}" ;; 
-    INFO)  printf '%b\n' "${C_CYAN}[Arrbit]${C_NC} ${msg}" ;; 
-    WARN)  printf '%b\n' "${C_CYAN}[Arrbit]${C_NC} ${C_YELLOW}WARNING:${C_NC} ${msg}" ;; 
-    ERROR) printf '%b\n' "${C_CYAN}[Arrbit]${C_NC} ${C_RED}ERROR:${C_NC} ${msg}" >&2 ;; 
-    *)     printf '%b\n' "${C_CYAN}[Arrbit]${C_NC} ${msg}" ;; 
+    TRACE) printf '%b\n' "${C_CYAN}[Arrbit]${C_NC} TRACE: ${msg}" ;;
+    INFO)  printf '%b\n' "${C_CYAN}[Arrbit]${C_NC} ${msg}" ;;
+    WARN)  printf '%b\n' "${C_CYAN}[Arrbit]${C_NC} ${C_YELLOW}WARNING${C_NC} ${msg}" ;;
+    ERROR) printf '%b\n' "${C_CYAN}[Arrbit]${C_NC} ${C_RED}ERROR${C_NC} ${msg}" >&2 ;;
+  FATAL|CRITICAL) printf '%b\n' "${C_CYAN}[Arrbit]${C_NC} ${C_RED}ERROR${C_NC} ${msg}" >&2 ;; # degrade to ERROR output if encountered
+  *)     printf '%b\n' "${C_CYAN}[Arrbit]${C_NC} ${msg}" ;;
   esac
 
-  # File output: include timestamp and caller metadata if LOG_FILE writable
+  # File output (three styles): TRACE full; VERBOSE level+message (no ts, no script:line); INFO compact
   if [[ -n "${LOG_FILE:-}" ]] && [[ -w "$(dirname "${LOG_FILE}")" ]]; then
-    printf '[%s] [%s] [%s:%s] %s\n' "$ts" "$level" "$caller_script" "$caller_line" "$msg" | arrbitLogClean >> "$LOG_FILE"
+    case "${ARRBIT_LOG_LEVEL}" in
+      TRACE)
+        printf '[%s] [%s] [%s:%s] %s\n' "$ts" "$level" "$caller_script" "$caller_line" "$msg" | arrbitLogClean >> "$LOG_FILE" ;;
+      VERBOSE)
+        case "$level" in
+          TRACE) : ;; # suppress trace lines in verbose
+          *) printf '[%s] %s\n' "$level" "$msg" | arrbitLogClean >> "$LOG_FILE" ;;
+        esac ;;
+      *)
+        case "$level" in
+          TRACE) : ;; # suppress trace lines in info
+          *) printf '[%s] %s\n' "$level" "$msg" | arrbitLogClean >> "$LOG_FILE" ;;
+        esac ;;
+    esac
   fi
 }
 
 # ------------------------------------------------
-# arrbitLogClean: Strip ALL ANSI color codes (cyan, green, yellow, red, blue, magenta, etc.), normalize spacing.
+# arrbitLogClean: Strip ANSI codes and trim trailing space (simplified)
 # ------------------------------------------------
-arrbitLogClean() {
-  # Remove ANSI escape sequences and normalize whitespace
-  # Uses POSIX -E for extended regex (more portable than -r)
-  sed -E 's/\x1B\[[0-9;]*[A-Za-z]//g' | \
-  sed -E 's/^[[:space:]]+//' | \
-  sed -E 's/\]\s+/] /' | \
-  sed -E 's/[[:space:]]{2,}/ /g' | \
-  sed -E 's/[[:space:]]+$//'
+arrbitLogClean() { sed -E 's/\x1B\[[0-9;]*[A-Za-z]//g; s/[[:space:]]+$//'; }
+
+# ---------------------------------------------------------------------------
+# arrbitBanner <script_name> [version]
+# Standard banner: cyan prefix + green script name + optional version (no log level)
+# ---------------------------------------------------------------------------
+arrbitBanner() {
+  local name="${1:-Script}" ver="${2:-}";
+  if [ -n "${ARRBIT_NO_COLOR:-}" ] || [ ! -t 1 ]; then
+    [ -n "$ver" ] && echo "[Arrbit] $name $ver" || echo "[Arrbit] $name"
+  else
+    echo -e "${CYAN}[Arrbit]${NC} ${GREEN}${name}${NC} ${ver}" | sed -E 's/ +$//' 
+  fi
 }
 
 # ------------------------------------------------
-# arrbitPurgeOldLogs  [max_files]
-# Keep only the newest max_files per prefix (arrbit-<name>-YYYY_MM_DD-HH_MM.log), default 3
+# arrbitPurgeOldLogs [max_files] [log_dir]
+# Keep newest N (default 3) arrbit-*.log using simple ls ordering.
 # ------------------------------------------------
 arrbitPurgeOldLogs() {
-  # Usage: arrbitPurgeOldLogs [max_files] [log_dir]
-  # Keep only the newest max_files per prefix (arrbit-<name>-YYYY_MM_DD-HH_MM.log), default 3
-  local max_files="${1:-3}"
-  local log_dir="${2:-}"
-
-  if [[ -z "$log_dir" ]]; then
-  log_dir="${ARRBIT_LOGS_DIR}"
-  fi
-
-  # Collect prefixes from arrbit-*.log filenames (with fallback for non-GNU find)
-  local prefixes
-  if find "$log_dir" -maxdepth 1 -printf '%f\n' >/dev/null 2>&1; then
-    # GNU find with -printf
-    prefixes=$(find "$log_dir" -maxdepth 1 -type f -name 'arrbit-*.log' -printf '%f\n' 2>/dev/null | sed -E 's/^(arrbit-[^-]+)-.*$/\1/' | sort -u || true)
-  else
-    # Fallback for BusyBox/Alpine find
-    prefixes=$(find "$log_dir" -maxdepth 1 -type f -name 'arrbit-*.log' 2>/dev/null | xargs -r basename -a | sed -E 's/^(arrbit-[^-]+)-.*$/\1/' | sort -u || true)
-  fi
-
-  if [ -z "$prefixes" ]; then
-    # Fallback: apply simple retention across generic *.log files
-    if find "$log_dir" -maxdepth 1 -printf '%T@ %p\n' >/dev/null 2>&1; then
-      # GNU find with -printf
-      mapfile -t files < <(find "$log_dir" -maxdepth 1 -type f -name '*.log' -printf '%T@ %p\n' 2>/dev/null | sort -nr | awk -v m="$max_files" 'NR>m {sub(/^[^ ]+ /,""); print}')
-    else
-      # Fallback using stat
-      mapfile -t files < <(find "$log_dir" -maxdepth 1 -type f -name '*.log' -exec stat -c '%Y %n' {} \; 2>/dev/null | sort -nr | awk -v m="$max_files" 'NR>m {sub(/^[^ ]+ /,""); print}')
+  local max="${1:-3}" dir="${2:-$ARRBIT_LOGS_DIR}" pattern
+  [ -d "$dir" ] || return 0
+  pattern="$dir/arrbit-*.log"
+  if compgen -G "$pattern" > /dev/null 2>&1; then
+    # shellcheck disable=SC2012
+    mapfile -t old < <(ls -1t "$dir"/arrbit-*.log 2>/dev/null | tail -n +$((max+1)) || true)
+    if [ "${#old[@]}" -gt 0 ]; then
+      printf '%s\n' "${old[@]}" | xargs -r rm -f --
     fi
-    for f in "${files[@]:-}"; do
-      rm -f -- "$f" 2>/dev/null || true
-    done
-    return 0
   fi
-
-  # For each prefix remove older than newest $max_files
-  while IFS= read -r prefix; do
-    if find "$log_dir" -maxdepth 1 -printf '%T@ %p\n' >/dev/null 2>&1; then
-      # GNU find with -printf
-      mapfile -t files < <(find "$log_dir" -maxdepth 1 -type f -name "${prefix}-*.log" -printf '%T@ %p\n' 2>/dev/null | sort -nr | awk -v m="$max_files" 'NR>m {sub(/^[^ ]+ /,""); print}')
-    else
-      # Fallback using stat
-      mapfile -t files < <(find "$log_dir" -maxdepth 1 -type f -name "${prefix}-*.log" -exec stat -c '%Y %n' {} \; 2>/dev/null | sort -nr | awk -v m="$max_files" 'NR>m {sub(/^[^ ]+ /,""); print}')
-    fi
-    for f in "${files[@]:-}"; do
-      rm -f -- "$f" 2>/dev/null || true
-    done
-  done <<< "$prefixes"
 }
