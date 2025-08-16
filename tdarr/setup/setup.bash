@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - Tdarr Setup Script
-# Version: v1.0.0-gs3.1.0
+# Version: v1.0.0-gs3.1.2
 # Purpose: Fetch (if needed) Arrbit repo and deploy Tdarr + shared assets to fixed Arrbit base (/app/arrbit)
 #           - Copies helpers (universal/helpers) into /app/arrbit/universal/helpers
 #           - Copies Tdarr config, plugins, scripts, data files
@@ -9,7 +9,7 @@
 # -------------------------------------------------------------------------------------------------------------
 set -euo pipefail
 
-SETUP_SCRIPT_VERSION="v1.0.0-gs3.1.0"
+SETUP_SCRIPT_VERSION="v1.0.0-gs3.1.2"
 
 ## Fixed Arrbit base (Golden Standard)
 ARRBIT_BASE="/app/arrbit"
@@ -45,7 +45,6 @@ log_info "Starting Tdarr setup script version ${SETUP_SCRIPT_VERSION}"
 
 if [ "${EUID:-$(id -u)}" -ne 0 ]; then 
   log_error "Setup script must run as root (uid=${EUID:-$(id -u)})"
-  printf '[Arrbit] ERROR: Setup requires root (uid=%s)\n' "${EUID:-$(id -u)}" >>"${LOG_FILE}"
   exit 1
 fi
 
@@ -78,8 +77,7 @@ precreate_dirs(){
   
   for d in "${dirs[@]}"; do
     if ! mkdir -p "$d" 2>/dev/null; then
-      log_error "Failed to create directory: $d"
-      printf '[Arrbit] ERROR: Failed to create directory %s\n' "$d" >>"${LOG_FILE}"
+  log_error "Failed to create directory: $d"
       return 1
     fi
     chmod 755 "$d" 2>/dev/null || true
@@ -97,22 +95,19 @@ fetch_repo(){
   
   if command_exists git; then
     if ! git clone --depth 1 --branch "${REPO_BRANCH}" "${REPO_URL}" "${FETCH_DIR}" >/dev/null 2>&1; then
-      log_error "Git clone failed for ${REPO_URL} branch ${REPO_BRANCH}"
-      printf '[Arrbit] ERROR: Git clone failed for %s branch %s\n' "${REPO_URL}" "${REPO_BRANCH}" >>"${LOG_FILE}"
+  log_error "Git clone failed for ${REPO_URL} branch ${REPO_BRANCH}"
       exit 1
     fi
   else
     mkdir -p "${FETCH_DIR}"
     local tar_url="https://codeload.github.com/prvctech/Arrbit/tar.gz/${REPO_BRANCH}"
       if ! curl -fsSL "${tar_url}" | tar -xz -C "${FETCH_DIR}"; then
-        log_error "Tarball download failed: ${tar_url}"
-        printf '[Arrbit] ERROR: Tarball download failed: %s\n' "${tar_url}" >>"${LOG_FILE}"
+  log_error "Tarball download failed: ${tar_url}"
         exit 1
       fi
     FETCH_DIR="$(find "${FETCH_DIR}" -maxdepth 1 -type d -name 'Arrbit-*' | head -n1)"
     if [ -z "${FETCH_DIR}" ]; then
-      log_error "Extracted repository directory not found after extracting ${tar_url}"
-      printf '[Arrbit] ERROR: Extracted repository directory not found after extracting %s\n' "${tar_url}" >>"${LOG_FILE}"
+  log_error "Extracted repository directory not found after extracting ${tar_url}"
       exit 1
     fi
   fi
@@ -142,7 +137,6 @@ ensure_dirs(){
   for d in "${dirs[@]}"; do
     if ! mkdir -p "$d" 2>/dev/null; then
   log_error "Failed to ensure directory structure: $d"
-  printf '[Arrbit] ERROR: Failed to ensure directory structure: %s\n' "$d" >>"${LOG_FILE}"
   return 1
     fi
     chmod 755 "$d" 2>/dev/null || true
@@ -157,7 +151,6 @@ copy_dir(){ # src dest
   
   if ! mkdir -p "${dest}"; then
   log_error "Failed to create destination directory: ${dest}"
-  printf '[Arrbit] ERROR: Failed to create destination directory: %s\n' "${dest}" >>"${LOG_FILE}"
   return 1
   fi
   
@@ -165,14 +158,12 @@ copy_dir(){ # src dest
     if ! rsync -a --delete "${src}/" "${dest}/" >/dev/null 2>&1; then
       rsync -a "${src}/" "${dest}/" 2>/dev/null || {
   log_error "Rsync copy operation failed from ${src} to ${dest}"
-  printf '[Arrbit] ERROR: Rsync copy operation failed from %s to %s\n' "${src}" "${dest}" >>"${LOG_FILE}"
   return 1
       }
     fi
   else
     if ! cp -r "${src}/." "${dest}/" 2>/dev/null; then
   log_error "Copy operation failed from ${src} to ${dest}"
-  printf '[Arrbit] ERROR: Copy operation failed from %s to %s\n' "${src}" "${dest}" >>"${LOG_FILE}"
   return 1
     fi
   fi
@@ -185,7 +176,6 @@ deploy(){
 
   if [ ! -d "${tdarr_src}" ]; then
   log_error "Tdarr directory missing in fetched repository: ${tdarr_src}"
-  printf '[Arrbit] ERROR: Tdarr directory missing in fetched repository: %s\n' "${tdarr_src}" >>"${LOG_FILE}"
   exit 1
   fi
 
@@ -210,7 +200,6 @@ deploy(){
     copy_dir "${helpers_src_b}" "${HELPERS_DEST}" || return 1
   else
   log_warning "Helpers directory not found in repository - continuing without helpers"
-  printf '[Arrbit] WARNING: Helpers directory not found in repository: %s or %s\n' "${helpers_src_a}" "${helpers_src_b}" >>"${LOG_FILE}"
   fi
   
   log_info "Tdarr deployment completed successfully"
@@ -248,7 +237,6 @@ post_checks(){
   for p in "${expected_files[@]}"; do
     if [ ! -e "$p" ]; then
   log_warning "Missing expected artifact: $p"
-  printf '[Arrbit] WARNING: Expected artifact missing after deployment: %s\n' "$p" >>"${LOG_FILE}"
       missing=1
     fi
   done
@@ -274,7 +262,6 @@ cleanup_tmp(){
         ;;
       *)
   log_warning "Refusing to delete unexpected temp path: ${FETCH_DIR}"
-  printf '[Arrbit] WARNING: Refusing to delete unexpected temp path: %s\n' "${FETCH_DIR}" >>"${LOG_FILE}"
         ;;
     esac
   fi
@@ -294,7 +281,6 @@ cleanup_tmp(){
         ;;
       *)
   log_warning "Unexpected work temp path: ${WORK_TMP_BASE}"
-  printf '[Arrbit] WARNING: Unexpected work temp path detected: %s\n' "${WORK_TMP_BASE}" >>"${LOG_FILE}"
         ;;
     esac
   fi
@@ -310,39 +296,28 @@ main(){
   
   precreate_dirs || {
   log_error "Failed to create initial directory structure"
-  printf '[Arrbit] ERROR: Failed to create initial directory structure (precreate_dirs returned non-zero)\n' >>"${LOG_FILE}"
   exit 1
   }
   
   fetch_repo || {
   log_error "Repository fetch operation failed"
-  printf '[Arrbit] ERROR: Repository fetch operation failed (fetch_repo returned non-zero)\n' >>"${LOG_FILE}"
   exit 1
   }
   
   ensure_dirs || {
   log_error "Directory structure validation failed"
-  printf '[Arrbit] ERROR: Directory structure validation failed (ensure_dirs returned non-zero)\n' >>"${LOG_FILE}"
   exit 1
   }
   
   deploy || {
   log_error "Component deployment failed"
-  printf '[Arrbit] ERROR: Component deployment failed (deploy returned non-zero)\n' >>"${LOG_FILE}"
   exit 1
   }
   
   permissions
   post_checks
 
-  # Upgrade to standard logging after helpers are in place
-  if [ -f "${HELPERS_DEST}/logging_utils.bash" ]; then
-    # shellcheck disable=SC1090
-    . "${HELPERS_DEST}/logging_utils.bash" 2>/dev/null || true
-    # Purge old logs (best effort)
-    arrbitPurgeOldLogs 2>/dev/null || true
-    log_info "Upgraded to standard logging (helpers loaded)"
-  fi
+  # Helpers (if later needed) are intentionally NOT sourced here to keep setup bootstrap silent per Golden Standard.
   
   log_info "Setup completed successfully (version ${SETUP_SCRIPT_VERSION})"
   log_info "Setup scripts located at: ${SETUP_DEST}"

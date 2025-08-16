@@ -1,14 +1,14 @@
 ﻿#!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - WhisperX Dependencies (Minimal)
-# Version: v1.0.1-gs3.1.1
+# Version: v1.0.1-gs3.1.2
 # Purpose: Install / verify minimal system + Python deps and WhisperX (CPU-only) in isolated env.
 # Notes: Assumes setup has already placed helpers; uses standard logging utilities.
 # -------------------------------------------------------------------------------------------------------------
 set -euo pipefail
 
 SCRIPT_NAME="dependencies"
-SCRIPT_VERSION="v1.0.0-gs3.1.0"
+SCRIPT_VERSION="v1.0.1-gs3.1.2"
 ARRBIT_BASE="/app/arrbit"
 ARRBIT_ENVIRONMENTS_DIR="${ARRBIT_BASE}/environments"
 WHISPERX_ENV_PATH="${ARRBIT_ENVIRONMENTS_DIR}/whisperx-env"

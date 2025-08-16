@@ -5,7 +5,6 @@
 #   • log_trace / log_info / log_warning / log_error : Colorized terminal output with cyan [Arrbit] prefix.
 #   • arrbitLogClean        : Strip ANSI + trim trailing whitespace for file logs.
 #   • arrbitPurgeOldLogs    : Simple retention (keep newest N, default 3).
-#   • arrbitRefreshLogLevel : Map LOG_TYPE from config (if present) or env → ARRBIT_LOG_LEVEL.
 #   • arrbitBanner          : Standard banner (cyan prefix + green script name + optional version).
 #
 # Terminal Levels:
@@ -219,7 +218,7 @@ arrbitBanner() {
   if [ -n "${ARRBIT_NO_COLOR:-}" ] || [ ! -t 1 ]; then
     [ -n "$ver" ] && echo "[Arrbit] $name $ver" || echo "[Arrbit] $name"
   else
-    echo -e "${CYAN}[Arrbit]${NC} ${GREEN}${name}${NC} ${ver}" | sed -E 's/ +$//' 
+    echo -e "${CYAN}[Arrbit]${NC} ${GREEN}${name} ${ver}${NC}" | sed -E 's/ +$//'
   fi
 }
 
