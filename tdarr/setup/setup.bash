@@ -1,29 +1,19 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - Tdarr Setup Script
-# Version: v1.0.0-gs3.0.0
-# Purpose: Fetch (if needed) Arrbit repo and deploy Tdarr + shared assets to auto-detected Arrbit base
-#           - Copies helpers (universal/helpers) to universal/helpers structure
-#           - Copies tdarr config, plugins, scripts, data files
-#           - Moves setup scripts to unified setup directory
+# Version: v1.0.0-gs3.1.0
+# Purpose: Fetch (if needed) Arrbit repo and deploy Tdarr + shared assets to fixed Arrbit base (/app/arrbit)
+#           - Copies helpers (universal/helpers) into /app/arrbit/universal/helpers
+#           - Copies Tdarr config, plugins, scripts, data files
+#           - Moves setup scripts to unified /app/arrbit/setup directory
 # -------------------------------------------------------------------------------------------------------------
 set -euo pipefail
 
-SETUP_SCRIPT_VERSION="v1.0.0-gs3.0.0"
+SETUP_SCRIPT_VERSION="v1.0.0-gs3.1.0"
 TRACE_ID="setup-$(date +%s)-$$"
 
-# Auto-detect or use environment override for Arrbit base
-ARRBIT_BASE="${ARRBIT_BASE:-}"
-if [[ -z "$ARRBIT_BASE" ]]; then
-  # Try common container mount points
-  for path in "/app/arrbit" "/config/arrbit" "/data/arrbit" "/opt/arrbit"; do
-    if [[ -d "$path" ]] || mkdir -p "$path" 2>/dev/null; then
-      ARRBIT_BASE="$path"
-      break
-    fi
-  done
-  [[ -z "$ARRBIT_BASE" ]] && ARRBIT_BASE="/app/arrbit"  # fallback
-fi
+## Fixed Arrbit base (Golden Standard)
+ARRBIT_BASE="/app/arrbit"
 SETUP_DEST="${ARRBIT_BASE}/setup"
 HELPERS_DEST="${ARRBIT_BASE}/universal/helpers"
 
@@ -36,7 +26,8 @@ FETCH_DIR=""
 LOG_DIR="${ARRBIT_BASE}/data/logs"
 mkdir -p "${LOG_DIR}" 2>/dev/null || true
 chmod 755 "${LOG_DIR}" 2>/dev/null || true
-LOG_FILE="${LOG_DIR}/arrbit-setup-$(date +%Y_%m_%d-%H_%M).log"
+# Mode-aware filename (bootstrap uses INFO by default)
+LOG_FILE="${LOG_DIR}/arrbit-setup-info-$(date +%Y_%m_%d-%H_%M).log"
 touch "${LOG_FILE}" 2>/dev/null || true
 chmod 644 "${LOG_FILE}" 2>/dev/null || true
 
@@ -53,20 +44,14 @@ chmod 755 "${ARRBIT_BASE}" 2>/dev/null || true
 log_info "Starting Tdarr setup script version ${SETUP_SCRIPT_VERSION} (trace_id: ${TRACE_ID})"
 
 if [ "${EUID:-$(id -u)}" -ne 0 ]; then 
-  log_error "Setup script must run as root"
-  cat <<EOF >>"${LOG_FILE}"
-
-[Arrbit] ERROR: Setup script must run as root
-CAUSE: Current user ID ${EUID:-$(id -u)} is not root (0)
-RESOLUTION: Run this script with sudo or as root user
-CONTEXT: script=setup, trace_id=${TRACE_ID}, user_id=${EUID:-$(id -u)}
-EOF
+  log_error "Setup script must run as root (uid=${EUID:-$(id -u)})"
+  printf '[Arrbit] ERROR: Setup requires root (uid=%s)\n' "${EUID:-$(id -u)}" >>"${LOG_FILE}"
   exit 1
 fi
 
 command_exists(){ command -v "$1" >/dev/null 2>&1; }
 
-prepare_tmp(){ mkdir -p "${TMP_ROOT}"; chmod 777 "${WORK_TMP_BASE}" "${TMP_ROOT}" 2>/dev/null || true; }
+prepare_tmp(){ mkdir -p "${TMP_ROOT}"; chmod 755 "${WORK_TMP_BASE}" "${TMP_ROOT}" 2>/dev/null || true; }
 
 # Pre-create all required directories BEFORE fetching so that permissions are correct
 precreate_dirs(){
@@ -93,13 +78,8 @@ precreate_dirs(){
   
   for d in "${dirs[@]}"; do
     if ! mkdir -p "$d" 2>/dev/null; then
-      cat <<EOF >>"${LOG_FILE}"
-
-[Arrbit] ERROR: Failed to create directory structure
-CAUSE: Cannot create directory: $d
-RESOLUTION: Check filesystem permissions and available disk space
-CONTEXT: script=setup, function=precreate_dirs, trace_id=${TRACE_ID}, dir=$d
-EOF
+      log_error "Failed to create directory: $d"
+      printf '[Arrbit] ERROR: Failed to create directory %s\n' "$d" >>"${LOG_FILE}"
       return 1
     fi
     chmod 755 "$d" 2>/dev/null || true
@@ -117,37 +97,22 @@ fetch_repo(){
   
   if command_exists git; then
     if ! git clone --depth 1 --branch "${REPO_BRANCH}" "${REPO_URL}" "${FETCH_DIR}" >/dev/null 2>&1; then
-      cat <<EOF >>"${LOG_FILE}"
-
-[Arrbit] ERROR: Git clone operation failed
-CAUSE: Cannot clone repository ${REPO_URL} branch ${REPO_BRANCH}
-RESOLUTION: Check network connectivity and repository access permissions
-CONTEXT: script=setup, function=fetch_repo, trace_id=${TRACE_ID}, repo=${REPO_URL}
-EOF
+      log_error "Git clone failed for ${REPO_URL} branch ${REPO_BRANCH}"
+      printf '[Arrbit] ERROR: Git clone failed for %s branch %s\n' "${REPO_URL}" "${REPO_BRANCH}" >>"${LOG_FILE}"
       exit 1
     fi
   else
     mkdir -p "${FETCH_DIR}"
     local tar_url="https://codeload.github.com/prvctech/Arrbit/tar.gz/${REPO_BRANCH}"
-    if ! curl -fsSL "${tar_url}" | tar -xz -C "${FETCH_DIR}"; then
-      cat <<EOF >>"${LOG_FILE}"
-
-[Arrbit] ERROR: Tarball download failed
-CAUSE: Cannot download or extract ${tar_url}
-RESOLUTION: Check network connectivity and ensure curl/tar are available
-CONTEXT: script=setup, function=fetch_repo, trace_id=${TRACE_ID}, url=${tar_url}
-EOF
-      exit 1
-    fi
+      if ! curl -fsSL "${tar_url}" | tar -xz -C "${FETCH_DIR}"; then
+        log_error "Tarball download failed: ${tar_url}"
+        printf '[Arrbit] ERROR: Tarball download failed: %s\n' "${tar_url}" >>"${LOG_FILE}"
+        exit 1
+      fi
     FETCH_DIR="$(find "${FETCH_DIR}" -maxdepth 1 -type d -name 'Arrbit-*' | head -n1)"
     if [ -z "${FETCH_DIR}" ]; then
-      cat <<EOF >>"${LOG_FILE}"
-
-[Arrbit] ERROR: Extracted repository directory not found
-CAUSE: Cannot locate Arrbit-* directory after extraction
-RESOLUTION: Verify tarball extraction and directory structure
-CONTEXT: script=setup, function=fetch_repo, trace_id=${TRACE_ID}
-EOF
+      log_error "Extracted repository directory not found after extracting ${tar_url}"
+      printf '[Arrbit] ERROR: Extracted repository directory not found after extracting %s\n' "${tar_url}" >>"${LOG_FILE}"
       exit 1
     fi
   fi
@@ -176,14 +141,9 @@ ensure_dirs(){
   
   for d in "${dirs[@]}"; do
     if ! mkdir -p "$d" 2>/dev/null; then
-      cat <<EOF >>"${LOG_FILE}"
-
-[Arrbit] ERROR: Failed to ensure directory structure
-CAUSE: Cannot create directory: $d
-RESOLUTION: Check filesystem permissions and available disk space
-CONTEXT: script=setup, function=ensure_dirs, trace_id=${TRACE_ID}, dir=$d
-EOF
-      return 1
+  log_error "Failed to ensure directory structure: $d"
+  printf '[Arrbit] ERROR: Failed to ensure directory structure: %s\n' "$d" >>"${LOG_FILE}"
+  return 1
     fi
     chmod 755 "$d" 2>/dev/null || true
   done
@@ -196,39 +156,24 @@ copy_dir(){ # src dest
   [ ! -d "${src}" ] && return 0
   
   if ! mkdir -p "${dest}"; then
-    cat <<EOF >>"${LOG_FILE}"
-
-[Arrbit] ERROR: Failed to create destination directory
-CAUSE: Cannot create directory: ${dest}
-RESOLUTION: Check filesystem permissions and available disk space
-CONTEXT: script=setup, function=copy_dir, trace_id=${TRACE_ID}, dest=${dest}
-EOF
-    return 1
+  log_error "Failed to create destination directory: ${dest}"
+  printf '[Arrbit] ERROR: Failed to create destination directory: %s\n' "${dest}" >>"${LOG_FILE}"
+  return 1
   fi
   
   if command_exists rsync; then
     if ! rsync -a --delete "${src}/" "${dest}/" >/dev/null 2>&1; then
       rsync -a "${src}/" "${dest}/" 2>/dev/null || {
-        cat <<EOF >>"${LOG_FILE}"
-
-[Arrbit] ERROR: Rsync copy operation failed
-CAUSE: Cannot copy from ${src} to ${dest}
-RESOLUTION: Check source directory exists and destination is writable
-CONTEXT: script=setup, function=copy_dir, trace_id=${TRACE_ID}, src=${src}, dest=${dest}
-EOF
-        return 1
+  log_error "Rsync copy operation failed from ${src} to ${dest}"
+  printf '[Arrbit] ERROR: Rsync copy operation failed from %s to %s\n' "${src}" "${dest}" >>"${LOG_FILE}"
+  return 1
       }
     fi
   else
     if ! cp -r "${src}/." "${dest}/" 2>/dev/null; then
-      cat <<EOF >>"${LOG_FILE}"
-
-[Arrbit] ERROR: Copy operation failed
-CAUSE: Cannot copy from ${src} to ${dest}
-RESOLUTION: Check source directory exists and destination is writable
-CONTEXT: script=setup, function=copy_dir, trace_id=${TRACE_ID}, src=${src}, dest=${dest}
-EOF
-      return 1
+  log_error "Copy operation failed from ${src} to ${dest}"
+  printf '[Arrbit] ERROR: Copy operation failed from %s to %s\n' "${src}" "${dest}" >>"${LOG_FILE}"
+  return 1
     fi
   fi
 }
@@ -239,14 +184,9 @@ deploy(){
   local helpers_src_b="${FETCH_DIR}/helpers" # fallback if structure changes
 
   if [ ! -d "${tdarr_src}" ]; then
-    cat <<EOF >>"${LOG_FILE}"
-
-[Arrbit] ERROR: Tdarr directory missing in fetched repository
-CAUSE: Directory ${tdarr_src} does not exist in cloned repository
-RESOLUTION: Verify repository structure and ensure Tdarr components are present
-CONTEXT: script=setup, function=deploy, trace_id=${TRACE_ID}, expected_dir=${tdarr_src}
-EOF
-    exit 1
+  log_error "Tdarr directory missing in fetched repository: ${tdarr_src}"
+  printf '[Arrbit] ERROR: Tdarr directory missing in fetched repository: %s\n' "${tdarr_src}" >>"${LOG_FILE}"
+  exit 1
   fi
 
   log_info "Deploying Tdarr components"
@@ -268,14 +208,8 @@ EOF
     log_info "Deploying helpers (fallback root helpers structure)"
     copy_dir "${helpers_src_b}" "${HELPERS_DEST}" || return 1
   else
-    cat <<EOF >>"${LOG_FILE}"
-
-[Arrbit] WARNING: Helpers directory not found in repository
-CAUSE: Neither ${helpers_src_a} nor ${helpers_src_b} exists
-RESOLUTION: Verify repository structure contains helper functions
-CONTEXT: script=setup, function=deploy, trace_id=${TRACE_ID}
-EOF
-    log_warning "Helpers directory not found in repository - continuing without helpers"
+  log_warning "Helpers directory not found in repository - continuing without helpers"
+  printf '[Arrbit] WARNING: Helpers directory not found in repository: %s or %s\n' "${helpers_src_a}" "${helpers_src_b}" >>"${LOG_FILE}"
   fi
   
   log_info "Tdarr deployment completed successfully"
@@ -312,14 +246,8 @@ post_checks(){
   
   for p in "${expected_files[@]}"; do
     if [ ! -e "$p" ]; then
-      cat <<EOF >>"${LOG_FILE}"
-
-[Arrbit] WARNING: Expected artifact missing after deployment
-CAUSE: File or directory not found: $p
-RESOLUTION: Verify deployment completed successfully and repository structure
-CONTEXT: script=setup, function=post_checks, trace_id=${TRACE_ID}, missing_file=$p
-EOF
-      log_warning "Missing expected artifact: $p"
+  log_warning "Missing expected artifact: $p"
+  printf '[Arrbit] WARNING: Expected artifact missing after deployment: %s\n' "$p" >>"${LOG_FILE}"
       missing=1
     fi
   done
@@ -344,14 +272,8 @@ cleanup_tmp(){
         fi
         ;;
       *)
-        cat <<EOF >>"${LOG_FILE}"
-
-[Arrbit] WARNING: Refusing to delete unexpected temp path
-CAUSE: FETCH_DIR path ${FETCH_DIR} is outside expected TMP_ROOT
-RESOLUTION: Manual cleanup may be required for this directory
-CONTEXT: script=setup, function=cleanup_tmp, trace_id=${TRACE_ID}, fetch_dir=${FETCH_DIR}
-EOF
-        log_warning "Refusing to delete unexpected temp path: ${FETCH_DIR}"
+  log_warning "Refusing to delete unexpected temp path: ${FETCH_DIR}"
+  printf '[Arrbit] WARNING: Refusing to delete unexpected temp path: %s\n' "${FETCH_DIR}" >>"${LOG_FILE}"
         ;;
     esac
   fi
@@ -370,14 +292,8 @@ EOF
         fi
         ;;
       *)
-        cat <<EOF >>"${LOG_FILE}"
-
-[Arrbit] WARNING: Unexpected work temp path detected
-CAUSE: WORK_TMP_BASE path ${WORK_TMP_BASE} is outside expected location
-RESOLUTION: Manual cleanup may be required for this directory
-CONTEXT: script=setup, function=cleanup_tmp, trace_id=${TRACE_ID}, work_tmp_base=${WORK_TMP_BASE}
-EOF
-        log_warning "Unexpected work temp path: ${WORK_TMP_BASE}"
+  log_warning "Unexpected work temp path: ${WORK_TMP_BASE}"
+  printf '[Arrbit] WARNING: Unexpected work temp path detected: %s\n' "${WORK_TMP_BASE}" >>"${LOG_FILE}"
         ;;
     esac
   fi
@@ -392,51 +308,40 @@ main(){
   log_info "Starting Tdarr setup process (trace_id: ${TRACE_ID})"
   
   precreate_dirs || {
-    cat <<EOF >>"${LOG_FILE}"
-
-[Arrbit] ERROR: Failed to create initial directory structure
-CAUSE: precreate_dirs function returned non-zero exit code
-RESOLUTION: Check filesystem permissions and available disk space
-CONTEXT: script=setup, function=main, trace_id=${TRACE_ID}
-EOF
-    exit 1
+  log_error "Failed to create initial directory structure"
+  printf '[Arrbit] ERROR: Failed to create initial directory structure (precreate_dirs returned non-zero)\n' >>"${LOG_FILE}"
+  exit 1
   }
   
   fetch_repo || {
-    cat <<EOF >>"${LOG_FILE}"
-
-[Arrbit] ERROR: Repository fetch operation failed
-CAUSE: fetch_repo function returned non-zero exit code
-RESOLUTION: Check network connectivity and repository accessibility
-CONTEXT: script=setup, function=main, trace_id=${TRACE_ID}
-EOF
-    exit 1
+  log_error "Repository fetch operation failed"
+  printf '[Arrbit] ERROR: Repository fetch operation failed (fetch_repo returned non-zero)\n' >>"${LOG_FILE}"
+  exit 1
   }
   
   ensure_dirs || {
-    cat <<EOF >>"${LOG_FILE}"
-
-[Arrbit] ERROR: Directory structure validation failed
-CAUSE: ensure_dirs function returned non-zero exit code
-RESOLUTION: Check filesystem permissions and available disk space
-CONTEXT: script=setup, function=main, trace_id=${TRACE_ID}
-EOF
-    exit 1
+  log_error "Directory structure validation failed"
+  printf '[Arrbit] ERROR: Directory structure validation failed (ensure_dirs returned non-zero)\n' >>"${LOG_FILE}"
+  exit 1
   }
   
   deploy || {
-    cat <<EOF >>"${LOG_FILE}"
-
-[Arrbit] ERROR: Component deployment failed
-CAUSE: deploy function returned non-zero exit code
-RESOLUTION: Verify repository structure and deployment permissions
-CONTEXT: script=setup, function=main, trace_id=${TRACE_ID}
-EOF
-    exit 1
+  log_error "Component deployment failed"
+  printf '[Arrbit] ERROR: Component deployment failed (deploy returned non-zero)\n' >>"${LOG_FILE}"
+  exit 1
   }
   
   permissions
   post_checks
+
+  # Upgrade to standard logging after helpers are in place
+  if [ -f "${HELPERS_DEST}/logging_utils.bash" ]; then
+    # shellcheck disable=SC1090
+    . "${HELPERS_DEST}/logging_utils.bash" 2>/dev/null || true
+    # Purge old logs (best effort)
+    arrbitPurgeOldLogs 2>/dev/null || true
+    log_info "Upgraded to standard logging (helpers loaded)"
+  fi
   
   log_info "Setup completed successfully (version ${SETUP_SCRIPT_VERSION}, trace_id: ${TRACE_ID})"
   log_info "Setup scripts located at: ${SETUP_DEST}"
@@ -444,10 +349,7 @@ EOF
   log_info "Next: run dependencies (dependencies.bash) from ${SETUP_DEST} if not already executed"
   log_info "Log file: ${LOG_FILE}"
   
-  # Integrate helper logging utilities if available
-  if [ -f "${HELPERS_DEST}/universal/helpers/logging_utils.bash" ]; then
-    log_info "Helper logging utilities available for future scripts"
-  fi
+  # Helpers now available if present above; no further action needed
 }
 
 # Execute main function with all provided arguments
