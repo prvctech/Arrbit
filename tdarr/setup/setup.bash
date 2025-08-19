@@ -10,7 +10,7 @@
 # -------------------------------------------------------------------------------------------------------------
 set -euo pipefail
 
-export SETUP_SCRIPT_VERSION="v1.0.0-gs3.1.2"
+SETUP_SCRIPT_VERSION="v1.0.0-gs3.1.2"
 ARRBIT_BASE="/app/arrbit"
 SETUP_DEST="${ARRBIT_BASE}/setup"
 HELPERS_DEST="${ARRBIT_BASE}/universal/helpers"
