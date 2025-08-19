@@ -14,6 +14,12 @@ ARRBIT_BASE="/app/arrbit"
 ARRBIT_ENVIRONMENTS_DIR="${ARRBIT_BASE}/environments"
 WHISPERX_ENV_PATH="${ARRBIT_ENVIRONMENTS_DIR}/whisperx-env"
 FORCE_REINSTALL="${ARRBIT_FORCE_DEPS:-0}"
+# Minimal install mode: set ARRBIT_MINIMAL_WHISPERX=1 to install only the bare
+# runtime packages required for basic whisperx operation. Optionally override
+# package list via ARRBIT_WHISPERX_MINIMAL_PKGS (space-separated pip spec).
+ARRBIT_MINIMAL_WHISPERX="${ARRBIT_MINIMAL_WHISPERX:-0}"
+# Default minimal package set (keeps size small but functional)
+ARRBIT_WHISPERX_MINIMAL_PKGS="whisperx onnxruntime ctranslate2 faster-whisper"
 
 # Source helpers (guaranteed after setup)
 source "${ARRBIT_BASE}/universal/helpers/logging_utils.bash"
@@ -112,7 +118,20 @@ PIP="${WHISPERX_ENV_PATH}/bin/pip"
 PY="${WHISPERX_ENV_PATH}/bin/python"
 run_step "Upgrade pip/setuptools/wheel" "${PIP}" install --no-cache-dir --upgrade pip setuptools wheel
 run_step "Install torch (CPU)" "${PIP}" install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-run_step "Install whisperx" "${PIP}" install --no-cache-dir whisperx
+# Decide which packages to install for whisperx
+if [[ "${ARRBIT_MINIMAL_WHISPERX}" == "1" ]]; then
+	log_info "Minimal WhisperX install enabled"
+	# Allow override from environment
+	if [[ -n "${ARRBIT_WHISPERX_MINIMAL_PKGS:-}" ]]; then
+		minimal_pkgs="${ARRBIT_WHISPERX_MINIMAL_PKGS}"
+	else
+		minimal_pkgs="${ARRBIT_WHISPERX_MINIMAL_PKGS}"
+	fi
+	# Install only the minimal package set
+	run_step "Install whisperx (minimal)" "${PIP}" install --no-cache-dir ${minimal_pkgs}
+else
+	run_step "Install whisperx" "${PIP}" install --no-cache-dir whisperx
+fi
 run_step "Verify whisperx import" "${PY}" -c 'import whisperx'
 
 log_info "Installation successful"
