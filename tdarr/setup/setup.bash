@@ -10,16 +10,13 @@
 # -------------------------------------------------------------------------------------------------------------
 set -euo pipefail
 
-# shellcheck disable=SC2034 # SETUP_SCRIPT_VERSION exposed for external tooling/metadata introspection
 export SETUP_SCRIPT_VERSION="v1.0.0-gs3.1.2"
-
-## Fixed Arrbit base (Golden Standard)
 ARRBIT_BASE="/app/arrbit"
 SETUP_DEST="${ARRBIT_BASE}/setup"
 HELPERS_DEST="${ARRBIT_BASE}/universal/helpers"
 
 REPO_URL="${ARRBIT_REPO_URL:-https://github.com/prvctech/Arrbit.git}"
-REPO_BRANCH="${ARRBIT_BRANCH:-main}"
+REPO_BRANCH="${ARRBIT_BRANCH:-chore/lint-triage}"
 WORK_TMP_BASE="${ARRBIT_BASE}/data/temp"
 TMP_ROOT="${WORK_TMP_BASE}/fetch"
 FETCH_DIR=""
