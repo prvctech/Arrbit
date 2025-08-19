@@ -1,6 +1,6 @@
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - logging_utils.bash
-# Version: v2.7.0-gs3.0.0 (Added VERBOSE mode: metadata without timestamp)
+# Version: v2.7.1-gs3.0.0 (Fix: log level detection, VERBOSE now includes TRACE lines, config fallback path)
 # Purpose (minimal set):
 #   • log_trace / log_info / log_warning / log_error : Colorized terminal output with cyan [Arrbit] prefix.
 #   • arrbitLogClean        : Strip ANSI + trim trailing whitespace for file logs.
@@ -15,7 +15,7 @@
 #
 # File Log Formats:
 #   TRACE   -> [ISO8601] [LEVEL] [script:line] message (all levels incl. TRACE)
-#   VERBOSE -> [LEVEL] message (no timestamp; excludes TRACE-level lines; no script:line)
+#   VERBOSE -> [LEVEL] message (no timestamp; includes TRACE lines; no script:line)
 #   INFO    -> [LEVEL] message (compact; excludes TRACE-level lines)
 #
 # Verbosity Resolution (precedence high→low):
@@ -34,31 +34,58 @@ ARRBIT_LOGS_DIR="${ARRBIT_BASE}/data/logs"
 mkdir -p "${ARRBIT_LOGS_DIR}" 2>/dev/null || true
 mkdir -p "${ARRBIT_CONFIG_DIR}" 2>/dev/null || true
 
-# Refresh active log level (simplified) and export lowercase identifier `log_level`
-arrbitRefreshLogLevel() {
-	if [ -n "${ARRBIT_LOG_LEVEL_OVERRIDE-}" ]; then
-		ARRBIT_LOG_LEVEL="${ARRBIT_LOG_LEVEL_OVERRIDE}"
-	elif [ -n "${ARRBIT_LOG_LEVEL-}" ]; then
-		: # already set
+_arrbitDetectConfigFile() {
+	# Primary fixed path, then common container mount path (/config)
+	local p1="${ARRBIT_CONFIG_DIR}/arrbit-config.conf" p2="/config/arrbit/config/arrbit-config.conf"
+	if [ -f "$p1" ]; then
+		printf '%s' "$p1"
+	elif [ -f "$p2" ]; then
+		printf '%s' "$p2"
 	else
-		local cfg="${ARRBIT_CONFIG_DIR}/arrbit-config.conf" raw val
-		if [ -f "$cfg" ]; then
-			# Prefer LOG_LEVEL=
+		return 1
+	fi
+}
+
+# Refresh active log level and export lowercase identifier `log_level`.
+# Precedence:
+# 1. ARRBIT_LOG_LEVEL_OVERRIDE (explicit override)
+# 2. ARRBIT_LOG_LEVEL (environment export/user supplied)
+# 3. Config LOG_LEVEL= or legacy LOG_TYPE=
+# 4. Default INFO
+arrbitRefreshLogLevel() {
+	local chosen="" raw val cfg
+	if [ -n "${ARRBIT_LOG_LEVEL_OVERRIDE-}" ]; then
+		chosen="${ARRBIT_LOG_LEVEL_OVERRIDE}"
+	elif [ -n "${ARRBIT_LOG_LEVEL-}" ]; then
+		chosen="${ARRBIT_LOG_LEVEL}"
+	else
+		if cfg=$(_arrbitDetectConfigFile); then
+			# Prefer LOG_LEVEL, fallback to LOG_TYPE (legacy) if LOG_LEVEL absent
 			raw=$(grep -iE '^(LOG_LEVEL)=' "$cfg" 2>/dev/null | tail -n1 || true)
+			if [ -z "$raw" ]; then
+				raw=$(grep -iE '^(LOG_TYPE)=' "$cfg" 2>/dev/null | tail -n1 || true)
+			fi
 			val=${raw#*=}
 			val=$(printf '%s' "$val" | sed -E "s/#.*//; s/[\"']//g; s/^ *//; s/ *$//" | tr '[:upper:]' '[:lower:]')
 			case "$val" in
-			trace) ARRBIT_LOG_LEVEL=TRACE ;;
-			verbose) ARRBIT_LOG_LEVEL=VERBOSE ;;
-			info | *) ARRBIT_LOG_LEVEL=INFO ;;
+				trace) chosen=TRACE ;;
+				verbose) chosen=VERBOSE ;;
+				info) chosen=INFO ;;
+				*) chosen=INFO ;;
 			esac
 		else
-			ARRBIT_LOG_LEVEL=INFO
+			chosen=INFO
 		fi
 	fi
+
+	# Normalise + export
+	case "${chosen^^}" in
+		TRACE) ARRBIT_LOG_LEVEL=TRACE ;;
+		VERBOSE) ARRBIT_LOG_LEVEL=VERBOSE ;;
+		INFO | *) ARRBIT_LOG_LEVEL=INFO ;;
+	esac
 	export ARRBIT_LOG_LEVEL
-	# Provide lowercase identifier for filename patterns: arrbit-<script>-${log_level}-timestamp.log
-	log_level="$(printf '%s' "${ARRBIT_LOG_LEVEL}" | tr '[:upper:]' '[:lower:]')"
+	log_level=$(printf '%s' "${ARRBIT_LOG_LEVEL}" | tr '[:upper:]' '[:lower:]')
 	export log_level
 }
 
@@ -112,26 +139,19 @@ log_trace() { _log_emit "TRACE" "$@"; }
 # FATAL-level logger
 # FATAL removed (use log_error for terminal/file critical conditions)
 
-# Internal: map level name to numeric value
-_level_to_num() {
-	case "${1:-INFO}" in
-	TRACE) echo 5 ;;
-	VERBOSE) echo 15 ;; # internal gate; VERBOSE behaves like INFO for emission except excludes TRACE
-	INFO) echo 20 ;;
-	WARN | WARNING) echo 30 ;;
-	ERROR) echo 40 ;;
-	FATAL | CRITICAL) echo 50 ;; # retained numeric for backward compatibility if old scripts call _level_to_num
-	*) echo 20 ;;
-	esac
-}
-
-# Internal: decide if message should be emitted based on ARBIT_LOG_LEVEL
 _should_log() {
-	local req
-	req=$(_level_to_num "$1")
-	local cur
-	cur=$(_level_to_num "${ARRBIT_LOG_LEVEL:-INFO}")
-	[ "$req" -ge "$cur" ] && return 0 || return 1
+	# TRACE: everything. VERBOSE: everything (now includes TRACE). INFO: suppress TRACE lines only.
+	local lvl="${1:-INFO}" current="${ARRBIT_LOG_LEVEL:-INFO}"
+	case "$current" in
+		TRACE) return 0 ;;
+		VERBOSE) return 0 ;;
+		INFO)
+			[ "$lvl" = TRACE ] && return 1 || return 0
+			;;
+		*) # fallback behaves like INFO
+			[ "$lvl" = TRACE ] && return 1 || return 0
+			;;
+	esac
 }
 
 # Initialize log file safely (creates parent dir, touches file)
@@ -195,16 +215,12 @@ _log_emit() {
 			printf '[%s] [%s] [%s:%s] %s\n' "$ts" "$level" "$caller_script" "$caller_line" "$msg" | arrbitLogClean >>"$LOG_FILE"
 			;;
 		VERBOSE)
-			case "$level" in
-			TRACE) : ;; # suppress trace lines in verbose
-			*) printf '[%s] %s\n' "$level" "$msg" | arrbitLogClean >>"$LOG_FILE" ;;
-			esac
+			# Include TRACE lines (simplified format)
+			printf '[%s] %s\n' "$level" "$msg" | arrbitLogClean >>"$LOG_FILE"
 			;;
 		*)
-			case "$level" in
-			TRACE) : ;; # suppress trace lines in info
-			*) printf '[%s] %s\n' "$level" "$msg" | arrbitLogClean >>"$LOG_FILE" ;;
-			esac
+			# INFO mode (suppress TRACE)
+			[ "$level" = TRACE ] || printf '[%s] %s\n' "$level" "$msg" | arrbitLogClean >>"$LOG_FILE"
 			;;
 		esac
 	fi
