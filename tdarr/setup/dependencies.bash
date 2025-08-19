@@ -21,7 +21,7 @@ source "${ARRBIT_BASE}/universal/helpers/helpers.bash"
 arrbitPurgeOldLogs
 
 # Initialize log file (log_level exported by helpers)
-LOG_FILE="${ARRBIT_BASE}/data/logs/arrbit-${SCRIPT_NAME}-${log_level}-$(date +%Y_%m_%d-%H_%M).log"
+LOG_FILE="${ARRBIT_LOGS_DIR}/arrbit-${SCRIPT_NAME}-${log_level}-$(date +%Y_%m_%d-%H_%M).log"
 arrbitInitLog "${LOG_FILE}"
 arrbitBanner "${SCRIPT_NAME}" "${SCRIPT_VERSION}"
 
@@ -57,16 +57,26 @@ run_step() {
 		fi
 		return 0
 	fi
-	# VERBOSE / TRACE: stream output line-by-line as trace
-	log_trace "Running: ${cmd[*]}"
-	if ! "${cmd[@]}" 2>&1 | while IFS= read -r line; do
-		# Skip empty lines to reduce noise
-		[[ -z "$line" ]] && continue
-		log_trace "$line"
-	done; then
-		log_error "${desc} failed"
-		exit 1
-	fi
+
+	# For VERBOSE/TRACE we capture to a temp file so we can both stream as trace
+	# and also dump the full raw output into the centralized log for post-mortem.
+			# Use a persistent .log file in the primary logs folder so artifacts remain
+			local step_log
+			step_log="${ARRBIT_LOGS_DIR}/arrbit-${SCRIPT_NAME}-step-$(date +%Y_%m_%d-%H_%M_%S)-$$.log"
+		log_trace "Running: ${cmd[*]} (output -> ${step_log})"
+		if ! "${cmd[@]}" >"${step_log}" 2>&1; then
+			# On failure, stream the captured output as trace for context
+			while IFS= read -r line; do [[ -z "$line" ]] && continue; log_trace "$line"; done <"${step_log}" || true
+			log_error "${desc} failed"
+			# Append raw output to main LOG_FILE for artifact preservation
+			cat "${step_log}" | arrbitLogClean >>"${LOG_FILE}" || true
+			exit 1
+		fi
+
+		# On success, stream captured output as trace and append raw to LOG_FILE
+		while IFS= read -r line; do [[ -z "$line" ]] && continue; log_trace "$line"; done <"${step_log}" || true
+		cat "${step_log}" | arrbitLogClean >>"${LOG_FILE}" || true
+		# keep the per-step log as an artifact; do not remove it
 }
 
 run_step "apt-get update" apt-get update -y
