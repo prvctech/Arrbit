@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2317 # safe_rm_dir lines falsely flagged unreachable; function invoked via cleanup path
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - Tdarr Setup Script
 # Version: v1.0.0-gs3.1.2
@@ -37,23 +38,23 @@ log_info() { printf '[INFO] %s\n' "$*" >>"${LOG_FILE}"; }
 log_warning() { printf '[WARN] %s\n' "$*" >>"${LOG_FILE}"; }
 log_error() { printf '[ERROR] %s\n' "$*" >>"${LOG_FILE}"; }
 # Ensure base exists with correct perms
-if [[ ! -d "${ARRBIT_BASE}" ]]; then
+if [[ ! -d ${ARRBIT_BASE} ]]; then
 	mkdir -p "${ARRBIT_BASE}" 2>/dev/null || true
 fi
 chmod 755 "${ARRBIT_BASE}" 2>/dev/null || true
 
-safe_rm_dir() {
+safe_rm_dir() { # shellcheck disable=SC2317 # Function may appear unreachable to analyzer; invoked indirectly
 	local path="${1-}"
 	# Ensure path is non-empty and within expected TMP_ROOT prefix before removing
-	if [[ -n $path && $path == "${TMP_ROOT}"* ]]; then
-		rm -rf -- "$path" 2>/dev/null || true
+	if [[ -n ${path} && ${path} == "${TMP_ROOT}"* ]]; then
+		rm -rf -- "${path}" 2>/dev/null || true
 	else
-		log_warning "Refusing to remove unsafe path: $path"
+		log_warning "Refusing to remove unsafe path: ${path}"
 	fi
 }
 log_info "Starting Tdarr setup script version ${SETUP_SCRIPT_VERSION}"
 
-if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
 	log_error "Setup script must run as root (uid=${EUID:-$(id -u)})"
 	exit 1
 fi
@@ -336,4 +337,5 @@ main() {
 
 # Execute main function with all provided arguments
 main "$@"
+# shellcheck disable=SC2317 # Exit line reachable when script executed normally; false positive due to analysis limitations
 exit 0
