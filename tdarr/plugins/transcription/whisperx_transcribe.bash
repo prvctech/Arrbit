@@ -6,7 +6,7 @@ PLUGIN_DESCRIPTION="Transcribe audio using WhisperX isolated environment"
 
 main() {
 	local in="$1" outdir="$2" base text
-	if [[ ! -f "$in" ]]; then
+	if [[ ! -f $in ]]; then
 		echo "Input missing: $in" >&2
 		return 1
 	fi

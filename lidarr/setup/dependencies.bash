@@ -83,7 +83,7 @@ PY
 
 # Early-skip logic
 if [[ -f $SETUP_VERSION_FILE ]]; then
-	source "$SETUP_VERSION_FILE"
+	source "${SETUP_VERSION_FILE}"
 	if [[ $CURRENT_VERSION == "${setupversion-}" ]]; then
 		m_cmds="$(list_missing_cmds)"
 		m_py="$(list_missing_py)"

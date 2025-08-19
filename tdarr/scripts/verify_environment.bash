@@ -8,7 +8,7 @@ for d in \
 	"$BASE" "$TDARR" "$TDARR/environments" "$TDARR/plugins/transcription" \
 	"$TDARR/data/models/whisper" "$TDARR/data/cache" "$TDARR/data/temp" "$TDARR/data/logs" \
 	"$TDARR/scripts" "$TDARR/config" "$TDARR/setup_scripts"; do
-	[[ -d "$d" ]] && echo "[OK] $d" || echo "[MISS] $d"
+	[[ -d $d ]] && echo "[OK] $d" || echo "[MISS] $d"
 done
 if [[ -f "$ENV/bin/python" ]]; then
 	echo "[OK] venv python present"

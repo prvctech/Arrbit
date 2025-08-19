@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - autoconfig.bash
 # Version: v1.0.2-gs2.8.2
@@ -11,11 +12,10 @@ source /config/arrbit/helpers/logging_utils.bash
 arrbitPurgeOldLogs
 
 SCRIPT_NAME="autoconfig"
-# shellcheck disable=SC2034 # CONFIG_FILE is read by runtime tooling / exported for callers
+# shellcheck disable=SC2034 # SCRIPT_VERSION for tooling
 SCRIPT_VERSION="v1.0.2-gs2.8.2"
 ARRBIT_ROOT="/config/arrbit"
-# shellcheck disable=SC2034 # CONFIG_FILE is read by runtime tooling / exported for callers
-CONFIG_FILE="$ARRBIT_ROOT/config/arrbit-config.conf"
+export CONFIG_FILE="$ARRBIT_ROOT/config/arrbit-config.conf" # address SC2034 by exporting
 MODULES_DIR="$ARRBIT_ROOT/modules"
 LOG_DIR="/config/logs"
 LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
