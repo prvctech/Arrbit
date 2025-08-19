@@ -16,7 +16,7 @@ SETUP_DEST="${ARRBIT_BASE}/setup"
 HELPERS_DEST="${ARRBIT_BASE}/universal/helpers"
 
 REPO_URL="${ARRBIT_REPO_URL:-https://github.com/prvctech/Arrbit.git}"
-REPO_BRANCH="${ARRBIT_BRANCH:-chore/lint-triage}"
+REPO_BRANCH="${ARRBIT_BRANCH:-develop}"
 WORK_TMP_BASE="${ARRBIT_BASE}/data/temp"
 TMP_ROOT="${WORK_TMP_BASE}/fetch"
 FETCH_DIR=""
