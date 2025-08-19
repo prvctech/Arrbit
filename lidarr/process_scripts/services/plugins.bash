@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - plugins
 # Version: v1.0.1-gs2.8.2
@@ -16,12 +17,10 @@ chmod -R 777 /config/logs/
 
 PLUGINS_DIR="/config/plugins"
 SCRIPT_NAME="plugins"
-# shellcheck disable=SC2034 # CONFIG_FILE/ SCRIPT_VERSION exported for callers/runtime
+# shellcheck disable=SC2034 # SCRIPT_VERSION exposed for external tooling
 SCRIPT_VERSION="v1.0.1-gs2.8.2"
 LOG_FILE="/config/logs/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
-CONFIG_FILE="/config/arrbit/config/arrbit-config.conf"
-# shellcheck disable=SC2034 # CONFIG_FILE is exported/used by external runtime tooling
-# shellcheck disable=SC2034 # CONFIG_FILE intentionally exported for runtime tooling
+export CONFIG_FILE="/config/arrbit/config/arrbit-config.conf" # previously SC2034; exported for external consumers
 
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
@@ -60,7 +59,10 @@ install_plugin() { # $1 = plugin_name, $2 = plugin_dir, $3 = plugin_url
 	local plugin_dir="$2"
 	local plugin_url="$3"
 
-	if has_dll "$plugin_dir"; then
+	# Determine presence without invoking function in a conditional (avoids SC2310)
+	has_dll "${plugin_dir}"
+	local dll_status=$?
+	if ((dll_status == 0)); then
 		log_info "$plugin_name already present – skipping"
 		return
 	fi
