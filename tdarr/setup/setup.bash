@@ -9,7 +9,8 @@
 # -------------------------------------------------------------------------------------------------------------
 set -euo pipefail
 
-export SETUP_SCRIPT_VERSION="v1.0.0-gs3.1.2"  # shellcheck disable=SC2034 (exposed for external tooling/metadata)
+# shellcheck disable=SC2034 # SETUP_SCRIPT_VERSION exposed for external tooling/metadata introspection
+export SETUP_SCRIPT_VERSION="v1.0.0-gs3.1.2"
 
 ## Fixed Arrbit base (Golden Standard)
 ARRBIT_BASE="/app/arrbit"

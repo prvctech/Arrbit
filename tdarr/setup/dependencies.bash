@@ -7,8 +7,9 @@
 # -------------------------------------------------------------------------------------------------------------
 set -euo pipefail
 
+# shellcheck disable=SC2034 # SCRIPT_NAME & SCRIPT_VERSION may be read by external orchestrators/log collectors
 export SCRIPT_NAME="dependencies"  # exported for downstream scripts referencing current op
-export SCRIPT_VERSION="v1.0.1-gs3.1.2"  # shellcheck disable=SC2034 (referenced by logging/metadata externally)
+export SCRIPT_VERSION="v1.0.1-gs3.1.2"
 ARRBIT_BASE="/app/arrbit"
 ARRBIT_ENVIRONMENTS_DIR="${ARRBIT_BASE}/environments"
 WHISPERX_ENV_PATH="${ARRBIT_ENVIRONMENTS_DIR}/whisperx-env"
