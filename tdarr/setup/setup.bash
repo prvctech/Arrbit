@@ -9,7 +9,7 @@
 # -------------------------------------------------------------------------------------------------------------
 set -euo pipefail
 
-SETUP_SCRIPT_VERSION="v1.0.0-gs3.1.2"
+export SETUP_SCRIPT_VERSION="v1.0.0-gs3.1.2"  # shellcheck disable=SC2034 (exposed for external tooling/metadata)
 
 ## Fixed Arrbit base (Golden Standard)
 ARRBIT_BASE="/app/arrbit"
@@ -36,7 +36,7 @@ log_info() { printf '[INFO] %s\n' "$*" >>"${LOG_FILE}"; }
 log_warning() { printf '[WARN] %s\n' "$*" >>"${LOG_FILE}"; }
 log_error() { printf '[ERROR] %s\n' "$*" >>"${LOG_FILE}"; }
 # Ensure base exists with correct perms
-if [ ! -d "${ARRBIT_BASE}" ]; then
+if [[ ! -d "${ARRBIT_BASE}" ]]; then
 	mkdir -p "${ARRBIT_BASE}" 2>/dev/null || true
 fi
 chmod 755 "${ARRBIT_BASE}" 2>/dev/null || true
@@ -44,7 +44,7 @@ chmod 755 "${ARRBIT_BASE}" 2>/dev/null || true
 safe_rm_dir() {
 	local path="${1-}"
 	# Ensure path is non-empty and within expected TMP_ROOT prefix before removing
-	if [[ -n "$path" && "$path" == "${TMP_ROOT}"* ]]; then
+	if [[ -n $path && $path == "${TMP_ROOT}"* ]]; then
 		rm -rf -- "$path" 2>/dev/null || true
 	else
 		log_warning "Refusing to remove unsafe path: $path"
@@ -52,7 +52,7 @@ safe_rm_dir() {
 }
 log_info "Starting Tdarr setup script version ${SETUP_SCRIPT_VERSION}"
 
-if [ "${EUID:-$(id -u)}" -ne 0 ]; then
+if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
 	log_error "Setup script must run as root (uid=${EUID:-$(id -u)})"
 	exit 1
 fi

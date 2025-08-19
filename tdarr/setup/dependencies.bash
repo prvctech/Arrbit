@@ -7,8 +7,8 @@
 # -------------------------------------------------------------------------------------------------------------
 set -euo pipefail
 
-SCRIPT_NAME="dependencies"
-SCRIPT_VERSION="v1.0.1-gs3.1.2"
+export SCRIPT_NAME="dependencies"  # exported for downstream scripts referencing current op
+export SCRIPT_VERSION="v1.0.1-gs3.1.2"  # shellcheck disable=SC2034 (referenced by logging/metadata externally)
 ARRBIT_BASE="/app/arrbit"
 ARRBIT_ENVIRONMENTS_DIR="${ARRBIT_BASE}/environments"
 WHISPERX_ENV_PATH="${ARRBIT_ENVIRONMENTS_DIR}/whisperx-env"
@@ -25,7 +25,7 @@ arrbitInitLog "${LOG_FILE}"
 arrbitBanner "${SCRIPT_NAME}" "${SCRIPT_VERSION}"
 
 # Root check
-if [ "${EUID:-$(id -u)}" -ne 0 ]; then
+if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
 	log_error "Script must run as root"
 	exit 1
 fi
@@ -33,7 +33,7 @@ fi
 log_info "Starting installer"
 
 # Idempotency skip
-if [ "${FORCE_REINSTALL}" != "1" ] && [ -d "${WHISPERX_ENV_PATH}" ] &&
+if [[ "${FORCE_REINSTALL}" != "1" && -d "${WHISPERX_ENV_PATH}" ]] && \
 	"${WHISPERX_ENV_PATH}/bin/python" -c 'import whisperx' >/dev/null 2>&1; then
 	log_info "WhisperX already present (ARRBIT_FORCE_DEPS=1 to reinstall)"
 	log_info "Done."
@@ -52,15 +52,15 @@ if ! apt-get install -y --no-install-recommends python3 python3-venv curl >/dev/
 fi
 apt-get clean >/dev/null 2>&1 || true
 
-if [ "${FORCE_REINSTALL}" = "1" ] && [ -d "${WHISPERX_ENV_PATH}" ]; then
+if [[ "${FORCE_REINSTALL}" = "1" && -d "${WHISPERX_ENV_PATH}" ]]; then
 	log_info "Force reinstall: removing existing env"
-	rm -rf "${WHISPERX_ENV_PATH}" || {
+	rm -rf -- "${WHISPERX_ENV_PATH}" || {
 		log_error "env removal failed"
 		exit 1
 	}
 fi
 
-if [ ! -d "${WHISPERX_ENV_PATH}" ]; then
+if [[ ! -d "${WHISPERX_ENV_PATH}" ]]; then
 	log_info "Creating virtualenv"
 	python3 -m venv "${WHISPERX_ENV_PATH}" || {
 		log_error "venv creation failed"
