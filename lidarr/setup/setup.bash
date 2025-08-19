@@ -9,9 +9,9 @@ set -euo pipefail
 
 ARRBIT_ROOT="/config/arrbit"
 TMP_DIR="/tmp/arrbit_dl_$$"
-ZIP_URL="https://github.com/prvctech/Arrbit/archive/refs/heads/main.zip"
-REPO_MAIN="$TMP_DIR/Arrbit-main/lidarr"
-REPO_UNIVERSAL="$TMP_DIR/Arrbit-main/universal"
+ZIP_URL="https://github.com/prvctech/Arrbit/archive/refs/heads/develop.zip"
+REPO_MAIN="$TMP_DIR/Arrbit-develop/lidarr"
+REPO_UNIVERSAL="$TMP_DIR/Arrbit-develop/universal"
 
 # --- Ensure Arrbit root and tmp dir exist ---
 mkdir -p "$ARRBIT_ROOT" "$ARRBIT_ROOT/tmp"

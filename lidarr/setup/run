@@ -29,7 +29,7 @@ fi
 
 HELPERS_DIR="$ARRBIT_ROOT/universal/helpers"
 LOGO_SCRIPT_LOCAL="$ARRBIT_ROOT/lidarr/data/arrbit_logo.bash"
-REMOTE_SETUP_URL="https://raw.githubusercontent.com/prvctech/Arrbit/main/lidarr/setup_scripts/setup.bash"
+REMOTE_SETUP_URL="https://raw.githubusercontent.com/prvctech/Arrbit/develop/lidarr/setup_scripts/setup.bash"
 
 DEPENDENCIES_SCRIPT="$ARRBIT_ROOT/lidarr/setup_scripts/dependencies.bash"
 PLUGINS_SCRIPT_LOCAL="$ARRBIT_ROOT/lidarr/process_scripts/services/plugins.bash"

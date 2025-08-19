@@ -11,7 +11,7 @@ set -euo pipefail
 
 # Fixed base path (allow override for test scenarios by exporting ARRBIT_BASE before exec)
 ARRBIT_BASE="${ARRBIT_BASE:-/app/arrbit}"
-REMOTE_SETUP_URL="https://raw.githubusercontent.com/prvctech/Arrbit/main/tdarr/setup/setup.bash"
+REMOTE_SETUP_URL="https://raw.githubusercontent.com/prvctech/Arrbit/develop/tdarr/setup/setup.bash"
 DEPENDENCIES_SCRIPT="${ARRBIT_BASE}/setup/dependencies.bash"
 
 SCRIPT_NAME="run"
