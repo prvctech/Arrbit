@@ -2,7 +2,7 @@
 # shellcheck disable=SC2317 # safe_rm_dir lines falsely flagged unreachable; function invoked via cleanup path
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - Tdarr Setup Script
-# Version: v1.0.0-gs3.1.2
+# Version: v1.0.1-gs3.1.2 (Config copy guard: only seed missing config files; no overwrite of existing user configs)
 # Purpose: Fetch (if needed) Arrbit repo and deploy Tdarr + shared assets to fixed Arrbit base (/app/arrbit)
 #           - Copies helpers (universal/helpers) into /app/arrbit/universal/helpers
 #           - Copies Tdarr config, plugins, scripts, data files
@@ -10,7 +10,7 @@
 # -------------------------------------------------------------------------------------------------------------
 set -euo pipefail
 
-SETUP_SCRIPT_VERSION="v1.0.0-gs3.1.2"
+SETUP_SCRIPT_VERSION="v1.0.1-gs3.1.2"
 ARRBIT_BASE="/app/arrbit"
 SETUP_DEST="${ARRBIT_BASE}/setup"
 HELPERS_DEST="${ARRBIT_BASE}/universal/helpers"
@@ -194,7 +194,23 @@ deploy() {
 	log_info "Deploying Tdarr components"
 
 	# Deploy core components
-	copy_dir "${tdarr_src}/config" "${ARRBIT_BASE}/config" || return 1
+	# Config: seed ONLY missing files to avoid overwriting user modifications
+	if [ -d "${tdarr_src}/config" ]; then
+		mkdir -p "${ARRBIT_BASE}/config"
+		for cf in "${tdarr_src}/config"/*; do
+			[ -f "$cf" ] || continue
+			bn=$(basename "$cf")
+			target="${ARRBIT_BASE}/config/$bn"
+			if [ ! -f "$target" ]; then
+				cp -f "$cf" "$target" && chmod 644 "$target" 2>/dev/null || true
+				log_info "Seeded missing config: $bn"
+			else
+				log_info "Preserved existing config: $bn"
+			fi
+		done
+	else
+		log_warning "Source config directory missing: ${tdarr_src}/config"
+	fi
 	copy_dir "${tdarr_src}/plugins" "${ARRBIT_BASE}/plugins" || return 1
 	copy_dir "${tdarr_src}/scripts" "${ARRBIT_BASE}/scripts" || return 1
 	copy_dir "${tdarr_src}/data" "${ARRBIT_BASE}/data" || return 1
