@@ -22,8 +22,8 @@ cd "$TMP_DIR"
 
 # --- Download and extract repo ---
 if ! curl -fsSL "$ZIP_URL" -o arrbit.zip; then
-    echo "[Arrbit] ERROR: Failed to download repository. Check network and URL."
-    exit 1
+	echo "[Arrbit] ERROR: Failed to download repository. Check network and URL."
+	exit 1
 fi
 unzip -qqo arrbit.zip
 
@@ -41,18 +41,19 @@ arrbitPurgeOldLogs 3
 
 SCRIPT_NAME="setup"
 SCRIPT_VERSION="v1.0.2-gs2.8.2"
+# shellcheck disable=SC2034 # SCRIPT_VERSION is exported/used externally for tracking
 LOG_FILE="$LOG_DIR/arrbit-${SCRIPT_NAME}-$(date +%Y_%m_%d-%H_%M).log"
 touch "$LOG_FILE" && chmod 777 "$LOG_FILE"
 
 # --- Copy modules, services, and data ---
-cp -rf "$REPO_MAIN/process_scripts/modules/."   "$ARRBIT_ROOT/modules/"
+cp -rf "$REPO_MAIN/process_scripts/modules/." "$ARRBIT_ROOT/modules/"
 mkdir -p "$ARRBIT_ROOT/data"
 cp -rf "$REPO_MAIN/data/." "$ARRBIT_ROOT/data/" 2>/dev/null || true
-cp -rf "$REPO_MAIN/process_scripts/services/."  "$ARRBIT_ROOT/services/"
+cp -rf "$REPO_MAIN/process_scripts/services/." "$ARRBIT_ROOT/services/"
 
 # --- Copy custom process scripts if they exist ---
 if [[ -d "$REPO_MAIN/process_scripts/custom" ]]; then
-    cp -rf "$REPO_MAIN/process_scripts/custom" "$ARRBIT_ROOT/"
+	cp -rf "$REPO_MAIN/process_scripts/custom" "$ARRBIT_ROOT/"
 fi
 
 # --- Copy setup scripts except setup.bash and run ---
@@ -66,12 +67,12 @@ chmod 777 /config/plugins
 
 # --- Copy each config file ONLY if it does NOT already exist ---
 for src_file in "$REPO_MAIN/config/"*; do
-  filename="$(basename "$src_file")"
-  dest_file="$ARRBIT_ROOT/config/$filename"
-  if [[ ! -f "$dest_file" ]]; then
-    cp -f "$src_file" "$dest_file"
-    chmod 777 "$dest_file"
-  fi
+	filename="$(basename "$src_file")"
+	dest_file="$ARRBIT_ROOT/config/$filename"
+	if [[ ! -f $dest_file ]]; then
+		cp -f "$src_file" "$dest_file"
+		chmod 777 "$dest_file"
+	fi
 done
 
 chmod -R 777 "$ARRBIT_ROOT"

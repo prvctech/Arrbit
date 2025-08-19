@@ -1,31 +1,31 @@
 /* eslint no-plusplus: ["error", { "allowForLoopAfterthoughts": true }] */
 const details = () => ({
-  id: 'Tdarr_Plugin_CGEDIT_Anime_Subtitle_Reorder',
-  Stage: 'Pre-processing',
-  Name: 'Anime Subtitle Reorder by CGEDIT',
-  Type: 'Subtitle',
-  Operation: 'Transcode',
+  id: "Tdarr_Plugin_CGEDIT_Anime_Subtitle_Reorder",
+  Stage: "Pre-processing",
+  Name: "Anime Subtitle Reorder by CGEDIT",
+  Type: "Subtitle",
+  Operation: "Transcode",
   Description:
-    'Reorders subtitles to ensure main subtitles are first, secondary subtitles (e.g., signs and songs, forced) are second, and others follow, without affecting other streams or metadata.',
-  Version: '1.9', // Incremented version for tracking
-  Tags: 'pre-processing,ffmpeg,subtitle only,reorder,anime',
+    "Reorders subtitles to ensure main subtitles are first, secondary subtitles (e.g., signs and songs, forced) are second, and others follow, without affecting other streams or metadata.",
+  Version: "1.9", // Incremented version for tracking
+  Tags: "pre-processing,ffmpeg,subtitle only,reorder,anime",
   Inputs: [], // No external inputs
 });
 
 const plugin = (file, librarySettings, inputs, otherArguments) => {
   const response = {
     processFile: false,
-    preset: '',
+    preset: "",
     container: `.${file.container}`,
     handBrakeMode: false,
     FFmpegMode: true,
     reQueueAfter: false,
-    infoLog: '',
+    infoLog: "",
   };
 
   // Check if the file is a video
-  if (file.fileMedium !== 'video') {
-    response.infoLog += '☒ File is not a video.\n';
+  if (file.fileMedium !== "video") {
+    response.infoLog += "☒ File is not a video.\n";
     response.processFile = false;
     return response;
   }
@@ -33,33 +33,33 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
   const streams = file.ffProbeData.streams;
 
   if (!streams || streams.length === 0) {
-    response.infoLog += '☒ No streams found.\n';
+    response.infoLog += "☒ No streams found.\n";
     response.processFile = false;
     return response;
   }
 
   // Define keywords internally
-  const mainLanguage = 'eng'; // Set your desired main subtitle language code here
+  const mainLanguage = "eng"; // Set your desired main subtitle language code here
 
   const secondaryKeywords = [
-    'signs & songs',
-    'signs and songs',
-    'signs & song',
-    'sign and song',
-    'sign/song',
-    'signs',
-    'songs',
-    'sign',
-    'song',
-    'forced',
+    "signs & songs",
+    "signs and songs",
+    "signs & song",
+    "sign and song",
+    "sign/song",
+    "signs",
+    "songs",
+    "sign",
+    "song",
+    "forced",
   ];
 
   const subtitleStreams = streams.filter(
-    (stream) => stream.codec_type.toLowerCase() === 'subtitle'
+    (stream) => stream.codec_type.toLowerCase() === "subtitle",
   );
 
   if (subtitleStreams.length === 0) {
-    response.infoLog += '☒ No subtitle streams found.\n';
+    response.infoLog += "☒ No subtitle streams found.\n";
     response.processFile = false;
     return response;
   }
@@ -71,7 +71,7 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
 
   // Identify secondary subtitles first
   subtitleStreams.forEach((stream, index) => {
-    const title = stream.tags?.title?.toLowerCase() || '';
+    const title = stream.tags?.title?.toLowerCase() || "";
     if (secondaryKeywords.some((keyword) => title.includes(keyword))) {
       if (secondarySubtitleIndex === -1) {
         secondarySubtitleIndex = index;
@@ -83,8 +83,8 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
   // Identify main subtitles based on language and not being secondary
   subtitleStreams.forEach((stream, index) => {
     if (mainSubtitleIndex !== -1) return; // Already found
-    const language = stream.tags?.language?.toLowerCase() || '';
-    const title = stream.tags?.title?.toLowerCase() || '';
+    const language = stream.tags?.language?.toLowerCase() || "";
+    const title = stream.tags?.title?.toLowerCase() || "";
     if (
       language === mainLanguage &&
       index !== secondarySubtitleIndex &&
@@ -124,15 +124,15 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
 
   if (!needsReordering) {
     response.infoLog +=
-      '☑ Subtitles are already in the correct order. Skipping processing.\n';
+      "☑ Subtitles are already in the correct order. Skipping processing.\n";
     return response;
   }
 
   // Build FFmpeg command to reorder subtitles
-  let ffmpegCommandInsert = '';
+  let ffmpegCommandInsert = "";
 
   // Map all streams except subtitle streams
-  ffmpegCommandInsert += '-map 0 -map -0:s ';
+  ffmpegCommandInsert += "-map 0 -map -0:s ";
 
   // Map main subtitle first
   if (mainSubtitleIndex !== -1) {
@@ -159,7 +159,7 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
   response.preset = `, ${ffmpegCommandInsert}-c copy -max_muxing_queue_size 9999`;
   response.reQueueAfter = true;
   response.infoLog +=
-    '✔ Subtitle streams have been reordered appropriately.\n';
+    "✔ Subtitle streams have been reordered appropriately.\n";
 
   return response;
 };

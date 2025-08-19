@@ -19,32 +19,32 @@ touch "${LOG_FILE}" 2>/dev/null || true
 echo "Test ARRBIT_BASE=${ARRBIT_BASE}"
 
 dirs=(
-  "${ARRBIT_BASE}"
-  "${ARRBIT_BASE}/data"
-  "${WORK_TMP_BASE}"
-  "${ARRBIT_BASE}/environments"
-  "${ARRBIT_BASE}/plugins"
-  "${ARRBIT_BASE}/plugins/transcription"
-  "${ARRBIT_BASE}/plugins/audio_enhancement"
-  "${ARRBIT_BASE}/plugins/custom"
-  "${ARRBIT_BASE}/data/models"
-  "${ARRBIT_BASE}/data/models/whisper"
-  "${ARRBIT_BASE}/data/cache"
-  "${ARRBIT_BASE}/data/temp"
-  "${ARRBIT_BASE}/data/logs"
-  "${ARRBIT_BASE}/scripts"
-  "${ARRBIT_BASE}/config"
-  "${HELPERS_DEST}"
-  "${SETUP_DEST}"
+	"${ARRBIT_BASE}"
+	"${ARRBIT_BASE}/data"
+	"${WORK_TMP_BASE}"
+	"${ARRBIT_BASE}/environments"
+	"${ARRBIT_BASE}/plugins"
+	"${ARRBIT_BASE}/plugins/transcription"
+	"${ARRBIT_BASE}/plugins/audio_enhancement"
+	"${ARRBIT_BASE}/plugins/custom"
+	"${ARRBIT_BASE}/data/models"
+	"${ARRBIT_BASE}/data/models/whisper"
+	"${ARRBIT_BASE}/data/cache"
+	"${ARRBIT_BASE}/data/temp"
+	"${ARRBIT_BASE}/data/logs"
+	"${ARRBIT_BASE}/scripts"
+	"${ARRBIT_BASE}/config"
+	"${HELPERS_DEST}"
+	"${SETUP_DEST}"
 )
 
 for d in "${dirs[@]}"; do
-  if mkdir -p "$d" 2>/dev/null; then
-    chmod 755 "$d" 2>/dev/null || true
-    echo "CREATED: $d"
-  else
-    echo "FAILED: $d"
-  fi
+	if mkdir -p "$d" 2>/dev/null; then
+		chmod 755 "$d" 2>/dev/null || true
+		echo "CREATED: $d"
+	else
+		echo "FAILED: $d"
+	fi
 done
 
 echo

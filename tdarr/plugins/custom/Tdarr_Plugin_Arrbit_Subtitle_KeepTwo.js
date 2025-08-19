@@ -15,7 +15,7 @@ const details = () => {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const plugin = (file, librarySettings, inputs, otherArguments) => {
-  const lib = require('../methods/lib')();
+  const lib = require("../methods/lib")();
   // eslint-disable-next-line @typescript-eslint/no-unused-vars,no-param-reassign
   inputs = lib.loadDefaultValues(inputs, details);
   const log = otherArguments.logger || console;
@@ -84,25 +84,28 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
       response.infoLog += "☒ Excess subtitle streams have been removed.\n";
     } else if (subtitleStreams.length === 2) {
       // Exactly two subtitle streams
-      response.infoLog += "☑ File has exactly two subtitle streams; no action needed.\n";
+      response.infoLog +=
+        "☑ File has exactly two subtitle streams; no action needed.\n";
       // Optionally, ensure that all streams are mapped
       response.preset = ",-map 0 -c copy -max_muxing_queue_size 9999";
       response.processFile = false; // No processing needed
     } else if (subtitleStreams.length === 1) {
       // Only one subtitle stream
-      response.infoLog += "☑ File has one subtitle stream; no action needed.\n";
+      response.infoLog +=
+        "☑ File has one subtitle stream; no action needed.\n";
       // Optionally, ensure that all streams are mapped
       response.preset = ",-map 0 -c copy -max_muxing_queue_size 9999";
       response.processFile = false; // No processing needed
     } else {
       // No subtitle streams
-      response.infoLog += "☑ File has no subtitle streams; no action needed.\n";
+      response.infoLog +=
+        "☑ File has no subtitle streams; no action needed.\n";
       response.processFile = false;
     }
 
     return response;
   }
-}
+};
 
 module.exports.details = details;
 module.exports.plugin = plugin;

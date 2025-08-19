@@ -22,9 +22,9 @@ arrbitPurgeOldLogs
 echo -e "${CYAN}[Arrbit]${NC} ${GREEN}Quality Profile ID Finder ${NC}${SCRIPT_VERSION}..."
 
 # Check if jq is installed
-if ! command -v jq &> /dev/null; then
-    echo -e "${CYAN}[Arrbit]${NC} ${RED}ERROR: jq is required but not installed.${NC}"
-    exit 1
+if ! command -v jq &>/dev/null; then
+	echo -e "${CYAN}[Arrbit]${NC} ${RED}ERROR: jq is required but not installed.${NC}"
+	exit 1
 fi
 
 # Get quality profiles from Lidarr (exactly like find_album_ids.bash)
@@ -33,8 +33,8 @@ profiles_json=$(arr_api "$profiles_url")
 
 # Check if API call was successful
 if ! echo "$profiles_json" | jq -e '.[0]' >/dev/null 2>&1; then
-    echo -e "${CYAN}[Arrbit]${NC} ${RED}ERROR: Failed to retrieve quality profiles from Lidarr API${NC}"
-    exit 1
+	echo -e "${CYAN}[Arrbit]${NC} ${RED}ERROR: Failed to retrieve quality profiles from Lidarr API${NC}"
+	exit 1
 fi
 
 # Count profiles
@@ -46,7 +46,7 @@ echo -e "${CYAN}[Arrbit]${NC} ${GREEN}------------------------------------------
 # Display the results
 echo -e "${CYAN}[Arrbit]${NC} ${GREEN}quality profile name | id${NC}"
 echo "$profiles_json" | jq -r '.[] | "\(.name) | \(.id)"' | while read -r line; do
-    echo -e "${CYAN}[Arrbit]${NC} $line"
+	echo -e "${CYAN}[Arrbit]${NC} $line"
 done
 
 echo -e "${CYAN}[Arrbit]${NC} ${GREEN}------------------------------------------${NC}"

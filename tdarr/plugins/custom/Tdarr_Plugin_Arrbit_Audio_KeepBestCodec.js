@@ -1,9 +1,9 @@
 const details = () => ({
-  id: 'Tdarr_Plugin_CGEDIT_Audio_KeepBestCodec',
-  Stage: 'Pre-processing',
-  Name: 'Keep Best Audio Codec Per Language',
-  Type: 'Audio',
-  Operation: 'Transcode',
+  id: "Tdarr_Plugin_CGEDIT_Audio_KeepBestCodec",
+  Stage: "Pre-processing",
+  Name: "Keep Best Audio Codec Per Language",
+  Type: "Audio",
+  Operation: "Transcode",
   Description: `
     This plugin detects multiple audio streams in the same language and keeps only the best one according to a priority list of codecs.
     For example, if a file has English TrueHD, English DTS, English FLAC, and English AC3, it will keep the TrueHD stream over the others since it's higher in the priority list.
@@ -15,8 +15,8 @@ const details = () => ({
     If the highest priority codec is not found, the next one is chosen, and so on.
     This process is repeated for each language present in the file.
     `,
-  Version: '1.0',
-  Tags: 'audio,ffmpeg',
+  Version: "1.0",
+  Tags: "audio,ffmpeg",
   Inputs: [],
 });
 
@@ -24,21 +24,21 @@ const details = () => ({
 const plugin = (file, librarySettings, inputs, otherArguments) => {
   const response = {
     processFile: false,
-    preset: '',
+    preset: "",
     container: `.${file.container}`,
     handBrakeMode: false,
     FFmpegMode: true,
     reQueueAfter: false,
-    infoLog: '',
+    infoLog: "",
   };
 
   // Check if file is a video
-  if (file.fileMedium !== 'video') {
-    response.infoLog += '☒ File is not a video. Skipping.\n';
+  if (file.fileMedium !== "video") {
+    response.infoLog += "☒ File is not a video. Skipping.\n";
     return response;
   }
 
-  const codecPriority = ['truehd', 'dts', 'flac', 'ac3'];
+  const codecPriority = ["truehd", "dts", "flac", "ac3"];
 
   const streams = file.ffProbeData.streams;
   const audioStreams = [];
@@ -46,14 +46,14 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
 
   // Build audio stream list and mapping
   streams.forEach((stream, idx) => {
-    if (stream.codec_type.toLowerCase() === 'audio') {
+    if (stream.codec_type.toLowerCase() === "audio") {
       audioStreams.push(stream);
       audioStreamIndices.push(idx);
     }
   });
 
   if (audioStreams.length === 0) {
-    response.infoLog += '☒ No audio streams found.\n';
+    response.infoLog += "☒ No audio streams found.\n";
     return response;
   }
 
@@ -67,7 +67,7 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
   const audioStreamsByLanguage = {};
 
   audioStreams.forEach((stream) => {
-    let lang = 'und';
+    let lang = "und";
     if (stream.tags && (stream.tags.language || stream.tags.LANGUAGE)) {
       lang = (stream.tags.language || stream.tags.LANGUAGE).toLowerCase();
     }
@@ -85,9 +85,7 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
     const streams = audioStreamsByLanguage[lang];
     let bestStream = null;
     for (const codec of codecPriority) {
-      const stream = streams.find(
-        (s) => s.codec_name.toLowerCase() === codec
-      );
+      const stream = streams.find((s) => s.codec_name.toLowerCase() === codec);
       if (stream) {
         bestStream = stream;
         break;
@@ -110,12 +108,12 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
   });
 
   if (streamsToRemove.length === 0) {
-    response.infoLog += '☑ No unnecessary audio streams to remove.\n';
+    response.infoLog += "☑ No unnecessary audio streams to remove.\n";
     return response;
   }
 
   // Build FFmpeg command
-  let ffmpegCommand = ', -map 0';
+  let ffmpegCommand = ", -map 0";
 
   // Remove unwanted audio streams
   streamsToRemove.forEach((stream) => {
@@ -124,7 +122,7 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
   });
 
   // Copy all streams
-  ffmpegCommand += ' -c copy';
+  ffmpegCommand += " -c copy";
 
   response.processFile = true;
   response.preset = ffmpegCommand;

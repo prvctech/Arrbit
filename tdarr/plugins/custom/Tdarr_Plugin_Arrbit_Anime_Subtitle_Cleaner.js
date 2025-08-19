@@ -1,21 +1,21 @@
 /* eslint no-plusplus: ["error", { "allowForLoopAfterthoughts": true }] */
 const details = () => ({
-  id: 'Tdarr_Plugin_CGEDIT_Anime_Subtitle_Cleaner',
-  Stage: 'Pre-processing',
+  id: "Tdarr_Plugin_CGEDIT_Anime_Subtitle_Cleaner",
+  Stage: "Pre-processing",
   Name: "Gilbert's Subtitle Cleaner with Enhanced Flag Options",
-  Type: 'Subtitle',
-  Operation: 'Transcode',
+  Type: "Subtitle",
+  Operation: "Transcode",
   Description:
-    'This plugin keeps only specified language subtitle tracks, prioritizes forced subtitles for English, deletes flagged subtitles (hearing impaired, visual impaired, text descriptions, commentary) based on configuration, allows filtering based on title keywords, and deletes subtitles containing undesired title tags. It also removes closed captions (XDS, 608, 708).',
-  Version: '3.4',
-  Tags: 'pre-processing,ffmpeg,subtitle only,configurable',
+    "This plugin keeps only specified language subtitle tracks, prioritizes forced subtitles for English, deletes flagged subtitles (hearing impaired, visual impaired, text descriptions, commentary) based on configuration, allows filtering based on title keywords, and deletes subtitles containing undesired title tags. It also removes closed captions (XDS, 608, 708).",
+  Version: "3.4",
+  Tags: "pre-processing,ffmpeg,subtitle only,configurable",
   Inputs: [
     {
-      name: 'desired_languages',
-      type: 'string',
-      defaultValue: 'eng',
+      name: "desired_languages",
+      type: "string",
+      defaultValue: "eng",
       inputUI: {
-        type: 'text',
+        type: "text",
       },
       tooltip: `Specify the language codes for the subtitle tracks you'd like to keep.
                 \\nMust follow ISO-639-2 3-letter format. https://en.wikipedia.org/wiki/List_of_ISO_639-2_codes
@@ -24,11 +24,11 @@ const details = () => ({
                 eng, spa`,
     },
     {
-      name: 'undesired_titles',
-      type: 'string',
-      defaultValue: 'sdh, commentary, honorifics, honorific',
+      name: "undesired_titles",
+      type: "string",
+      defaultValue: "sdh, commentary, honorifics, honorific",
       inputUI: {
-        type: 'text',
+        type: "text",
       },
       tooltip: `Specify the undesired title words.
                 \\nSubtitles with titles containing these words will be removed.
@@ -39,11 +39,12 @@ const details = () => ({
                 This feature will be ignored if the "force_flagged_removal" option is set to true.`,
     },
     {
-      name: 'desired_titles',
-      type: 'string',
-      defaultValue: 'full subtitles, full subs, full, dialogue, english, signs & songs, signs and songs, signs & song, sign and song, sign/song, signs, songs, sign, song ',
+      name: "desired_titles",
+      type: "string",
+      defaultValue:
+        "full subtitles, full subs, full, dialogue, english, signs & songs, signs and songs, signs & song, sign and song, sign/song, signs, songs, sign, song ",
       inputUI: {
-        type: 'text',
+        type: "text",
       },
       tooltip: `Specify desired title keywords to keep specific subtitles.
                 \\nSubtitles containing these keywords in their title will be kept.
@@ -52,11 +53,11 @@ const details = () => ({
                 latinoamericano, director's cut`,
     },
     {
-      name: 'force_flagged_removal',
-      type: 'boolean',
+      name: "force_flagged_removal",
+      type: "boolean",
       defaultValue: true,
       inputUI: {
-        type: 'checkbox',
+        type: "checkbox",
       },
       tooltip: `Enable this option to automatically remove subtitles flagged as:
                 \\n- Hearing impaired (SDH)
@@ -70,25 +71,25 @@ const details = () => ({
 });
 
 const plugin = (file, librarySettings, inputs, otherArguments) => {
-  const lib = require('../methods/lib')();
+  const lib = require("../methods/lib")();
   // Load default values for inputs
   inputs = lib.loadDefaultValues(inputs, details);
 
   // Normalize inputs for case-insensitive matching
-  const desired_languages = (inputs.desired_languages || '')
-    .split(',')
+  const desired_languages = (inputs.desired_languages || "")
+    .split(",")
     .map((lang) => lang.trim().toLowerCase())
-    .filter((lang) => lang !== '');
+    .filter((lang) => lang !== "");
 
-  const desiredTitles = (inputs.desired_titles || '')
-    .split(',')
+  const desiredTitles = (inputs.desired_titles || "")
+    .split(",")
     .map((word) => word.trim().toLowerCase())
-    .filter((word) => word !== '');
+    .filter((word) => word !== "");
 
-  const undesiredTitles = (inputs.undesired_titles || '')
-    .split(',')
+  const undesiredTitles = (inputs.undesired_titles || "")
+    .split(",")
     .map((word) => word.trim().toLowerCase())
-    .filter((word) => word !== '');
+    .filter((word) => word !== "");
 
   const forceFlaggedRemoval = inputs.force_flagged_removal === true;
 
@@ -99,12 +100,12 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
     handBrakeMode: false,
     FFmpegMode: true,
     reQueueAfter: false,
-    infoLog: '',
+    infoLog: "",
   };
 
   // Check if file is a video. If it isn't, then exit plugin.
-  if (file.fileMedium !== 'video') {
-    response.infoLog += '☒ File is not a video. Skipping plugin.\n';
+  if (file.fileMedium !== "video") {
+    response.infoLog += "☒ File is not a video. Skipping plugin.\n";
     return response;
   }
 
@@ -116,7 +117,7 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
   }
 
   // Set up required variables.
-  let ffmpegCommandInsert = '';
+  let ffmpegCommandInsert = "";
   let subtitleIdx = 0;
   let convert = false;
 
@@ -125,10 +126,10 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
     if (stream.disposition && stream.disposition.forced === 1) {
       return true;
     }
-    let streamTitle = '';
+    let streamTitle = "";
     if (stream.tags && stream.tags.title) {
       streamTitle = stream.tags.title.toLowerCase();
-      if (streamTitle.includes('forced')) {
+      if (streamTitle.includes("forced")) {
         return true;
       }
     }
@@ -140,7 +141,7 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
     if (desiredTitles.length === 0) {
       return true; // If no desired titles specified, consider all titles as desired
     }
-    let streamTitle = '';
+    let streamTitle = "";
     if (stream.tags && stream.tags.title) {
       streamTitle = stream.tags.title.toLowerCase();
       for (const keyword of desiredTitles) {
@@ -154,7 +155,7 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
 
   // Function to check if the subtitle matches undesired title keywords or flags
   const matchesUndesiredTitlesOrFlags = (stream) => {
-    let streamTitle = '';
+    let streamTitle = "";
     if (stream.tags && stream.tags.title) {
       streamTitle = stream.tags.title.toLowerCase();
       for (const undesired of undesiredTitles) {
@@ -171,7 +172,12 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
 
   // Function to check if the subtitle is flagged as Hearing impaired, Visual impaired, Text descriptions, or commentary
   const hasImpairmentFlag = (stream) => {
-    const impairments = ['hearing impaired', 'visual impaired', 'text descriptions', 'commentary'];
+    const impairments = [
+      "hearing impaired",
+      "visual impaired",
+      "text descriptions",
+      "commentary",
+    ];
     if (stream.tags && stream.tags.title) {
       const streamTitle = stream.tags.title.toLowerCase();
       for (const impairment of impairments) {
@@ -188,8 +194,8 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
     const stream = file.ffProbeData.streams[i];
     const codecType = stream.codec_type.toLowerCase();
 
-    if (codecType === 'subtitle') {
-      let streamLang = 'und'; // Default to 'und' if language tag is missing
+    if (codecType === "subtitle") {
+      let streamLang = "und"; // Default to 'und' if language tag is missing
 
       // Attempt to get the language tag
       if (stream.tags && stream.tags.language) {
@@ -199,9 +205,9 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
       // Check if we should force delete flagged subtitles or those with unknown language
       if (
         (forceFlaggedRemoval && hasImpairmentFlag(stream)) ||
-        streamLang === 'und' ||
-        streamLang === 'undefined' ||
-        streamLang === 'unknown'
+        streamLang === "und" ||
+        streamLang === "undefined" ||
+        streamLang === "unknown"
       ) {
         ffmpegCommandInsert += `-map -0:s:${subtitleIdx} `;
         response.infoLog += `☒ Removing subtitle stream 0:s:${subtitleIdx} with impairment flag or unknown language.\n`;
@@ -255,12 +261,12 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
   // Check and process for closed captions removal at the file level
   if (file.hasClosedCaptions) {
     response.processFile = true;
-    response.infoLog += '☒ This file has closed captions.\n';
+    response.infoLog += "☒ This file has closed captions.\n";
   } else {
     file.ffProbeData.streams.forEach((stream) => {
       if (stream.closed_captions) {
         response.processFile = true;
-        response.infoLog += '☒ This file has burnt closed captions.\n';
+        response.infoLog += "☒ This file has burnt closed captions.\n";
       }
     });
   }
@@ -272,9 +278,10 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
     response.preset = `, -map 0 ${ffmpegCommandInsert} -c copy -max_muxing_queue_size 9999`;
     response.container = `.${file.container}`;
     response.reQueueAfter = true;
-    response.infoLog += '☒ Audio and subtitle flags have been set.\n';
+    response.infoLog += "☒ Audio and subtitle flags have been set.\n";
   } else {
-    response.infoLog += '☑ No subtitles or closed captions needed to be removed or tagged.\n';
+    response.infoLog +=
+      "☑ No subtitles or closed captions needed to be removed or tagged.\n";
   }
 
   return response;
