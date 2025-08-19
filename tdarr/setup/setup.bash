@@ -23,7 +23,7 @@ FETCH_DIR=""
 
 LOG_DIR="${ARRBIT_BASE}/data/logs"
 mkdir -p "${LOG_DIR}" 2>/dev/null || true
-chmod 755 "${LOG_DIR}" 2>/dev/null || true
+chmod 777 "${LOG_DIR}" 2>/dev/null || true
 
 # Fixed simple INFO-level log file (Golden Standard simplified variant)
 LOG_FILE="${LOG_DIR}/arrbit-setup-info-$(date +%Y_%m_%d-%H_%M).log"
@@ -38,7 +38,7 @@ log_error() { printf '[ERROR] %s\n' "$*" >>"${LOG_FILE}"; }
 if [[ ! -d ${ARRBIT_BASE} ]]; then
 	mkdir -p "${ARRBIT_BASE}" 2>/dev/null || true
 fi
-chmod 755 "${ARRBIT_BASE}" 2>/dev/null || true
+chmod 777 "${ARRBIT_BASE}" 2>/dev/null || true
 
 safe_rm_dir() { # shellcheck disable=SC2317 # Function may appear unreachable to analyzer; invoked indirectly
 	local path="${1-}"
@@ -60,7 +60,7 @@ command_exists() { command -v "$1" >/dev/null 2>&1; }
 
 prepare_tmp() {
 	mkdir -p "${TMP_ROOT}"
-	chmod 755 "${WORK_TMP_BASE}" "${TMP_ROOT}" 2>/dev/null || true
+	chmod 777 "${WORK_TMP_BASE}" "${TMP_ROOT}" 2>/dev/null || true
 }
 
 # Pre-create all required directories BEFORE fetching so that permissions are correct
@@ -91,7 +91,7 @@ precreate_dirs() {
 			log_error "Failed to create directory: $d"
 			return 1
 		fi
-		chmod 755 "$d" 2>/dev/null || true
+		chmod 777 "$d" 2>/dev/null || true
 	done
 
 	log_info "Created directory structure successfully"
@@ -124,7 +124,7 @@ fetch_repo() {
 		fi
 	fi
 
-	chmod -R 755 "${FETCH_DIR}" 2>/dev/null || true
+	chmod -R 777 "${FETCH_DIR}" 2>/dev/null || true
 	log_info "Repository fetch completed successfully"
 }
 
@@ -151,7 +151,7 @@ ensure_dirs() {
 			log_error "Failed to ensure directory structure: $d"
 			return 1
 		fi
-		chmod 755 "$d" 2>/dev/null || true
+		chmod 777 "$d" 2>/dev/null || true
 	done
 
 	log_info "Directory structure verified successfully"
@@ -221,7 +221,7 @@ permissions() {
 	log_info "Normalizing permissions for security compliance"
 
 	# Directories -> 755 (Golden Standard security requirement)
-	find "${ARRBIT_BASE}" -type d -exec chmod 755 {} \; 2>/dev/null || true
+	find "${ARRBIT_BASE}" -type d -exec chmod 777 {} \; 2>/dev/null || true
 
 	# Script files -> executable
 	find "${ARRBIT_BASE}" -name "*.bash" -exec chmod 755 {} \; 2>/dev/null || true

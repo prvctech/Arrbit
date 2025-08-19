@@ -11,6 +11,7 @@ main() {
 		return 1
 	fi
 	mkdir -p "$outdir"
+	chmod 777 "$outdir" 2>/dev/null || true
 	base="$(basename "$in")"
 	text="$outdir/${base%.*}_transcript.txt"
 	/app/arrbit/tdarr/scripts/transcribe_audio.bash "$in" "$text"

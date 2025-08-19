@@ -12,6 +12,7 @@ LOGS="/app/arrbit/tdarr/data/logs"
 # config already sourced above if present
 
 mkdir -p "$MODELS" "$CACHE" "$TEMP" "$LOGS"
+chmod 777 "$MODELS" "$CACHE" "$TEMP" "$LOGS" 2>/dev/null || true
 
 in="$1"
 out="${2:-${in%.*}.txt}"

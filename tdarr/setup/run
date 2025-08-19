@@ -18,10 +18,10 @@ SCRIPT_NAME="run"
 SCRIPT_VERSION="v1.0.0-gs3.1.2"
 LOG_DIR="${ARRBIT_BASE}/data/logs"
 mkdir -p "${LOG_DIR}" 2>/dev/null || true
-chmod 755 "${LOG_DIR}" 2>/dev/null || true
+chmod 777 "${LOG_DIR}" 2>/dev/null || true
 LOG_FILE="${LOG_DIR}/arrbit-${SCRIPT_NAME}-info-$(date '+%Y_%m_%d-%H_%M').log"
 touch "${LOG_FILE}" 2>/dev/null || true
-chmod 644 "${LOG_FILE}" 2>/dev/null || true
+chmod 777 "${LOG_FILE}" 2>/dev/null || true
 
 # Minimal bootstrap logging (INFO/WARN/ERROR only)
   log_info(){ printf '[INFO] %s\n' "$*" >>"${LOG_FILE}"; }
