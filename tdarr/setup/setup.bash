@@ -211,7 +211,25 @@ deploy() {
 	else
 		log_warning "Source config directory missing: ${tdarr_src}/config"
 	fi
-	copy_dir "${tdarr_src}/plugins" "${ARRBIT_BASE}/plugins" || return 1
+	# Plugins: ensure repo plugins are synced. We always update everything under plugins
+	# except the config folder which is seeded above.
+	if [ -d "${tdarr_src}/plugins" ]; then
+		log_info "Syncing plugins directory from repository (overwriting existing plugin files)
+		"
+		# Ensure destination exists
+		mkdir -p "${ARRBIT_BASE}/plugins"
+		# Copy everything, but prefer rsync for atomicity
+		copy_dir "${tdarr_src}/plugins" "${ARRBIT_BASE}/plugins" || return 1
+		# Ensure plugins/custom specifically is updated (some deployments may use mountpoints)
+		if [ -d "${tdarr_src}/plugins/custom" ]; then
+			log_info "Updating plugins/custom from repository"
+			# Remove existing custom plugins to ensure deleted files are cleaned up
+			rm -rf "${ARRBIT_BASE}/plugins/custom" 2>/dev/null || true
+			copy_dir "${tdarr_src}/plugins/custom" "${ARRBIT_BASE}/plugins/custom" || return 1
+		fi
+	else
+		log_warning "Source plugins directory missing: ${tdarr_src}/plugins"
+	fi
 	copy_dir "${tdarr_src}/scripts" "${ARRBIT_BASE}/scripts" || return 1
 	copy_dir "${tdarr_src}/data" "${ARRBIT_BASE}/data" || return 1
 
