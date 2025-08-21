@@ -66,6 +66,91 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
     const results = parsed.results || {};
     const streams = file.ffProbeData.streams || [];
 
+    // helper: normalize various language outputs to ffmpeg-friendly ISO 639 three-letter codes
+    const langMap = {
+      en: "eng",
+      eng: "eng",
+      english: "eng",
+      es: "spa",
+      spa: "spa",
+      spanish: "spa",
+      fr: "fra",
+      fra: "fra",
+      fre: "fra",
+      french: "fra",
+      pt: "por",
+      por: "por",
+      portuguese: "por",
+      it: "ita",
+      ita: "ita",
+      italian: "ita",
+      de: "deu",
+      deu: "deu",
+      ger: "deu",
+      german: "deu",
+      ja: "jpn",
+      jpn: "jpn",
+      japanese: "jpn",
+      ko: "kor",
+      kor: "kor",
+      korean: "kor",
+      zh: "zho",
+      zho: "zho",
+      chinese: "zho",
+      ru: "rus",
+      rus: "rus",
+      russian: "rus",
+      ar: "ara",
+      ara: "ara",
+      arabic: "ara",
+      hi: "hin",
+      hin: "hin",
+      hindi: "hin",
+      nl: "nld",
+      nld: "nld",
+      dutch: "nld",
+      sv: "swe",
+      swe: "swe",
+      swedish: "swe",
+      no: "nor",
+      nor: "nor",
+      norwegian: "nor",
+      fi: "fin",
+      fin: "fin",
+      finnish: "fin",
+      pl: "pol",
+      pol: "pol",
+      polish: "pol",
+      tr: "tur",
+      tur: "tur",
+      turkish: "tur",
+      vi: "vie",
+      vie: "vie",
+      vietnamese: "vie",
+    };
+
+    const normalizeLanguage = (raw) => {
+      if (!raw || typeof raw !== "string") return null;
+      const key = raw.trim().toLowerCase();
+      if (langMap[key]) return langMap[key];
+      // if it's a 2-letter code not in map, try common expansion
+      if (/^[a-z]{2}$/.test(key)) {
+        // naive mapping table for two letters
+        const twoToThree = {
+          en: "eng",
+          es: "spa",
+          fr: "fra",
+          pt: "por",
+          it: "ita",
+          de: "deu",
+        };
+        if (twoToThree[key]) return twoToThree[key];
+      }
+      // if already 3-letter, return as-is
+      if (/^[a-z]{3}$/.test(key)) return key;
+      return null;
+    };
+
     // Build ffmpeg metadata edits based on mismatches
     let ffmpegMetaEdits = "";
     let audioStreamOutputIndex = 0;
@@ -75,31 +160,23 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
       if (stream.codec_type && stream.codec_type.toLowerCase() === "audio") {
         const idx = stream.index; // input stream index
         const ai = results[idx];
-        const detected = ai && ai.language ? ai.language : null;
-        const currentLangTag =
+        const detectedRaw = ai && ai.language ? ai.language : null;
+        const detected = normalizeLanguage(detectedRaw);
+        const currentLangRaw =
           stream.tags &&
           (stream.tags.language || stream.tags.LANGUAGE || stream.tags.lang)
             ? stream.tags.language || stream.tags.LANGUAGE || stream.tags.lang
             : null;
+        const currentLang = normalizeLanguage(currentLangRaw);
 
-        if (
-          detected &&
-          currentLangTag &&
-          detected.toLowerCase().startsWith(currentLangTag.toLowerCase())
-        ) {
+        if (detected && currentLang && detected === currentLang) {
           response.infoLog += `☑ Audio stream ${idx} language matches detected (${detected}).\n`;
-        } else if (
-          detected &&
-          (!currentLangTag ||
-            detected.toLowerCase() !== (currentLangTag || "").toLowerCase())
-        ) {
-          // We need to set metadata language for this output stream
-          response.infoLog += `☒ Audio stream ${idx} metadata mismatch: current='${currentLangTag}' detected='${detected}' — scheduling metadata update.\n`;
-          // ffmpeg expects metadata:s:a:<streamIndex> language=<code>
+        } else if (detected && detected !== currentLang) {
+          response.infoLog += `☒ Audio stream ${idx} metadata mismatch: current='${currentLangRaw}' detected='${detectedRaw}' — scheduling metadata update.\n`;
           ffmpegMetaEdits += ` -metadata:s:a:${audioStreamOutputIndex} language=${detected}`;
           convertNeeded = true;
         } else {
-          response.infoLog += `⚠ Could not determine detected language for stream ${idx}.\n`;
+          response.infoLog += `⚠ Could not determine detected language for stream ${idx} (raw: ${detectedRaw}).\n`;
         }
 
         audioStreamOutputIndex += 1;

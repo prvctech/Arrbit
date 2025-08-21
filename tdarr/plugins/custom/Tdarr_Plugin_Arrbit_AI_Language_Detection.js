@@ -18,6 +18,30 @@ const details = () => ({
         "Minute to start sampling from (default 3). If file is shorter the start will be reduced.",
     },
     {
+      name: "cleanup_intermediate",
+      type: "boolean",
+      defaultValue: true,
+      inputUI: { type: "checkbox" },
+      tooltip:
+        "Remove intermediate .opus and .wav samples after successful processing (default true).",
+    },
+    {
+      name: "max_transcode_seconds",
+      type: "number",
+      defaultValue: 120,
+      inputUI: { type: "number" },
+      tooltip:
+        "Maximum seconds allowed for any single transcode/extraction command (default 120).",
+    },
+    {
+      name: "max_file_size_bytes",
+      type: "number",
+      defaultValue: 250000000,
+      inputUI: { type: "number" },
+      tooltip:
+        "Maximum size of the source media file to attempt heavy transcodes on; if larger, skip transcode and record as skipped (default 250MB).",
+    },
+    {
       name: "sample_length_seconds",
       type: "number",
       defaultValue: 15,
@@ -92,26 +116,31 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
     const model = inputs.model || "tiny";
     const sampleStartMinute = Number(inputs.sample_start_minute) || 3;
     const sampleLength = Number(inputs.sample_length_seconds) || 15;
+    const cleanupIntermediate =
+      inputs.cleanup_intermediate === false ? false : true;
+    const maxTranscodeSeconds = Number(inputs.max_transcode_seconds) || 120;
+    const maxFileSizeBytes = Number(inputs.max_file_size_bytes) || 250000000;
 
-    // Determine start position safely
-    const format = file.ffProbeData.format || {};
-    const duration = Number(format.duration) || 0;
+    // compute startSeconds respecting duration if available
+    const duration = Number(file.ffProbeData?.format?.duration) || 0;
     let startSeconds = sampleStartMinute * 60;
-    if (duration > 0 && startSeconds + sampleLength > duration) {
-      // Shift start to a safe position
-      if (duration > sampleLength + 5) {
-        startSeconds = Math.max(5, Math.floor(duration / 3));
-      } else {
-        startSeconds = Math.max(
-          0,
-          Math.floor(Math.max(0, duration - sampleLength - 1))
-        );
-      }
+    if (duration && startSeconds + sampleLength > duration) {
+      startSeconds = Math.max(0, Math.floor(duration - sampleLength));
     }
 
     const results = {};
 
     audioStreams.forEach((stream, idx) => {
+      // Prepare variables for this iteration
+      let convFile = null;
+      let sourceSize = 0;
+      let skipHeavyTranscode = false;
+      try {
+        if (fs.existsSync(file.path)) {
+          sourceSize = fs.statSync(file.path).size || 0;
+          skipHeavyTranscode = sourceSize > maxFileSizeBytes;
+        }
+      } catch (e) {}
       // Build a safe output filename
       const outFile = `${tempDir}/${fileBasename}_track${idx}_sample.wav`;
 
@@ -121,17 +150,48 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
 
       try {
         response.infoLog += `☑ Extracting sample for audio stream ${idx} -> ${outFile}\n`;
-        child.execSync(ffmpegCmd, { stdio: "inherit", timeout: 120000 });
+        child.execSync(ffmpegCmd, {
+          stdio: "inherit",
+          timeout: maxTranscodeSeconds * 1000,
+        });
       } catch (err) {
-        // If extraction fails try a fallback that maps by stream order instead of index
+        // If extraction by input stream index fails, try mapping by audio stream order (0:a:<order>)
         try {
-          const ffmpegFallback = `ffmpeg -y -i "${file.path}" -ss ${startSeconds} -t ${sampleLength} -vn -ac 1 -ar 16000 -c:a pcm_s16le "${outFile}"`;
-          response.infoLog += `⚠ ffmpeg by index failed, running fallback for stream ${idx}\n`;
-          child.execSync(ffmpegFallback, { stdio: "inherit", timeout: 120000 });
+          const ffmpegFallbackByOrder = `ffmpeg -y -i "${file.path}" -ss ${startSeconds} -t ${sampleLength} -map 0:a:${idx} -vn -ac 1 -ar 16000 -c:a pcm_s16le "${outFile}"`;
+          response.infoLog += `⚠ ffmpeg by index failed, trying map by audio order for stream ${idx}\n`;
+          child.execSync(ffmpegFallbackByOrder, {
+            stdio: "inherit",
+            timeout: maxTranscodeSeconds * 1000,
+          });
         } catch (err2) {
-          response.infoLog += `☒ Failed to extract sample for stream ${idx}: ${err2}\n`;
-          results[idx] = { error: "extract_failed" };
-          return;
+          // As a last resort transcode the specific audio stream into an intermediate (opus) file and sample from it
+          try {
+            if (skipHeavyTranscode) {
+              response.infoLog += `⚠ Source file too large (${sourceSize}) - skipping heavy transcode for stream ${idx}\n`;
+              results[idx] = { error: "source_too_large" };
+              return;
+            }
+
+            convFile = `${tempDir}/${fileBasename}_track${idx}_conv.opus`;
+            const convCmd = `ffmpeg -y -i "${file.path}" -map 0:a:${idx} -vn -ac 1 -ar 16000 -c:a libopus -b:a 64000 "${convFile}"`;
+            response.infoLog += `⚠ ffmpeg map-by-order failed, transcoding audio stream ${idx} to intermediate ${convFile}\n`;
+            child.execSync(convCmd, {
+              stdio: "inherit",
+              timeout: maxTranscodeSeconds * 1000,
+            });
+
+            // Now extract the sample from the intermediate file (map 0:0)
+            const ffmpegFromConv = `ffmpeg -y -i "${convFile}" -ss ${startSeconds} -t ${sampleLength} -map 0:0 -vn -ac 1 -ar 16000 -c:a pcm_s16le "${outFile}"`;
+            response.infoLog += `☑ Extracting sample from intermediate for stream ${idx} -> ${outFile}\n`;
+            child.execSync(ffmpegFromConv, {
+              stdio: "inherit",
+              timeout: maxTranscodeSeconds * 1000,
+            });
+          } catch (err3) {
+            response.infoLog += `☒ Failed to extract sample for stream ${idx}: ${err3}\n`;
+            results[idx] = { error: "extract_failed" };
+            return;
+          }
         }
       }
 
@@ -140,7 +200,11 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
         const whisperOutDir = tempDir;
         const whisperCmd = `${whisperxPath} "${outFile}" --model ${model} --device cpu --output_dir "${whisperOutDir}" --output_format json --task transcribe --print_progress False`;
         response.infoLog += `☑ Running whisperx for track ${idx}\n`;
-        child.execSync(whisperCmd, { stdio: "inherit", timeout: 180000 });
+        // allow slightly more time for whisper runs than transcodes
+        child.execSync(whisperCmd, {
+          stdio: "inherit",
+          timeout: Math.max(180000, maxTranscodeSeconds * 1000 * 2),
+        });
 
         // WhisperX will create a JSON file with the same basename
         const generatedJson = `${whisperOutDir}/${
@@ -160,6 +224,16 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
               json: generatedJson,
               language: detected,
             };
+            // cleanup intermediates (wav/opus) if requested, but keep whisper JSON
+            if (cleanupIntermediate) {
+              try {
+                if (convFile && fs.existsSync(convFile))
+                  fs.unlinkSync(convFile);
+              } catch (e) {}
+              try {
+                if (fs.existsSync(outFile)) fs.unlinkSync(outFile);
+              } catch (e) {}
+            }
           } catch (errJson) {
             response.infoLog += `⚠ Failed to parse whisperx JSON for track ${idx}: ${errJson}\n`;
             results[idx] = { file: outFile, error: "json_parse_failed" };
