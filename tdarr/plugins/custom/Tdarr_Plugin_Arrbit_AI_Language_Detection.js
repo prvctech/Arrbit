@@ -13,7 +13,7 @@ const details = () => ({
       name: "sample_start_minute",
       type: "number",
       defaultValue: 3,
-      inputUI: { type: "number" },
+      inputUI: { type: "number", placeholder: "3", allowCustom: true },
       tooltip:
         "Minute to start sampling from (default 3). If file is shorter the start will be reduced.",
     },
@@ -29,7 +29,7 @@ const details = () => ({
       name: "max_transcode_seconds",
       type: "number",
       defaultValue: 120,
-      inputUI: { type: "number" },
+      inputUI: { type: "number", placeholder: "120", allowCustom: true },
       tooltip:
         "Maximum seconds allowed for any single transcode/extraction command (default 120).",
     },
@@ -37,7 +37,7 @@ const details = () => ({
       name: "max_file_size_bytes",
       type: "number",
       defaultValue: 250000000,
-      inputUI: { type: "number" },
+      inputUI: { type: "number", placeholder: "250000000", allowCustom: true },
       tooltip:
         "Maximum size of the source media file to attempt heavy transcodes on; if larger, skip transcode and record as skipped (default 250MB).",
     },
@@ -45,21 +45,25 @@ const details = () => ({
       name: "sample_length_seconds",
       type: "number",
       defaultValue: 15,
-      inputUI: { type: "number" },
+      inputUI: { type: "number", placeholder: "15", allowCustom: true },
       tooltip: "Length in seconds of the sample to analyze (default 15).",
     },
     {
       name: "whisperx_path",
       type: "string",
       defaultValue: "/app/arrbit/environments/whisperx-env/bin/whisperx",
-      inputUI: { type: "text" },
+      inputUI: {
+        type: "text",
+        placeholder: "/app/arrbit/environments/whisperx-env/bin/whisperx",
+        allowCustom: true,
+      },
       tooltip: "Path to whisperx executable inside the container.",
     },
     {
       name: "model",
       type: "string",
       defaultValue: "tiny",
-      inputUI: { type: "text" },
+      inputUI: { type: "text", placeholder: "tiny", allowCustom: true },
       tooltip:
         "WhisperX model to use (tiny, base, small, etc.). Smaller models are faster.",
     },
