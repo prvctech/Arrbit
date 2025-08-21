@@ -18,4 +18,3 @@ logs/
 
 # keep other top-level ignores
 .github/
-.trunk/
