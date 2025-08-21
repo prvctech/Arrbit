@@ -1,7 +1,7 @@
 const details = () => ({
-  id: "Tdarr_Plugin_CGEDIT_AI_Language_Detection",
+  id: "Tdarr_Plugin_Arrbit_AI_Language_Detection",
   Stage: "Pre-processing",
-  Name: "CGEDIT AI Language Detection (WhisperX)",
+  Name: "Arrbit - AI Language Detection (WhisperX)",
   Type: "Audio",
   Operation: "Transcode",
   Description:
@@ -89,7 +89,7 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
   };
 
   try {
-    if (file.fileMedium !== "video") {
+  if (file.fileMedium !== "video") {
       response.infoLog +=
         "☒ File is not a video, skipping AI language detection.\n";
       return response;
@@ -99,6 +99,13 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
     const audioStreams = streams.filter(
       (s) => s.codec_type && s.codec_type.toLowerCase() === "audio"
     );
+
+    // NOTE: This plugin intentionally ignores existing stream title metadata, channel-layout
+    // descriptions (e.g., "English 5.1 Surround"), and any user-supplied language tags.
+    // Its sole responsibility is to infer the spoken language from the raw audio content.
+    // Downstream, the Metadata Corrector plugin treats this detection output as the
+    // authoritative truth for the language flag; we do not try to reconcile or parse
+    // title strings here.
 
     if (audioStreams.length === 0) {
       response.infoLog += "☒ No audio streams found.\n";
@@ -134,7 +141,7 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
 
     const results = {};
 
-    audioStreams.forEach((stream, idx) => {
+  audioStreams.forEach((stream, idx) => {
       // Prepare variables for this iteration
       let convFile = null;
       let sourceSize = 0;
@@ -152,7 +159,7 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
       // Use ffmpeg to mix down/convert into a clean WAV suitable for WhisperX
       const ffmpegCmd = `ffmpeg -y -i "${file.path}" -ss ${startSeconds} -t ${sampleLength} -map 0:${stream.index} -vn -ac 1 -ar 16000 -c:a pcm_s16le "${outFile}"`;
 
-      try {
+  try {
         response.infoLog += `☑ Extracting sample for audio stream ${idx} -> ${outFile}\n`;
         child.execSync(ffmpegCmd, {
           stdio: "inherit",
@@ -200,7 +207,7 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
       }
 
       // Run whisperx CLI to produce JSON output into tempDir
-      try {
+  try {
         const whisperOutDir = tempDir;
         const whisperCmd = `${whisperxPath} "${outFile}" --model ${model} --device cpu --output_dir "${whisperOutDir}" --output_format json --task transcribe --print_progress False`;
         response.infoLog += `☑ Running whisperx for track ${idx}\n`;
@@ -228,6 +235,7 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
               json: generatedJson,
               language: detected,
             };
+            response.infoLog += `☑ Detected (audio content only) language for stream ${idx}: ${detected}\n`;
             // cleanup intermediates (wav/opus) if requested, but keep whisper JSON
             if (cleanupIntermediate) {
               try {

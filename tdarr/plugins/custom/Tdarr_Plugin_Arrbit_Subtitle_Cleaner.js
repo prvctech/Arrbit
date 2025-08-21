@@ -1,8 +1,8 @@
 /* eslint no-plusplus: ["error", { "allowForLoopAfterthoughts": true }] */
 const details = () => ({
-  id: "Tdarr_Plugin_CGEDIT_Subtitle_Cleaner",
+  id: "Tdarr_Plugin_Arrbit_Subtitle_Cleaner",
   Stage: "Pre-processing",
-  Name: "Gilbert's Subtitle Cleaner with Enhanced Flag Options",
+  Name: "Arrbit - Subtitle Cleaner",
   Type: "Subtitle",
   Operation: "Transcode",
   Description:
@@ -245,10 +245,18 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
   const logSubtitleStreamDetails = (stream, index) => {
     response.infoLog += `🔍 Subtitle Stream 0:s:${index} Details:\n`;
     response.infoLog += `    Codec Type: ${stream.codec_type}\n`;
-    response.infoLog += `    Language: ${stream.tags && stream.tags.language ? stream.tags.language : "und"}\n`;
-    response.infoLog += `    Title: ${stream.tags && stream.tags.title ? stream.tags.title : "N/A"}\n`;
-    response.infoLog += `    Tags: ${stream.tags ? JSON.stringify(stream.tags) : "N/A"}\n`;
-    response.infoLog += `    Disposition: ${stream.disposition ? JSON.stringify(stream.disposition) : "N/A"}\n`;
+    response.infoLog += `    Language: ${
+      stream.tags && stream.tags.language ? stream.tags.language : "und"
+    }\n`;
+    response.infoLog += `    Title: ${
+      stream.tags && stream.tags.title ? stream.tags.title : "N/A"
+    }\n`;
+    response.infoLog += `    Tags: ${
+      stream.tags ? JSON.stringify(stream.tags) : "N/A"
+    }\n`;
+    response.infoLog += `    Disposition: ${
+      stream.disposition ? JSON.stringify(stream.disposition) : "N/A"
+    }\n`;
   };
 
   // First pass: Determine which subtitles to remove

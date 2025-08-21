@@ -1,7 +1,7 @@
 const details = () => ({
-  id: "Tdarr_Plugin_CGEDIT_Anime_Audio_Flagger",
+  id: "Tdarr_Plugin_Arrbit_Anime_Audio_Flagger",
   Stage: "Pre-processing",
-  Name: "CGEDIT Audio Flagger Simple",
+  Name: "Arrbit - Anime Audio Flagger",
   Type: "Audio",
   Operation: "Transcode",
   Description:

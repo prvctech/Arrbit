@@ -1,7 +1,7 @@
 const details = () => ({
-  id: "Tdarr_Plugin_CGEDIT_Subtitle_Metadata_Cleaner",
+  id: "Tdarr_Plugin_Arrbit_Subtitle_Metadata_Cleaner",
   Stage: "Pre-processing",
-  Name: "CGEDIT Clean Subtitle Title Metadata",
+  Name: "Arrbit - Subtitle Metadata Cleaner",
   Type: "Video",
   Operation: "Transcode",
   Description: "This plugin removes title metadata from subtitle streams.\n\n",

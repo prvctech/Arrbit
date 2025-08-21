@@ -1,9 +1,9 @@
 /* eslint-disable */
 const details = () => {
   return {
-    id: "Tdarr_Plugin_CGEDIT_Subtitle_KeepTwo",
+    id: "Tdarr_Plugin_Arrbit_Subtitle_KeepTwo",
     Stage: "Pre-processing",
-    Name: "Limit Subtitles to First Two Streams",
+    Name: "Arrbit - Subtitle: Keep First Two",
     Type: "Video",
     Operation: "Transcode",
     Description: `[Contains built-in filter] This plugin retains only the first two subtitle streams in a video file. The output container remains the same as the original.\n\n`,
@@ -91,15 +91,13 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
       response.processFile = false; // No processing needed
     } else if (subtitleStreams.length === 1) {
       // Only one subtitle stream
-      response.infoLog +=
-        "☑ File has one subtitle stream; no action needed.\n";
+      response.infoLog += "☑ File has one subtitle stream; no action needed.\n";
       // Optionally, ensure that all streams are mapped
       response.preset = ",-map 0 -c copy -max_muxing_queue_size 9999";
       response.processFile = false; // No processing needed
     } else {
       // No subtitle streams
-      response.infoLog +=
-        "☑ File has no subtitle streams; no action needed.\n";
+      response.infoLog += "☑ File has no subtitle streams; no action needed.\n";
       response.processFile = false;
     }
 

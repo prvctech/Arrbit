@@ -1,8 +1,8 @@
 /* eslint no-plusplus: ["error", { "allowForLoopAfterthoughts": true }] */
 const details = () => ({
-  id: "Tdarr_Plugin_CGEDIT_Anime_Subtitle_Cleaner",
+  id: "Tdarr_Plugin_Arrbit_Anime_Subtitle_Cleaner",
   Stage: "Pre-processing",
-  Name: "Gilbert's Subtitle Cleaner with Enhanced Flag Options",
+  Name: "Arrbit - Anime Subtitle Cleaner",
   Type: "Subtitle",
   Operation: "Transcode",
   Description:

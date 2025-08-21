@@ -1,7 +1,7 @@
 const details = () => ({
-  id: "Tdarr_Plugin_CGEDIT_Audio_KeepBestCodec",
+  id: "Tdarr_Plugin_Arrbit_Audio_KeepBestCodec",
   Stage: "Pre-processing",
-  Name: "Keep Best Audio Codec Per Language",
+  Name: "Arrbit - Keep Best Audio Codec",
   Type: "Audio",
   Operation: "Transcode",
   Description: `

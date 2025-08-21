@@ -1,8 +1,8 @@
 /* eslint no-plusplus: ["error", { "allowForLoopAfterthoughts": true }] */
 const details = () => ({
-  id: "Tdarr_Plugin_CGEDIT_Anime_Subtitle_Reorder",
+  id: "Tdarr_Plugin_Arrbit_Anime_Subtitle_Reorder",
   Stage: "Pre-processing",
-  Name: "Anime Subtitle Reorder by CGEDIT",
+  Name: "Arrbit - Anime Subtitle Reorder",
   Type: "Subtitle",
   Operation: "Transcode",
   Description:
@@ -55,7 +55,7 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
   ];
 
   const subtitleStreams = streams.filter(
-    (stream) => stream.codec_type.toLowerCase() === "subtitle",
+    (stream) => stream.codec_type.toLowerCase() === "subtitle"
   );
 
   if (subtitleStreams.length === 0) {
@@ -158,8 +158,7 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
   response.processFile = true;
   response.preset = `, ${ffmpegCommandInsert}-c copy -max_muxing_queue_size 9999`;
   response.reQueueAfter = true;
-  response.infoLog +=
-    "✔ Subtitle streams have been reordered appropriately.\n";
+  response.infoLog += "✔ Subtitle streams have been reordered appropriately.\n";
 
   return response;
 };

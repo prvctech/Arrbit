@@ -1,7 +1,7 @@
 const details = () => ({
-  id: "Tdarr_Plugin_CGEDIT_Audio_Metadata_Cleaner",
+  id: "Tdarr_Plugin_Arrbit_Audio_Metadata_Cleaner",
   Stage: "Pre-processing",
-  Name: "CGEDIT Clean Audio Title Metadata",
+  Name: "Arrbit - Audio Metadata Cleaner",
   Type: "Video",
   Operation: "Transcode",
   Description:
@@ -74,7 +74,7 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
 
           // Check if title contains any of the allowed words
           const shouldIgnore = allowedWords.some((word) =>
-            titleLower.includes(word),
+            titleLower.includes(word)
           );
 
           if (shouldIgnore) {

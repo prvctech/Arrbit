@@ -1,7 +1,7 @@
 const details = () => ({
-  id: "Tdarr_Plugin_CGEDIT_AI_Metadata_Corrector",
+  id: "Tdarr_Plugin_Arrbit_AI_Metadata_Corrector",
   Stage: "Pre-processing",
-  Name: "CGEDIT AI Metadata Corrector",
+  Name: "Arrbit - AI Metadata Corrector",
   Type: "Audio",
   Operation: "Transcode",
   Description:
@@ -63,7 +63,12 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
       return response;
     }
 
-    const results = parsed.results || {};
+  const results = parsed.results || {};
+  // NOTE: The detection JSON is treated as the authoritative source of truth
+  // for the spoken language of each audio stream. We do NOT attempt to
+  // parse or reconcile stream title metadata (e.g., "English 5.1 Surround").
+  // Any mismatch between existing language tags and detected languages will
+  // result in updating the language tag to match the detection output.
     const streams = file.ffProbeData.streams || [];
 
     // helper: normalize various language outputs to ffmpeg-friendly ISO 639 three-letter codes
@@ -172,7 +177,7 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
         if (detected && currentLang && detected === currentLang) {
           response.infoLog += `☑ Audio stream ${idx} language matches detected (${detected}).\n`;
         } else if (detected && detected !== currentLang) {
-          response.infoLog += `☒ Audio stream ${idx} metadata mismatch: current='${currentLangRaw}' detected='${detectedRaw}' — scheduling metadata update.\n`;
+          response.infoLog += `☒ Audio stream ${idx} language tag mismatch (ignoring any title text): current='${currentLangRaw}' detected='${detectedRaw}' — scheduling authoritative update.\n`;
           ffmpegMetaEdits += ` -metadata:s:a:${audioStreamOutputIndex} language=${detected}`;
           convertNeeded = true;
         } else {

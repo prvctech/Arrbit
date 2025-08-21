@@ -1,8 +1,8 @@
 /* eslint no-plusplus: ["error", { "allowForLoopAfterthoughts": true }] */
 const details = () => ({
-  id: "Tdarr_Plugin_CGEDIT_Anime_Subtitle_Flagger",
+  id: "Tdarr_Plugin_Arrbit_Anime_Subtitle_Flagger",
   Stage: "Pre-processing",
-  Name: "CGEDIT Simple Anime Subtitle Flagger",
+  Name: "Arrbit - Anime Subtitle Flagger",
   Type: "Subtitle",
   Operation: "Transcode",
   Description:
