@@ -6,7 +6,7 @@ const details = () => ({
   Operation: "Transcode",
   Description:
     "Samples a 15s snippet (default at minute 3) from each audio track and runs WhisperX to determine the spoken language. Writes a small JSON result into /app/arrbit/data/temp/ named <file_basename>.ai_lang.json.",
-  Version: "0.3",
+  Version: "0.4",
   Tags: "pre-processing,ai,whisperx,language-detection",
   Inputs: [
     {
@@ -110,6 +110,14 @@ const details = () => ({
       inputUI: { type: "checkbox" },
       tooltip:
         "If true, retain WhisperX stdout/stderr diagnostics in results JSON. If false (default), redact them for smaller JSON output.",
+    },
+    {
+      name: "enable_extended_script_inference",
+      type: "boolean",
+      defaultValue: true,
+      inputUI: { type: "checkbox" },
+      tooltip:
+        "If true (default), attempt script heuristics for additional languages (Devanagari->hi, Cyrillic->ru, Arabic->ar, Thai->th, Greek->el) when WhisperX result is not already a known language and CJK heuristic didn't fire.",
     },
   ],
 });
@@ -217,6 +225,8 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
 
     response.infoLog += `ℹ WhisperX settings -> model=${model}, compute_type=${computeType}, device=${devicePref}, heuristic_CJK=${
       inputs.enable_cjk_script_inference !== false ? "on" : "off"
+    }, heuristic_EXT=${
+      inputs.enable_extended_script_inference !== false ? "on" : "off"
     }, logs=${
       inputs.logs ? "on" : "off"
     } (broad multilingual detection enabled)\n`;
@@ -479,6 +489,91 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
                 }
               } catch (e) {
                 /* ignore heuristic errors */
+              }
+            }
+
+            // Heuristic 3 (extended scripts): apply only if enabled, detection still not among handled, and we didn't set a CJK language
+            if (inputs.enable_extended_script_inference !== false) {
+              if (["ja", "zh", "ko"].indexOf(detected) === -1) {
+                try {
+                  // Reuse sampleText if available or reconstruct
+                  const extSampleText =
+                    typeof sampleText !== "undefined" && sampleText
+                      ? sampleText
+                      : j.segments
+                      ? j.segments
+                          .map((s) => s.text)
+                          .join(" ")
+                          .slice(0, 1000)
+                      : "";
+                  if (extSampleText) {
+                    const devanagari =
+                      extSampleText.match(/[\u0900-\u097F]/g) || [];
+                    const cyrillic =
+                      extSampleText.match(/[\u0400-\u04FF]/g) || [];
+                    const arabic =
+                      extSampleText.match(/[\u0600-\u06FF]/g) || [];
+                    const thai = extSampleText.match(/[\u0E00-\u0E7F]/g) || [];
+                    const greek = extSampleText.match(/[\u0370-\u03FF]/g) || [];
+                    const textLen2 = Math.max(extSampleText.length, 1);
+                    const thresholdAbs = 4; // smaller threshold due to typically fewer characters per short sample
+                    const thresholdRatio = 0.02;
+                    const candidates = [];
+                    if (
+                      devanagari.length >= thresholdAbs &&
+                      devanagari.length / textLen2 >= thresholdRatio
+                    )
+                      candidates.push({
+                        lang: "hi",
+                        score: devanagari.length / textLen2,
+                      });
+                    if (
+                      cyrillic.length >= thresholdAbs &&
+                      cyrillic.length / textLen2 >= thresholdRatio
+                    )
+                      candidates.push({
+                        lang: "ru",
+                        score: cyrillic.length / textLen2,
+                      });
+                    if (
+                      arabic.length >= thresholdAbs &&
+                      arabic.length / textLen2 >= thresholdRatio
+                    )
+                      candidates.push({
+                        lang: "ar",
+                        score: arabic.length / textLen2,
+                      });
+                    if (
+                      thai.length >= thresholdAbs &&
+                      thai.length / textLen2 >= thresholdRatio
+                    )
+                      candidates.push({
+                        lang: "th",
+                        score: thai.length / textLen2,
+                      });
+                    if (
+                      greek.length >= thresholdAbs &&
+                      greek.length / textLen2 >= thresholdRatio
+                    )
+                      candidates.push({
+                        lang: "el",
+                        score: greek.length / textLen2,
+                      });
+                    if (candidates.length) {
+                      // pick highest ratio
+                      candidates.sort((a, b) => b.score - a.score);
+                      const chosen = candidates[0].lang;
+                      if (chosen && chosen !== detected) {
+                        response.infoLog += `⚠ Heuristic extended script inference override: '${detected}' -> '${chosen}' for track ${idx} (scores: ${candidates
+                          .map((c) => c.lang + ":" + c.score.toFixed(2))
+                          .join(", ")})\n`;
+                        detected = chosen;
+                      }
+                    }
+                  }
+                } catch (e) {
+                  /* ignore */
+                }
               }
             }
 
