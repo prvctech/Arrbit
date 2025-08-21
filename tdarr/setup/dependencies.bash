@@ -117,22 +117,26 @@ fi
 PIP="${WHISPERX_ENV_PATH}/bin/pip"
 PY="${WHISPERX_ENV_PATH}/bin/python"
 run_step "Upgrade pip/setuptools/wheel" "${PIP}" install --no-cache-dir --upgrade pip setuptools wheel
-run_step "Install torch (CPU)" "${PIP}" install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-# Decide which packages to install for whisperx
+run_step "Install latest torch (CPU) stack" "${PIP}" install --no-cache-dir --upgrade torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+# Optional extra requirement specs (space separated), e.g.
+#   ARRBIT_WHISPERX_PIP_EXTRAS="ctranslate2==4.5.0 faster-whisper==1.0.0"
+EXTRA_PKGS="${ARRBIT_WHISPERX_PIP_EXTRAS:-}"
+
 if [[ "${ARRBIT_MINIMAL_WHISPERX}" == "1" ]]; then
 	log_info "Minimal WhisperX install enabled"
-	# Allow override from environment
 	if [[ -n "${ARRBIT_WHISPERX_MINIMAL_PKGS:-}" ]]; then
 		minimal_pkgs="${ARRBIT_WHISPERX_MINIMAL_PKGS}"
 	else
 		minimal_pkgs="${ARRBIT_WHISPERX_MINIMAL_PKGS}"
 	fi
-	# Install only the minimal package set
-	run_step "Install whisperx (minimal)" "${PIP}" install --no-cache-dir ${minimal_pkgs}
+	run_step "Install whisperx (minimal latest)" "${PIP}" install --no-cache-dir --upgrade ${minimal_pkgs} ${EXTRA_PKGS}
 else
-	run_step "Install whisperx" "${PIP}" install --no-cache-dir whisperx
+	run_step "Install whisperx (latest)" "${PIP}" install --no-cache-dir --upgrade whisperx ${EXTRA_PKGS}
 fi
-run_step "Verify whisperx import" "${PY}" -c 'import whisperx'
+
+# Verify core imports
+run_step "Verify whisperx import" "${PY}" -c 'import whisperx, faster_whisper, ctranslate2'
 
 log_info "Installation successful"
 log_info "Done."
