@@ -1,3 +1,0 @@
-# Arrbit
-
-INIT
