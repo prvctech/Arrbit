@@ -6,7 +6,7 @@ const details = () => ({
   Operation: "Transcode",
   Description:
     "Reads a <file>.ai_lang.json produced by the AI Language Detection plugin and, when mismatches between detected and tagged languages are found, updates the MKV audio track language metadata using ffmpeg.",
-  Version: "0.1",
+  Version: "0.5",
   Tags: "pre-processing,ai,metadata,ffmpeg",
   Inputs: [
     {
@@ -63,13 +63,19 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
       return response;
     }
 
-  const results = parsed.results || {};
-  // NOTE: The detection JSON is treated as the authoritative source of truth
-  // for the spoken language of each audio stream. We do NOT attempt to
-  // parse or reconcile stream title metadata (e.g., "English 5.1 Surround").
-  // Any mismatch between existing language tags and detected languages will
-  // result in updating the language tag to match the detection output.
+    const results = parsed.results || {};
     const streams = file.ffProbeData.streams || [];
+
+    // Quick sanity: list AI languages detected
+    const detectedSummary = Object.keys(results)
+      .map(
+        (k) =>
+          `${k}:${
+            results[k] && results[k].language ? results[k].language : "?"
+          }`
+      )
+      .join(", ");
+    response.infoLog += `AI detected languages (by input stream index): ${detectedSummary} (convert known 2->3; unknown 2-letter passed through)\n`;
 
     // helper: normalize various language outputs to ffmpeg-friendly ISO 639 three-letter codes
     const langMap = {
@@ -132,15 +138,59 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
       vi: "vie",
       vie: "vie",
       vietnamese: "vie",
+      th: "tha",
+      tha: "tha",
+      thai: "tha",
+      el: "ell",
+      ell: "ell",
+      greek: "ell",
+      uk: "ukr",
+      ukr: "ukr",
+      ukrainian: "ukr",
+      cs: "ces",
+      ces: "ces",
+      cze: "ces",
+      czech: "ces",
+      sk: "slk",
+      slk: "slk",
+      slo: "slk",
+      slovak: "slk",
+      hu: "hun",
+      hun: "hun",
+      hungarian: "hun",
+      ro: "ron",
+      ron: "ron",
+      rum: "ron",
+      romanian: "ron",
+      bg: "bul",
+      bul: "bul",
+      bulgarian: "bul",
+      sr: "srp",
+      srp: "srp",
+      serbian: "srp",
+      hr: "hrv",
+      hrv: "hrv",
+      croatian: "hrv",
+      da: "dan",
+      dan: "dan",
+      danish: "dan",
+      he: "heb",
+      heb: "heb",
+      hebrew: "heb",
+      fa: "fas",
+      fas: "fas",
+      per: "fas",
+      persian: "fas",
+      ur: "urd",
+      urd: "urd",
+      urdu: "urd",
     };
 
     const normalizeLanguage = (raw) => {
       if (!raw || typeof raw !== "string") return null;
       const key = raw.trim().toLowerCase();
       if (langMap[key]) return langMap[key];
-      // if it's a 2-letter code not in map, try common expansion
       if (/^[a-z]{2}$/.test(key)) {
-        // naive mapping table for two letters
         const twoToThree = {
           en: "eng",
           es: "spa",
@@ -148,55 +198,89 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
           pt: "por",
           it: "ita",
           de: "deu",
+          ja: "jpn",
+          ko: "kor",
+          zh: "zho",
+          ru: "rus",
+          ar: "ara",
+          hi: "hin",
+          nl: "nld",
+          sv: "swe",
+          no: "nor",
+          fi: "fin",
+          pl: "pol",
+          tr: "tur",
+          vi: "vie",
+          th: "tha",
+          el: "ell",
+          uk: "ukr",
+          cs: "ces",
+          sk: "slk",
+          hu: "hun",
+          ro: "ron",
+          bg: "bul",
+          sr: "srp",
+          hr: "hrv",
+          da: "dan",
+          he: "heb",
+          fa: "fas",
+          ur: "urd",
         };
-        if (twoToThree[key]) return twoToThree[key];
+        return twoToThree[key] || key; // pass through unknown 2-letter
       }
-      // if already 3-letter, return as-is
       if (/^[a-z]{3}$/.test(key)) return key;
       return null;
     };
 
     // Build ffmpeg metadata edits based on mismatches
-    let ffmpegMetaEdits = "";
-    let audioStreamOutputIndex = 0;
+    let ffmpegMetaEdits = [];
+    let audioStreamOutputIndex = 0; // counts only audio streams in output order
     let convertNeeded = false;
 
     streams.forEach((stream) => {
-      if (stream.codec_type && stream.codec_type.toLowerCase() === "audio") {
-        const idx = stream.index; // input stream index
-        const ai = results[idx];
-        const detectedRaw = ai && ai.language ? ai.language : null;
-        const detected = normalizeLanguage(detectedRaw);
-        const currentLangRaw =
-          stream.tags &&
-          (stream.tags.language || stream.tags.LANGUAGE || stream.tags.lang)
-            ? stream.tags.language || stream.tags.LANGUAGE || stream.tags.lang
-            : null;
-        const currentLang = normalizeLanguage(currentLangRaw);
+      if (
+        !stream ||
+        !stream.codec_type ||
+        stream.codec_type.toLowerCase() !== "audio"
+      )
+        return;
+      const idx = stream.index; // input stream index
+      const ai = results[idx];
+      const detectedRaw = ai && ai.language ? ai.language : null;
+      const detected = normalizeLanguage(detectedRaw);
+      const currentLangRaw =
+        stream.tags &&
+        (stream.tags.language || stream.tags.LANGUAGE || stream.tags.lang)
+          ? stream.tags.language || stream.tags.LANGUAGE || stream.tags.lang
+          : null;
+      const currentLang = normalizeLanguage(currentLangRaw);
 
-        if (detected && currentLang && detected === currentLang) {
-          response.infoLog += `☑ Audio stream ${idx} language matches detected (${detected}).\n`;
-        } else if (detected && detected !== currentLang) {
-          response.infoLog += `☒ Audio stream ${idx} language tag mismatch (ignoring any title text): current='${currentLangRaw}' detected='${detectedRaw}' — scheduling authoritative update.\n`;
-          ffmpegMetaEdits += ` -metadata:s:a:${audioStreamOutputIndex} language=${detected}`;
-          convertNeeded = true;
-        } else {
-          response.infoLog += `⚠ Could not determine detected language for stream ${idx} (raw: ${detectedRaw}).\n`;
-        }
-
-        audioStreamOutputIndex += 1;
+      if (detected && currentLang && detected === currentLang) {
+        response.infoLog += `☑ Stream ${idx} OK (audio output #${audioStreamOutputIndex}) current='${currentLangRaw}' detected='${detectedRaw}'.\n`;
+      } else if (detected && (!currentLang || detected !== currentLang)) {
+        response.infoLog += `✎ Stream ${idx} will be retagged (audio output #${audioStreamOutputIndex}) current='${currentLangRaw}' => '${detectedRaw}'.\n`;
+        ffmpegMetaEdits.push(
+          `-metadata:s:a:${audioStreamOutputIndex} language=${detected}`
+        );
+        convertNeeded = true;
+      } else {
+        response.infoLog += `⚠ Stream ${idx} unable to determine detected language (raw='${detectedRaw}'). Skipping.\n`;
       }
+
+      audioStreamOutputIndex += 1;
     });
 
-    if (convertNeeded) {
-      // Build a copy command preserving streams but changing metadata
-      // Map all input streams
-      let mapCmd = " -map 0";
-      const ffmpegPreset = `${ffmpegMetaEdits} -c copy -map 0 -max_muxing_queue_size 9999`;
-      response.preset = `, ${ffmpegPreset}`;
+    if (convertNeeded && ffmpegMetaEdits.length > 0) {
+      const metaArgs = ffmpegMetaEdits.join(" ");
+      // Use comma prefix for consistency with other local plugins so presets chain cleanly.
+      const ffmpegPreset = `, ${metaArgs} -c copy -map 0 -max_muxing_queue_size 9999`;
+      response.preset = ffmpegPreset;
       response.reQueueAfter = true;
       response.processFile = true;
-      response.infoLog += `☑ Scheduled ffmpeg metadata rewrite: ${ffmpegMetaEdits}\n`;
+      response.infoLog += `☑ Scheduled ffmpeg metadata rewrite with args: ${metaArgs}\n`;
+    } else if (convertNeeded && ffmpegMetaEdits.length === 0) {
+      response.infoLog +=
+        "⚠ convertNeeded true but no metadata edits collected; skipping.\n";
     } else {
       response.infoLog +=
         "☑ No metadata changes required based on AI results.\n";
