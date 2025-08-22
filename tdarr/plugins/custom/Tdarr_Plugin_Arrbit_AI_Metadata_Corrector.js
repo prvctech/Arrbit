@@ -1,13 +1,13 @@
 const details = () => ({
   id: "Tdarr_Plugin_Arrbit_AI_Metadata_Corrector",
   Stage: "Pre-processing",
-  Name: "Arrbit - AI Metadata Corrector",
+  Name: "Arrbit - AI Metadata Corrector v2",
   Type: "Audio",
   Operation: "Transcode",
   Description:
-    "Reads a <file>.ai_lang.json produced by the AI Language Detection plugin and, when mismatches between detected and tagged languages are found, updates the MKV audio track language metadata using ffmpeg.",
-  Version: "0.5",
-  Tags: "pre-processing,ai,metadata,ffmpeg",
+    "Reads a <file>.ai_lang.json produced by the AI Language Detection plugin v2 and, when mismatches between detected and tagged languages are found, updates the MKV audio track language metadata using ffmpeg. Supports both legacy format and new rich JSON with probability distributions and confidence tiers.",
+  Version: "2.0",
+  Tags: "pre-processing,ai,metadata,ffmpeg,probability",
   Inputs: [
     {
       name: "results_dir",
@@ -15,6 +15,30 @@ const details = () => ({
       defaultValue: "/app/arrbit/data/temp",
       inputUI: { type: "text" },
       tooltip: "Directory where ai_language_detection writes its JSON results.",
+    },
+    {
+      name: "min_confidence_threshold",
+      type: "number",
+      defaultValue: 0.55,
+      inputUI: { type: "number", placeholder: "0.55", allowCustom: true },
+      tooltip:
+        "Minimum confidence required to apply detected language (0.0-1.0). For v2 detection results with confidence scoring.",
+    },
+    {
+      name: "require_high_confidence",
+      type: "boolean",
+      defaultValue: false,
+      inputUI: { type: "checkbox" },
+      tooltip:
+        "Only apply changes for 'high' confidence tier detections. Ignores medium/low confidence results.",
+    },
+    {
+      name: "prefer_subtitle_validated",
+      type: "boolean",
+      defaultValue: true,
+      inputUI: { type: "checkbox" },
+      tooltip:
+        "Prefer language detections that are validated by matching subtitle tracks.",
     },
   ],
 });
@@ -63,19 +87,55 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
       return response;
     }
 
-    const results = parsed.results || {};
+    // Detect format: v2 has detection_version, v1 has direct results
+    const isV2Format = parsed.detection_version === "2.0" || parsed.parameters;
+    const results = isV2Format ? parsed.results || {} : parsed;
+    const detectionVersion = isV2Format ? "v2.0" : "v1.x";
+
+    response.infoLog += `☑ Processing ${detectionVersion} AI detection results\n`;
+
+    // Extract configuration thresholds
+    const minConfidenceThreshold =
+      Number(inputs.min_confidence_threshold) || 0.55;
+    const requireHighConfidence = inputs.require_high_confidence === true;
+    const preferSubtitleValidated = inputs.prefer_subtitle_validated !== false;
+
+    if (isV2Format) {
+      response.infoLog += `☑ Confidence filtering: min=${minConfidenceThreshold}, high_only=${requireHighConfidence}, subtitle_validated=${preferSubtitleValidated}\n`;
+    }
+
     const streams = file.ffProbeData.streams || [];
 
-    // Quick sanity: list AI languages detected
-    const detectedSummary = Object.keys(results)
-      .map(
-        (k) =>
-          `${k}:${
-            results[k] && results[k].language ? results[k].language : "?"
-          }`
-      )
-      .join(", ");
-    response.infoLog += `AI detected languages (by input stream index): ${detectedSummary} (convert known 2->3; unknown 2-letter passed through)\n`;
+    // Generate detection summary based on format
+    let detectedSummary;
+    if (isV2Format) {
+      detectedSummary = Object.keys(results)
+        .map((k) => {
+          const result = results[k];
+          if (result.skipped) return `${k}:skipped(${result.reason})`;
+          if (result.error) return `${k}:error`;
+          const lang = result.language || "?";
+          const conf = result.confidence
+            ? `@${(result.confidence * 100).toFixed(0)}%`
+            : "";
+          const tier = result.confidence_tier
+            ? `(${result.confidence_tier})`
+            : "";
+          return `${k}:${lang}${conf}${tier}`;
+        })
+        .join(", ");
+    } else {
+      detectedSummary = Object.keys(results)
+        .map(
+          (k) =>
+            `${k}:${
+              results[k] && results[k].language ? results[k].language : "?"
+            }`
+        )
+        .join(", ");
+    }
+
+    response.infoLog += `AI detected languages (by input stream index): ${detectedSummary}\n`;
 
     // helper: normalize various language outputs to ffmpeg-friendly ISO 639 three-letter codes
     const langMap = {
@@ -232,7 +292,89 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
       return null;
     };
 
-    // Build ffmpeg metadata edits based on mismatches
+    // Enhanced language detection evaluation for v2 format
+    const evaluateDetection = (result, streamIdx) => {
+      if (!result || result.skipped || result.error) {
+        return {
+          shouldApply: false,
+          reason: result.skipped
+            ? `skipped(${result.reason})`
+            : result.error
+            ? `error(${result.error})`
+            : "no_result",
+          detectedLang: null,
+        };
+      }
+
+      const detectedRaw = result.language;
+      const detected = normalizeLanguage(detectedRaw);
+
+      if (!detected || detected === "und") {
+        return {
+          shouldApply: false,
+          reason: "undetermined_language",
+          detectedLang: null,
+        };
+      }
+
+      // v2 confidence-based filtering
+      if (isV2Format) {
+        const confidence = result.confidence || 0;
+        const confidenceTier = result.confidence_tier || "unknown";
+
+        // Apply confidence threshold
+        if (confidence < minConfidenceThreshold) {
+          return {
+            shouldApply: false,
+            reason: `low_confidence(${(confidence * 100).toFixed(1)}%<${(
+              minConfidenceThreshold * 100
+            ).toFixed(0)}%)`,
+            detectedLang: detected,
+          };
+        }
+
+        // Apply high confidence requirement
+        if (requireHighConfidence && confidenceTier !== "high") {
+          return {
+            shouldApply: false,
+            reason: `not_high_confidence(${confidenceTier})`,
+            detectedLang: detected,
+          };
+        }
+
+        // Check subtitle validation preference
+        if (preferSubtitleValidated && result.subtitle_validation) {
+          const hasMatchingSubtitle =
+            result.subtitle_validation.matching_subtitle_found;
+          if (!hasMatchingSubtitle && confidenceTier === "medium") {
+            return {
+              shouldApply: false,
+              reason: `no_subtitle_validation(${confidenceTier})`,
+              detectedLang: detected,
+            };
+          }
+        }
+
+        return {
+          shouldApply: true,
+          reason: `passed_v2_checks(${confidenceTier},${(
+            confidence * 100
+          ).toFixed(1)}%)`,
+          detectedLang: detected,
+          confidence: confidence,
+          confidenceTier: confidenceTier,
+        };
+      } else {
+        // v1 format - simpler evaluation
+        return {
+          shouldApply: true,
+          reason: "v1_format",
+          detectedLang: detected,
+        };
+      }
+    };
+
+    // Build ffmpeg metadata edits based on enhanced evaluation
     let ffmpegMetaEdits = [];
     let audioStreamOutputIndex = 0; // counts only audio streams in output order
     let convertNeeded = false;
@@ -244,10 +386,11 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
         stream.codec_type.toLowerCase() !== "audio"
       )
         return;
+
       const idx = stream.index; // input stream index
-      const ai = results[idx];
-      const detectedRaw = ai && ai.language ? ai.language : null;
-      const detected = normalizeLanguage(detectedRaw);
+      const result = results[idx];
+      const evaluation = evaluateDetection(result, idx);
+
       const currentLangRaw =
         stream.tags &&
         (stream.tags.language || stream.tags.LANGUAGE || stream.tags.lang)
@@ -255,16 +398,26 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
           : null;
       const currentLang = normalizeLanguage(currentLangRaw);
 
-      if (detected && currentLang && detected === currentLang) {
-        response.infoLog += `☑ Stream ${idx} OK (audio output #${audioStreamOutputIndex}) current='${currentLangRaw}' detected='${detectedRaw}'.\n`;
-      } else if (detected && (!currentLang || detected !== currentLang)) {
-        response.infoLog += `✎ Stream ${idx} will be retagged (audio output #${audioStreamOutputIndex}) current='${currentLangRaw}' => '${detectedRaw}'.\n`;
+      if (!evaluation.shouldApply) {
+        response.infoLog += `⏭ Stream ${idx} skipped (audio output #${audioStreamOutputIndex}): ${evaluation.reason}\n`;
+      } else if (
+        evaluation.detectedLang &&
+        currentLang &&
+        evaluation.detectedLang === currentLang
+      ) {
+        response.infoLog += `☑ Stream ${idx} OK (audio output #${audioStreamOutputIndex}) current='${currentLangRaw}' detected='${evaluation.detectedLang}' [${evaluation.reason}]\n`;
+      } else if (
+        evaluation.detectedLang &&
+        (!currentLang || evaluation.detectedLang !== currentLang)
+      ) {
+        const confInfo = evaluation.confidence
+          ? ` conf=${(evaluation.confidence * 100).toFixed(1)}%`
+          : "";
+        response.infoLog += `✎ Stream ${idx} will be retagged (audio output #${audioStreamOutputIndex}) current='${currentLangRaw}' => '${evaluation.detectedLang}'${confInfo} [${evaluation.reason}]\n`;
         ffmpegMetaEdits.push(
-          `-metadata:s:a:${audioStreamOutputIndex} language=${detected}`
+          `-metadata:s:a:${audioStreamOutputIndex} language=${evaluation.detectedLang}`
         );
         convertNeeded = true;
-      } else {
-        response.infoLog += `⚠ Stream ${idx} unable to determine detected language (raw='${detectedRaw}'). Skipping.\n`;
       }
 
       audioStreamOutputIndex += 1;

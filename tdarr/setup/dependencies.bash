@@ -19,7 +19,7 @@ FORCE_REINSTALL="${ARRBIT_FORCE_DEPS:-0}"
 # package list via ARRBIT_WHISPERX_MINIMAL_PKGS (space-separated pip spec).
 ARRBIT_MINIMAL_WHISPERX="${ARRBIT_MINIMAL_WHISPERX:-0}"
 # Default minimal package set (keeps size small but functional)
-ARRBIT_WHISPERX_MINIMAL_PKGS="whisperx onnxruntime ctranslate2 faster-whisper"
+ARRBIT_WHISPERX_MINIMAL_PKGS="whisperx onnxruntime ctranslate2 faster-whisper silero-vad"
 
 # Source helpers (guaranteed after setup)
 source "${ARRBIT_BASE}/universal/helpers/logging_utils.bash"
@@ -132,11 +132,12 @@ if [[ "${ARRBIT_MINIMAL_WHISPERX}" == "1" ]]; then
 	fi
 	run_step "Install whisperx (minimal latest)" "${PIP}" install --no-cache-dir --upgrade ${minimal_pkgs} ${EXTRA_PKGS}
 else
-	run_step "Install whisperx (latest)" "${PIP}" install --no-cache-dir --upgrade whisperx ${EXTRA_PKGS}
+	run_step "Install whisperx (latest)" "${PIP}" install --no-cache-dir --upgrade whisperx silero-vad ${EXTRA_PKGS}
 fi
 
 # Verify core imports
 run_step "Verify whisperx import" "${PY}" -c 'import whisperx, faster_whisper, ctranslate2'
+run_step "Verify VAD import" "${PY}" -c 'import silero_vad'
 
 log_info "Installation successful"
 log_info "Done."
