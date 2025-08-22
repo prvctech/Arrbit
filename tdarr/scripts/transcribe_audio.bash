@@ -17,11 +17,12 @@ in="$1"; out="${2:-${in%.*}.txt}"
 log="$LOGS/transcription_$(date +%Y%m%d_%H%M%S).log"
 echo "Transcribing $in -> $out" | tee "$log"
 
+lang_out="$(dirname "$out")/$(basename "${in%.*}").lang"
 "$ENV/bin/python" -m whisperx \
   --model "${WHISPERX_MODEL:-tiny}" \
   --language "${WHISPERX_LANGUAGE:-auto}" \
   --output_dir "$(dirname "$out")" \
   --output_format "${WHISPERX_OUTPUT_FORMAT:-txt}" \
-  "$in" 2>&1 | tee -a "$log"
+  "$in" 2> "$lang_out" | tee -a "$log"
 
 echo "Done. Output: $out" | tee -a "$log"
