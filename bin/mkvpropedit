@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Wrapper to ensure mkvpropedit availability inside Arrbit sandbox.
+# Tries system mkvpropedit first; error if missing.
+set -euo pipefail
+if command -v mkvpropedit >/dev/null 2>&1; then
+  exec mkvpropedit "$@"
+fi
+echo "[ERR] mkvpropedit not found in PATH" >&2
+exit 127
