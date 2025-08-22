@@ -241,6 +241,11 @@ deploy() {
 	if [ -d "${helpers_src_a}" ]; then
 		log_info "Deploying helpers (universal/helpers structure)"
 		copy_dir "${helpers_src_a}" "${HELPERS_DEST}" || return 1
+		# Also copy universal/workers if present (contains vad_lid_worker and others)
+		if [ -d "${FETCH_DIR}/universal/workers" ]; then
+			mkdir -p "${ARRBIT_BASE}/universal/workers"
+			copy_dir "${FETCH_DIR}/universal/workers" "${ARRBIT_BASE}/universal/workers" || return 1
+		fi
 	elif [ -d "${helpers_src_b}" ]; then
 		log_info "Deploying helpers (fallback root helpers structure)"
 		copy_dir "${helpers_src_b}" "${HELPERS_DEST}" || return 1
