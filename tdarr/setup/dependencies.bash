@@ -86,7 +86,7 @@ run_step() {
 }
 
 run_step "apt-get update" apt-get update -y
-run_step "apt-get install python3 python3-venv curl" apt-get install -y --no-install-recommends python3 python3-venv curl
+run_step "apt-get install python3 python3-venv curl mkvtoolnix" apt-get install -y --no-install-recommends python3 python3-venv curl mkvtoolnix
 run_step "apt-get clean" apt-get clean
 
 if [[ ${FORCE_REINSTALL} == "1" && -d ${WHISPERX_ENV_PATH} ]]; then
@@ -140,5 +140,11 @@ run_step "Verify whisperx import" "${PY}" -c 'import whisperx, faster_whisper, c
 run_step "Verify VAD import" "${PY}" -c 'import silero_vad'
 
 log_info "Installation successful"
+# Expose mkvpropedit in isolated tools dir (symlink) for consistency
+TOOLS_DIR="${ARRBIT_ENVIRONMENTS_DIR}/tools-bin"
+mkdir -p "${TOOLS_DIR}" || true
+if command -v mkvpropedit >/dev/null 2>&1; then
+	ln -sf "$(command -v mkvpropedit)" "${TOOLS_DIR}/mkvpropedit" || true
+fi
 log_info "Done."
 exit 0

@@ -83,11 +83,11 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
   const lib = require("../methods/lib")();
   inputs = lib.loadDefaultValues(inputs, details);
   const response = {
-    processFile: false,
+    processFile: false, // no remux
     preset: "",
     container: `.${file.container}`,
     handBrakeMode: false,
-    FFmpegMode: true,
+    FFmpegMode: false,
     reQueueAfter: false,
     infoLog: "",
   };
@@ -105,8 +105,8 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
   const TEMP_DIR = path.join(DATA_DIR, "temp");
   const baseName = path.basename(file.file);
 
-  let audioTrackIdx = 0; // index in ffprobe order of audio
-  let ffmpegInsert = "";
+  let audioTrackIdx = 0; // index among audio streams
+  const edits = [];
   for (let i = 0; i < file.ffProbeData.streams.length; i += 1) {
     const s = file.ffProbeData.streams[i];
     if ((s.codec_type || "").toLowerCase() !== "audio") continue;
@@ -144,23 +144,49 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
     const iso1 = primary;
     const mixed = decision === "ambiguous" || (share >= 0.55 && share < 0.7);
     const langName = langNames[primary] || primary;
-    ffmpegInsert += ` -metadata:s:a:${audioTrackIdx} language=${iso2} -metadata:s:a:${audioTrackIdx} language-ietf=${iso1}`;
-    if (mixed) {
-      ffmpegInsert += ` -metadata:s:a:${audioTrackIdx} title='${langName} (mixed)'`;
-      response.infoLog += `Tag a${audioTrackIdx} ${iso1}/${iso2} (mixed) share=${share}.\n`;
-    } else {
-      response.infoLog += `Tag a${audioTrackIdx} ${iso1}/${iso2} share=${share}.\n`;
-    }
+    const trackEdit = {
+      track: audioTrackIdx,
+      iso1,
+      iso2,
+      title: mixed ? `${langName} (mixed)` : null,
+    };
+    edits.push(trackEdit);
+    response.infoLog += `Tag a${audioTrackIdx} ${iso1}/${iso2}${
+      mixed ? " (mixed)" : ""
+    } share=${share}.\n`;
     audioTrackIdx += 1;
   }
-
-  if (ffmpegInsert) {
-    response.processFile = true;
-    response.preset = `, -c copy -map 0 ${ffmpegInsert} -max_muxing_queue_size 9999`;
-    response.reQueueAfter = true;
-  } else {
+  if (edits.length === 0) {
     response.infoLog += "No tagging operations required.\n";
+    return response;
   }
+  // Execute mkvpropedit edits sequentially to avoid race conditions.
+  const { spawnSync } = require("child_process");
+  const MKVPROPEDIT = "/app/arrbit/bin/mkvpropedit";
+  if (!fs.existsSync(MKVPROPEDIT)) {
+    response.infoLog += "mkvpropedit wrapper missing.\n";
+    return response;
+  }
+  for (const e of edits) {
+    const args = [
+      file.file,
+      "--edit",
+      `track:a:${e.track}`,
+      "--set",
+      `language-ietf=${e.iso1}`,
+      "--set",
+      `language=${e.iso2}`,
+    ];
+    if (e.title) {
+      args.push("--set", `name=${e.title}`);
+    }
+    const r = spawnSync(MKVPROPEDIT, args, { encoding: "utf8" });
+    if (r.status !== 0) {
+      response.infoLog += `mkvpropedit failed track ${e.track}: ${r.stderr}\n`;
+    }
+  }
+  // After in-place edits, request re-probe so downstream plugins see updated metadata.
+  response.reQueueAfter = true;
   return response;
 };
 
