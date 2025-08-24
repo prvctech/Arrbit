@@ -2,7 +2,7 @@
 # shellcheck disable=SC2317 # safe_rm_dir lines falsely flagged unreachable; function invoked via cleanup path
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - Tdarr Setup Script
-# Version: v1.0.1-gs3.1.2 (Config copy guard: only seed missing config files; no overwrite of existing user configs)
+# Version: v1.0.2-gs3.1.2 (Config copy guard: only seed missing config files; no overwrite of existing user configs)
 # Purpose: Fetch (if needed) Arrbit repo and deploy Tdarr + shared assets to fixed Arrbit base (/app/arrbit)
 #           - Copies helpers (universal/helpers) into /app/arrbit/universal/helpers
 #           - Copies Tdarr config, plugins, scripts, data files
@@ -10,7 +10,7 @@
 # -------------------------------------------------------------------------------------------------------------
 set -euo pipefail
 
-SETUP_SCRIPT_VERSION="v1.0.1-gs3.1.2"
+SETUP_SCRIPT_VERSION="v1.0.2-gs3.1.2"
 ARRBIT_BASE="/app/arrbit"
 SETUP_DEST="${ARRBIT_BASE}/setup"
 HELPERS_DEST="${ARRBIT_BASE}/universal/helpers"
@@ -71,13 +71,10 @@ precreate_dirs() {
 		"${WORK_TMP_BASE}"
 		"${ARRBIT_BASE}/environments"
 		"${ARRBIT_BASE}/plugins"
-		"${ARRBIT_BASE}/plugins/transcription"
-		"${ARRBIT_BASE}/plugins/audio_enhancement"
 		"${ARRBIT_BASE}/plugins/custom"
 		"${ARRBIT_BASE}/data"
 		"${ARRBIT_BASE}/data/models"
 		"${ARRBIT_BASE}/data/models/whisper"
-		"${ARRBIT_BASE}/data/cache"
 		"${ARRBIT_BASE}/data/temp"
 		"${ARRBIT_BASE}/data/logs"
 		"${ARRBIT_BASE}/scripts"
@@ -133,11 +130,8 @@ ensure_dirs() {
 
 	local dirs=(
 		"${ARRBIT_BASE}/environments"
-		"${ARRBIT_BASE}/plugins/transcription"
-		"${ARRBIT_BASE}/plugins/audio_enhancement"
 		"${ARRBIT_BASE}/plugins/custom"
 		"${ARRBIT_BASE}/data/models/whisper"
-		"${ARRBIT_BASE}/data/cache"
 		"${ARRBIT_BASE}/data/temp"
 		"${ARRBIT_BASE}/data/logs"
 		"${ARRBIT_BASE}/scripts"
