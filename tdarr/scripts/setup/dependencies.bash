@@ -93,7 +93,7 @@ exec_step "apt-get clean" apt-get clean
 
 # Install and manage mkvtoolnix under /app/arrbit/dependencies/mkvtoolnix (idempotent)
 install_mkvtoolnix() {
-  TARGET_DIR="${ARRBIT_BASE}/dependencies/mkvtoolnix"
+  TARGET_DIR="${ARRBIT_ENVIRONMENTS_DIR}/mkvtoolnix"
   mkdir -p "$TARGET_DIR"
   # Ensure permissive permissions to avoid container permission issues
   chmod 0777 "$TARGET_DIR" || true
@@ -184,8 +184,9 @@ fi
 
 PIP="${WHISPERX_ENV_PATH}/bin/pip"
 PY="${WHISPERX_ENV_PATH}/bin/python"
-exec_step "Upgrade pip/setuptools/wheel" "${PIP}" install --no-cache-dir --upgrade pip setuptools wheel
-exec_step "Install latest torch (CPU) stack" "${PIP}" install --no-cache-dir --upgrade torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+# Use venv-local cache to avoid polluting ${ARRBIT_DATA_DIR} with build artefacts
+exec_step "Upgrade pip/setuptools/wheel" bash -lc "XDG_CACHE_HOME='${ARRBIT_ENVIRONMENTS_DIR}/whisperx-env/.cache' '${PIP}' install --no-cache-dir --upgrade pip setuptools wheel"
+exec_step "Install latest torch (CPU) stack" bash -lc "XDG_CACHE_HOME='${ARRBIT_ENVIRONMENTS_DIR}/whisperx-env/.cache' '${PIP}' install --no-cache-dir --upgrade torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu"
 
 # Optional extra requirement specs (space separated), e.g.
 #   ARRBIT_WHISPERX_PIP_EXTRAS="ctranslate2==4.5.0 faster-whisper==1.0.0"
@@ -198,16 +199,16 @@ if [[ "${ARRBIT_MINIMAL_WHISPERX}" == "1" ]]; then
 	else
 		minimal_pkgs="${ARRBIT_WHISPERX_MINIMAL_PKGS}"
 	fi
-	exec_step "Install whisperx (minimal latest)" "${PIP}" install --no-cache-dir --upgrade ${minimal_pkgs} ${EXTRA_PKGS}
+	exec_step "Install whisperx (minimal latest)" bash -lc "XDG_CACHE_HOME='${ARRBIT_ENVIRONMENTS_DIR}/whisperx-env/.cache' '${PIP}' install --no-cache-dir --upgrade ${minimal_pkgs} ${EXTRA_PKGS}"
 else
-	exec_step "Install whisperx (latest)" "${PIP}" install --no-cache-dir --upgrade whisperx ctranslate2 onnxruntime "faster-whisper" ${EXTRA_PKGS}
+	exec_step "Install whisperx (latest)" bash -lc "XDG_CACHE_HOME='${ARRBIT_ENVIRONMENTS_DIR}/whisperx-env/.cache' '${PIP}' install --no-cache-dir --upgrade whisperx ctranslate2 onnxruntime 'faster-whisper' ${EXTRA_PKGS}"
 fi
 
 # Verify core imports
 exec_step "Verify whisperx import" "${PY}" -c 'import whisperx, faster_whisper, ctranslate2, onnxruntime'
 
-exec_step "Create whisper model directory" mkdir -p "${ARRBIT_BASE}/data/models/whisper"
-exec_step "Download WhisperX base model (CPU, int8)" "${PY}" -c "import whisperx; whisperx.load_model('base', device='cpu', compute_type='int8')"
+exec_step "Create whisper model directory" mkdir -p "${ARRBIT_DATA_DIR}/models/whisper"
+exec_step "Download WhisperX base model (CPU, int8)" bash -lc "XDG_CACHE_HOME='${ARRBIT_DATA_DIR}/models' '${PY}' -c 'import whisperx; whisperx.load_model(\"base\", device=\"cpu\", compute_type=\"int8\")'"
 # Post-install verification: ensure accelerator packages are installed and importable
 exec_step "Verify accelerator packages (pip show)" "${PIP}" show ctranslate2 onnxruntime "faster-whisper"
 exec_step "Verify accelerator imports" "${PY}" -c 'import faster_whisper, ctranslate2, onnxruntime'
@@ -236,6 +237,14 @@ fi
 
 # final safety step: make every directory and file under environments world RWX
 exec_step "Ensure permissive permissions for /app/arrbit/environments" bash -lc 'if [ -d /app/arrbit/environments ]; then find /app/arrbit/environments -type d -exec chmod 0777 {} +; find /app/arrbit/environments -type f -exec chmod 0777 {} +; fi' || true
+
+# Verification: ensure no torch/silero artefacts were written into ARRBIT_DATA_DIR/torch
+if [ -d "${ARRBIT_DATA_DIR}/torch" ] && [ "$(ls -A "${ARRBIT_DATA_DIR}/torch" 2>/dev/null)" ]; then
+	log_error "Unexpected torch/silero artifacts found under ${ARRBIT_DATA_DIR}/torch - aborting to avoid data bloat"
+	exit 1
+else
+	log_info "No torch/silero artifacts found under ${ARRBIT_DATA_DIR}/torch"
+fi
 
 log_info "Done."
 exit 0
