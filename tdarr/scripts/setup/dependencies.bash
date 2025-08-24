@@ -86,7 +86,7 @@ run_step() {
 }
 
 run_step "apt-get update" apt-get update -y
-run_step "apt-get install python3 python3-venv curl mkvtoolnix" apt-get install -y --no-install-recommends python3 python3-venv curl mkvtoolnix
+run_step "apt-get install python3 python3-venv curl mkvtoolnix ffmpeg" apt-get install -y --no-install-recommends python3 python3-venv curl mkvtoolnix ffmpeg
 run_step "apt-get clean" apt-get clean
 
 if [[ ${FORCE_REINSTALL} == "1" && -d ${WHISPERX_ENV_PATH} ]]; then

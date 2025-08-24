@@ -1,0 +1,20 @@
+{
+  "FlowUID": "arrbit_audio_language_tagger_v1",
+  "Name": "Arrbit Audio Language Tagger (Pre-processing)",
+  "Description": "Detects audio track language and tags MKV tracks using mkvpropedit (dry-run first).",
+  "Version": 1,
+  "Steps": [
+    {
+      "Plugin": "Tdarr_Plugin_Arrbit_Audio_Language_Tagger",
+      "Enabled": true,
+      "Order": 1,
+      "Inputs": {
+        "confidence_threshold": 85,
+        "sample_duration": 60,
+        "dry_run": true,
+        "backup_original": true
+      }
+    }
+  ],
+  "Notes": "Run in dry-run first; set dry_run to false to apply changes."
+}
