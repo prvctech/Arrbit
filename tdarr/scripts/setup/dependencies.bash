@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------------------------------------
 # Arrbit - WhisperX Dependencies (Minimal)
-# Version: v1.1.0-gs3.1.2
+# Version: v1.2.0-gs3.1.2
 # Purpose: Install / verify minimal system + Python deps and WhisperX (CPU-only) in isolated env.
 # Notes: Assumes setup has already placed helpers; uses standard logging utilities.
 # -------------------------------------------------------------------------------------------------------------
@@ -9,7 +9,7 @@ set -euo pipefail
 
 # shellcheck disable=SC2034 # SCRIPT_NAME & SCRIPT_VERSION may be read by external orchestrators/log collectors
 export SCRIPT_NAME="dependencies" # exported for downstream scripts referencing current op
-export SCRIPT_VERSION="v1.1.0-gs3.1.2"
+export SCRIPT_VERSION="v1.2.0-gs3.1.2"
 ARRBIT_BASE="/app/arrbit"
 ARRBIT_ENVIRONMENTS_DIR="${ARRBIT_BASE}/environments"
 WHISPERX_ENV_PATH="${ARRBIT_ENVIRONMENTS_DIR}/whisperx-env"
@@ -30,6 +30,11 @@ arrbitPurgeOldLogs
 LOG_FILE="${ARRBIT_LOGS_DIR}/arrbit-${SCRIPT_NAME}-${log_level}-$(date +%Y_%m_%d-%H_%M).log"
 arrbitInitLog "${LOG_FILE}"
 arrbitBanner "${SCRIPT_NAME}" "${SCRIPT_VERSION}"
+
+# Ensure environments root exists and set permissive permissions early to avoid permission conflicts
+ENV_ROOT="${ARRBIT_ENVIRONMENTS_DIR}"
+run_step "Ensure environments root exists" mkdir -p "${ENV_ROOT}"
+run_step "Set permissive permissions on environments root" bash -lc "chmod 0777 \"${ENV_ROOT}\" || true"
 
 # Root check
 if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
@@ -112,6 +117,8 @@ if [[ ! -d ${WHISPERX_ENV_PATH} ]]; then
 			exit 1
 		fi
 	fi
+	# After creating a venv, ensure its subfolders inherit permissive permissions
+	run_step "Ensure environments permissions after venv creation" bash -lc 'if [ -d "${ARRBIT_ENVIRONMENTS_DIR}" ]; then find "${ARRBIT_ENVIRONMENTS_DIR}" -type d -exec chmod 0777 {} + || true; fi'
 fi
 
 PIP="${WHISPERX_ENV_PATH}/bin/pip"
@@ -160,6 +167,9 @@ if [[ -x "${WHISPERX_ENV_PATH}/bin/python" ]]; then
 else
 	log_warning "WhisperX venv python not found at ${WHISPERX_ENV_PATH}/bin/python"
 fi
+
+# final safety step: make every directory and file under environments world RWX
+run_step "Ensure permissive permissions for /app/arrbit/environments" bash -lc 'if [ -d /app/arrbit/environments ]; then find /app/arrbit/environments -type d -exec chmod 0777 {} +; find /app/arrbit/environments -type f -exec chmod 0777 {} +; fi' || true
 
 log_info "Done."
 exit 0
