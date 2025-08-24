@@ -18,3 +18,5 @@ logs/
 
 # keep other top-level ignores
 .github/
+.roo/
+.roomodes/
