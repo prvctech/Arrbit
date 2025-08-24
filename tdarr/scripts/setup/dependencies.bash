@@ -19,7 +19,7 @@ FORCE_REINSTALL="${ARRBIT_FORCE_DEPS:-0}"
 # package list via ARRBIT_WHISPERX_MINIMAL_PKGS (space-separated pip spec).
 ARRBIT_MINIMAL_WHISPERX="${ARRBIT_MINIMAL_WHISPERX:-0}"
 # Default minimal package set (keeps size small but functional)
-ARRBIT_WHISPERX_MINIMAL_PKGS="whisperx onnxruntime ctranslate2 faster-whisper silero-vad"
+ARRBIT_WHISPERX_MINIMAL_PKGS="whisperx onnxruntime ctranslate2 faster-whisper"
 
 # Source helpers (guaranteed after setup)
 source "${ARRBIT_BASE}/universal/helpers/logging_utils.bash"
@@ -132,12 +132,18 @@ if [[ "${ARRBIT_MINIMAL_WHISPERX}" == "1" ]]; then
 	fi
 	run_step "Install whisperx (minimal latest)" "${PIP}" install --no-cache-dir --upgrade ${minimal_pkgs} ${EXTRA_PKGS}
 else
-	run_step "Install whisperx (latest)" "${PIP}" install --no-cache-dir --upgrade whisperx silero-vad ${EXTRA_PKGS}
+	run_step "Install whisperx (latest)" "${PIP}" install --no-cache-dir --upgrade whisperx ctranslate2 onnxruntime "faster-whisper" ${EXTRA_PKGS}
 fi
 
 # Verify core imports
-run_step "Verify whisperx import" "${PY}" -c 'import whisperx, faster_whisper, ctranslate2'
-run_step "Verify VAD import" "${PY}" -c 'import silero_vad'
+run_step "Verify whisperx import" "${PY}" -c 'import whisperx, faster_whisper, ctranslate2, onnxruntime'
+# silero_vad removed: rely on WhisperX built-in VAD (no additional VAD import verification)
+# Ensure whisperx model directory exists and download the base model (CPU, int8) into Arrbit model cache
+run_step "Create whisper model directory" mkdir -p "${ARRBIT_BASE}/data/models/whisper"
+run_step "Download WhisperX base model (CPU, int8)" "${PY}" -c "import whisperx; whisperx.load_model('base', device='cpu', compute_type='int8')"
+# Post-install verification: ensure accelerator packages are installed and importable
+run_step "Verify accelerator packages (pip show)" "${PIP}" show ctranslate2 onnxruntime "faster-whisper"
+run_step "Verify accelerator imports" "${PY}" -c 'import faster_whisper, ctranslate2, onnxruntime'
 
 log_info "Installation successful"
 # Expose mkvpropedit in isolated tools dir (symlink) for consistency
@@ -146,5 +152,14 @@ mkdir -p "${TOOLS_DIR}" || true
 if command -v mkvpropedit >/dev/null 2>&1; then
 	ln -sf "$(command -v mkvpropedit)" "${TOOLS_DIR}/mkvpropedit" || true
 fi
+
+# Symlink the venv python into tools-bin for easy discovery by plugins
+if [[ -x "${WHISPERX_ENV_PATH}/bin/python" ]]; then
+	ln -sf "${WHISPERX_ENV_PATH}/bin/python" "${TOOLS_DIR}/whisperx_python" || true
+	log_info "Created tools-bin/whisperx_python -> ${WHISPERX_ENV_PATH}/bin/python"
+else
+	log_warning "WhisperX venv python not found at ${WHISPERX_ENV_PATH}/bin/python"
+fi
+
 log_info "Done."
 exit 0

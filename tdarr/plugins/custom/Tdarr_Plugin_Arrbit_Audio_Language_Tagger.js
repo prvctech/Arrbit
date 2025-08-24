@@ -88,9 +88,30 @@ module.exports.plugin = function plugin(
       ("" + inputs.backup_original).toLowerCase() === "true" ||
       inputs.backup_original === true;
 
+    // Prefer ARRBIT venv python if present, otherwise fall back to python3
+    const preferredPythonEnv =
+      process.env.ARRBIT_WHISPERX_PYTHON ||
+      "/app/arrbit/environments/whisperx-env/bin/python";
+    const pythonBin = fs.existsSync(preferredPythonEnv)
+      ? preferredPythonEnv
+      : "python3";
+
+    // Sanity-check chosen python interpreter: ensure whisperx and torch import cleanly.
+    try {
+      execSync(`${pythonBin} -c "import whisperx, torch"`, { stdio: "ignore" });
+      response.infoLog += `🔧 Python environment check passed (using ${pythonBin})\n`;
+    } catch (err) {
+      response.error = true;
+      response.infoLog += `❌ Python environment check failed for ${pythonBin}: ${
+        err && err.message ? err.message : err
+      }\n`;
+      response.infoLog += `ℹ️ Ensure WhisperX and torch are installed in the venv at ${pythonBin}. Run the Arrbit dependencies installer: tdarr/scripts/setup/dependencies.bash\n`;
+      return response;
+    }
+
     // Build command and quote paths with spaces
     const cmd = [
-      "python3",
+      pythonBin,
       scriptPath,
       file.file,
       String(sampleDuration),
@@ -100,6 +121,8 @@ module.exports.plugin = function plugin(
     ]
       .map((s) => (/\s/.test(s) ? `"${s}"` : s))
       .join(" ");
+
+    response.infoLog += `🔎 Using python interpreter: ${pythonBin}\n`;
 
     response.infoLog += `🔎 Running detection: ${cmd}\n`;
     const out = execSync(cmd, {
